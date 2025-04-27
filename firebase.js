@@ -1,7 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     // --- Configuration ---
     const firebaseConfig = {
-        apiKey: "AIzaSyBW1WPXUN8DYhT6npZQYoQ3l4J-jFSbzfg", // USE RULES!
+        apiKey: "AIzaSyBW1WPXUN8DYhT6npZQYoQ3l4J-jFSbzfg", // USE RULES! SECURE YOUR KEYS/RULES!
         authDomain: "ab-studio-marketcap.firebaseapp.com",
         databaseURL: "https://ab-studio-marketcap-default-rtdb.firebaseio.com",
         projectId: "ab-studio-marketcap",
@@ -13,58 +13,112 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Globals ---
     const tg = window.Telegram.WebApp;
     let currentUser = null;
-    let userBalances = {};
-    let availableTokens = {};
+    let userBalances = {}; // Store balances as { 'USD': 100, 'ABT': 50 }
+    let availableTokens = {}; // Store token info { 'ABT': { name: 'AB Token', priceUSD: 0.5, logoUrl: '...' } }
     let firebaseApp = null;
     let db = null;
     let userDbRef = null;
     let balanceListenerAttached = false;
-    const SWAP_FEE_PERCENT = 0.1; // 0.1%
+    const SWAP_FEE_PERCENT = 0.1; // 0.1% swap fee
 
     // Swap state
     let swapState = { fromToken: null, toToken: null, fromAmount: 0, toAmount: 0, rate: 0, isRateLoading: false };
-    let activeTokenSelector = null;
+    let activeTokenSelector = null; // 'from' or 'to'
 
     // --- DOM Elements ---
-    // ... (Get references to all elements as before) ...
     const loadingOverlay = document.getElementById('loading-overlay');
     const pages = document.querySelectorAll('.page');
     const navButtons = document.querySelectorAll('#bottom-nav .nav-button');
-    // ... (Home page elements)
-    const assetListContainer = document.getElementById('asset-list');
+    const backButtons = document.querySelectorAll('.back-button');
+    const refreshButton = document.getElementById('refresh-button');
+    // Home
+    const userInfoDisplay = document.getElementById('user-info-display');
     const totalBalanceDisplay = document.getElementById('total-balance-display');
-    // ... (Deposit page elements)
+    const assetListContainer = document.getElementById('asset-list');
+    // Receive (Deposit) Page
     const depositChatIdSpan = document.getElementById('deposit-chat-id');
-    // ... (Withdraw page elements - note ID changes)
+    // Send (Withdraw) Page
     const withdrawAssetSelect = document.getElementById('withdraw-asset-select');
     const withdrawAvailableBalance = document.getElementById('withdraw-available-balance');
-    const withdrawRecipientIdInput = document.getElementById('withdraw-recipient-id'); // Renamed ID
+    const withdrawRecipientIdInput = document.getElementById('withdraw-recipient-id'); // Input for Chat ID
     const withdrawAmountInput = document.getElementById('withdraw-amount');
-    const sendButton = document.getElementById('send-button'); // Renamed ID
+    const sendButton = document.getElementById('send-button'); // Send button
     const withdrawMaxButton = document.getElementById('withdraw-max-button');
-    const withdrawStatus = document.getElementById('withdraw-status'); // Keep ID for status message
-    // ... (Swap page elements)
+    const withdrawStatus = document.getElementById('withdraw-status'); // Status message element
+    // Swap Page
     const swapFromAmountInput = document.getElementById('swap-from-amount');
     const swapToAmountInput = document.getElementById('swap-to-amount');
+    const swapFromTokenButton = document.getElementById('swap-from-token-button');
+    const swapToTokenButton = document.getElementById('swap-to-token-button');
+    const swapFromBalance = document.getElementById('swap-from-balance');
+    const swapToBalance = document.getElementById('swap-to-balance');
+    const swapSwitchButton = document.getElementById('swap-switch-button');
     const swapRateDisplay = document.getElementById('swap-rate-display');
     const executeSwapButton = document.getElementById('execute-swap-button');
     const swapStatus = document.getElementById('swap-status');
-    // ... (Token modal elements) ...
+    // Token Modal
+    const tokenModal = document.getElementById('token-selector-modal');
+    const tokenSearchInput = document.getElementById('token-search-input');
+    const tokenListModal = document.getElementById('token-list-modal');
+    const closeModalButton = tokenModal?.querySelector('.close-modal-button');
+
 
     // --- Utility Functions ---
-    const formatCurrency = (amount) => { /* ... */ };
-    const formatTokenAmount = (amount, decimals = 6) => { /* ... */ };
+    const formatCurrency = (amount) => {
+        const num = parseFloat(amount) || 0;
+        return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    };
+    const formatTokenAmount = (amount, decimals = 6) => {
+         const num = parseFloat(amount) || 0;
+         return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: decimals });
+    };
     const sanitizeFloat = (value) => parseFloat(value) || 0;
     const sanitizeInt = (value) => parseInt(value, 10) || 0;
 
+
     // --- Loading & Alerts ---
-    function showLoading(message = "Loading...") { /* ... */ }
-    function hideLoading() { /* ... */ }
-    function showTgAlert(message, title = 'Info') { /* ... */ }
-    function handleFirebaseError(error, context = "Firebase operation") { /* ... */ }
+    function showLoading(message = "Loading...") {
+        if(!loadingOverlay) return;
+        loadingOverlay.querySelector('p').textContent = message;
+        loadingOverlay.classList.add('visible');
+    }
+    function hideLoading() {
+        if(loadingOverlay) loadingOverlay.classList.remove('visible');
+    }
+    function showTgAlert(message, title = 'Info') {
+        if (tg && typeof tg.showAlert === 'function') {
+            tg.showAlert(`${title}: ${message}`);
+        } else {
+            alert(`${title}: ${message}`); // Fallback
+            console.warn("Telegram WebApp context not fully available for alert.");
+        }
+    }
+    function handleFirebaseError(error, context = "Firebase operation") {
+        console.error(`${context} Error:`, error);
+        hideLoading();
+        let message = `Error: ${error.message || 'Unknown error'}. Code: ${error.code || 'N/A'}`;
+        if (error.code === 'PERMISSION_DENIED') {
+             message = "Error: Permission denied. Check Firebase rules.";
+         }
+        showTgAlert(message, context);
+    }
+
 
     // --- Navigation & Page Handling ---
-    function showPage(pageId) { /* ... (same as before, updates active classes, resets scroll) ... */
+    function showPage(pageId) {
+        let pageFound = false;
+        pages.forEach(page => {
+             const isActive = page.id === pageId;
+             page.classList.toggle('active', isActive);
+             if(isActive) pageFound = true;
+        });
+        if (!pageFound) { console.error(`Page "${pageId}" not found.`); pageId = 'home-page'; pages[0]?.classList.add('active'); } // Default to home
+
+        navButtons.forEach(button => {
+            button.classList.toggle('active', button.dataset.page === pageId);
+        });
+        document.getElementById('main-content').scrollTop = 0; // Reset scroll
+
         // Page specific setup/reset
         if (pageId === 'home-page') updateHomePageUI();
         if (pageId === 'withdraw-page') setupSendPage(); // Use new setup function name
@@ -72,365 +126,506 @@ document.addEventListener('DOMContentLoaded', () => {
         if (pageId === 'swap-page') setupSwapPage();
     }
 
-    // --- Core Data Handling & UI Updates ---
-    async function fetchAvailableTokens() { /* ... (same as before) ... */ }
-    function updateHomePageUI() { /* ... (same as before - displays assets & total balance) ... */ }
-    function displayUserInfo() { /* ... (same as before) ... */ }
 
-    /** Sets up the REVEIVE funds page UI (formerly Deposit) */
+    // --- Core Data Handling & UI Updates ---
+    /** Fetches token definitions from Firebase */
+    async function fetchAvailableTokens() {
+        if (!db) return;
+        try {
+            const snapshot = await db.ref('tokens').once('value');
+            availableTokens = snapshot.val() || {};
+            console.log("Available tokens fetched:", Object.keys(availableTokens));
+             // Initial population after tokens are loaded
+             populateTokenSelectors(); // For Swap page
+             updateWithdrawAssetSelector(); // For Send page
+        } catch (error) {
+            handleFirebaseError(error, "fetching token list");
+        }
+    }
+
+     /** Updates the main portfolio display on the Home page */
+     function updateHomePageUI() {
+         if (!assetListContainer || !totalBalanceDisplay) return;
+         let totalValueUSD = 0;
+         assetListContainer.innerHTML = ''; // Clear existing list
+
+         const sortedSymbols = Object.keys(userBalances)
+            .filter(symbol => userBalances[symbol] > 0.000001 && availableTokens[symbol]) // Only show if token exists
+            .sort((a, b) => {
+                const valueA = (userBalances[a] || 0) * (availableTokens[a]?.priceUSD || 0);
+                const valueB = (userBalances[b] || 0) * (availableTokens[b]?.priceUSD || 0);
+                return valueB - valueA;
+            });
+
+         if (sortedSymbols.length === 0) {
+             assetListContainer.innerHTML = '<p class="no-assets">You have no assets yet.</p>';
+         } else {
+             sortedSymbols.forEach(symbol => {
+                 const balance = userBalances[symbol] || 0;
+                 const tokenInfo = availableTokens[symbol]; // Already checked it exists
+                 const priceUSD = tokenInfo.priceUSD || 0;
+                 const valueUSD = balance * priceUSD;
+                 totalValueUSD += valueUSD;
+
+                 const card = document.createElement('div');
+                 card.className = 'asset-card';
+                 card.innerHTML = `
+                     <div class="asset-info">
+                         <img src="${tokenInfo.logoUrl || 'placeholder.png'}" alt="${symbol}" class="asset-logo" onerror="this.src='placeholder.png'; this.onerror=null;">
+                         <div class="asset-name-symbol">
+                             <div class="name">${tokenInfo.name || symbol}</div>
+                             <div class="symbol">${symbol}</div>
+                         </div>
+                     </div>
+                     <div class="asset-balance-value">
+                         <div class="balance">${formatTokenAmount(balance, symbol === 'USD' ? 2 : 6)}</div>
+                         <div class="value-usd">≈ $${formatCurrency(valueUSD)}</div>
+                     </div>
+                 `;
+                 assetListContainer.appendChild(card);
+             });
+         }
+         totalBalanceDisplay.textContent = formatCurrency(totalValueUSD);
+     }
+
+    /** Displays user profile info */
+    function displayUserInfo() {
+        if (!userInfoDisplay || !currentUser) { /* ... handle missing element/user ... */ return; }
+        const { first_name = '', last_name = '', username = null, id } = currentUser;
+        const fullName = `${first_name} ${last_name}`.trim() || 'N/A';
+        userInfoDisplay.innerHTML = `
+            <p><strong>Name:</strong> <span>${fullName}</span></p>
+            <p><strong>Username:</strong> <span>${username ? '@' + username : 'N/A'}</span></p>
+            <p><strong>Chat ID:</strong> <span>${id}</span></p>
+        `;
+    }
+
+    /** Sets up the RECEIVE funds page UI */
     function setupReceivePage() {
         if (depositChatIdSpan && currentUser) {
             depositChatIdSpan.textContent = currentUser.id;
-            const copyBtn = depositChatIdSpan.nextElementSibling;
+            const copyBtn = depositChatIdSpan.closest('.deposit-info-card')?.querySelector('.copy-button');
             if (copyBtn) copyBtn.dataset.clipboardText = currentUser.id;
         } else if (depositChatIdSpan) {
             depositChatIdSpan.textContent = 'Not available';
         }
     }
 
+
     // --- Firebase Realtime Updates ---
-    function setupBalanceListener() { /* ... (same as before, updates userBalances and triggers UI updates) ... */ }
+    function setupBalanceListener() {
+        if (!userDbRef || balanceListenerAttached) return;
+        const balancesRef = userDbRef.child('balances');
+        balancesRef.on('value', (snapshot) => {
+            userBalances = snapshot.val() || {};
+            console.log("Realtime balances update:", userBalances);
+            if (document.getElementById('home-page')?.classList.contains('active')) updateHomePageUI();
+            if (document.getElementById('swap-page')?.classList.contains('active')) {
+                updateSwapBalancesUI();
+                validateSwapInput(); // Re-check if enough balance after update
+            }
+            if (document.getElementById('withdraw-page')?.classList.contains('active')) {
+                updateWithdrawPageBalance(); // This calls validateSendInput
+            }
+        }, (error) => {
+            handleFirebaseError(error, "listening to balances");
+            balanceListenerAttached = false;
+        });
+        balanceListenerAttached = true;
+        console.log("Balances listener attached.");
+    }
+
 
     /** Initializes Firebase and User Data */
-    async function initializeFirebaseAndUser() { /* ... (same as before, loads tokens, loads/creates user, attaches listener) ... */ }
-    function disableAppFeatures() { /* ... */ }
+    async function initializeFirebaseAndUser() {
+        showLoading("Connecting & Loading Data...");
+        try {
+            if (!firebase.apps.length) { firebaseApp = firebase.initializeApp(firebaseConfig); }
+            else { firebaseApp = firebase.app(); }
+            db = firebase.database();
+            console.log("Firebase Initialized");
+
+            await fetchAvailableTokens(); // Load tokens first, needed for UI population
+
+            if (!currentUser || !currentUser.id) { throw new Error("User data not available."); }
+
+            const userId = currentUser.id.toString();
+            userDbRef = db.ref('users/' + userId);
+
+            const snapshot = await userDbRef.once('value');
+            if (!snapshot.exists()) {
+                console.log(`User ${userId} not found. Creating...`);
+                const initialBalances = { USD: 0 }; // Start with 0 USD
+                await userDbRef.set({
+                    profile: { /* ... profile data ... */ },
+                    balances: initialBalances
+                });
+                userBalances = initialBalances;
+            } else {
+                const userData = snapshot.val();
+                userBalances = userData.balances || { USD: 0 };
+                 // Update profile info silently
+                 userDbRef.child('profile').update({ /* ... names, lastLogin ... */ });
+            }
+
+            setupBalanceListener(); // Attach listener AFTER initial load/create
+            updateHomePageUI(); // Initial UI update for home page
+            hideLoading();
+
+        } catch (error) {
+            handleFirebaseError(error, "Initialization");
+            disableAppFeatures();
+        }
+    }
+
+    function disableAppFeatures() {
+        console.error("Disabling app features due to initialization error.");
+        navButtons.forEach(b => b.disabled = true);
+        // Potentially show an error message overlay
+    }
 
 
     // --- Swap Functionality (with Fee) ---
+    function openTokenModal(selectorType) { /* ... */ }
+    function closeTokenModal() { /* ... */ }
+    function populateTokenListModal(searchTerm = '') { /* ... */ }
+    function handleTokenSelection(selectedSymbol) { /* ... */ }
+    function updateTokenButtonUI(buttonElement, tokenSymbol) { /* ... */ }
+    function updateSwapBalancesUI() { /* ... */ }
+    function populateTokenSelectors() { /* ... */ }
 
-    function openTokenModal(selectorType) { /* ... (same) ... */ }
-    function closeTokenModal() { /* ... (same) ... */ }
-    function populateTokenListModal(searchTerm = '') { /* ... (same) ... */ }
-    function handleTokenSelection(selectedSymbol) { /* ... (same logic, calls updateSwapUI) ... */ }
-    function updateTokenButtonUI(buttonElement, tokenSymbol) { /* ... (same) ... */ }
-    function updateSwapBalancesUI() { /* ... (same) ... */ }
-    function populateTokenSelectors() { /* ... (same) ... */ }
-
-    /** Calculates the swap rate and estimated output amount (Rate doesn't include fee) */
+    /** Calculates the swap rate (Rate doesn't include fee) */
     function calculateSwapRate() {
-        // ... (Fetch token prices as before) ...
-        if (!fromTokenInfo || !toTokenInfo || !fromTokenInfo.priceUSD || !toTokenInfo.priceUSD || toTokenInfo.priceUSD <= 0) {
-            // ... (Handle price error) ...
-            swapState.rate = 0;
-            calculateSwapAmounts(); // Calculate amounts even if rate is 0 (will result in 0)
+        const { fromToken, toToken } = swapState;
+        swapState.rate = 0; // Reset rate
+        if (!fromToken || !toToken || !availableTokens[fromToken] || !availableTokens[toToken]) {
+            calculateSwapAmounts(); // Calculate amounts (will be 0) and update UI
             return;
         }
-
-        swapState.rate = fromTokenInfo.priceUSD / toTokenInfo.priceUSD;
-        calculateSwapAmounts(); // Calculate amounts based on the new rate
+        const fromPrice = availableTokens[fromToken].priceUSD || 0;
+        const toPrice = availableTokens[toToken].priceUSD || 0;
+        if (fromPrice <= 0 || toPrice <= 0) {
+            console.error("Cannot calculate rate due to zero price for", fromToken, "or", toToken);
+             calculateSwapAmounts(); // Calculate amounts (will be 0) and update UI
+             return;
+        }
+        swapState.rate = fromPrice / toPrice;
+        calculateSwapAmounts(); // Recalculate amounts based on new rate
     }
 
     /** Calculates the From/To amounts INCLUDING the fee */
     function calculateSwapAmounts() {
         const { fromToken, toToken, fromAmount, rate } = swapState;
-
+        swapState.toAmount = 0; // Reset 'to' amount
         if (!fromToken || !toToken || !fromAmount || fromAmount <= 0 || rate <= 0) {
-            swapState.toAmount = 0;
-            updateSwapUI();
-            return;
+             updateSwapUI();
+             return;
         }
 
         let calculatedToAmount = 0;
         const feeMultiplier = SWAP_FEE_PERCENT / 100;
 
-        // Applying Fee Logic:
-        if (fromToken === 'USD') {
-            // Buying Coin (USD -> Other): User pays slightly more USD effectively per coin
-            // Or gets slightly fewer coins for their USD.
-            const amountAfterFee = fromAmount * (1 - feeMultiplier); // Reduce the input USD by the fee first
-            calculatedToAmount = amountAfterFee * rate; // Convert the reduced USD to the target token
-        } else if (toToken === 'USD') {
-            // Selling Coin (Other -> USD): User gets slightly less USD back per coin.
-            calculatedToAmount = (fromAmount * rate) * (1 - feeMultiplier); // Calculate base USD value, then deduct fee
-        } else {
-            // Coin to Coin (e.g., ABT -> BTC): Apply fee on the output amount
+        if (fromToken === 'USD') { // Buying Coin (USD -> Other)
+            const amountAfterFee = fromAmount * (1 - feeMultiplier);
+            calculatedToAmount = amountAfterFee * rate;
+        } else if (toToken === 'USD') { // Selling Coin (Other -> USD)
+            calculatedToAmount = (fromAmount * rate) * (1 - feeMultiplier);
+        } else { // Coin to Coin (e.g., ABT -> BTC)
             const baseToAmount = fromAmount * rate;
             calculatedToAmount = baseToAmount * (1 - feeMultiplier);
         }
-
         swapState.toAmount = calculatedToAmount > 0 ? calculatedToAmount : 0;
-        updateSwapUI();
+        updateSwapUI(); // Update all swap UI elements
     }
 
-
-    /** Handles changes in the 'From' amount input */
     function handleFromAmountChange() {
         swapState.fromAmount = sanitizeFloat(swapFromAmountInput.value);
-        // Rate doesn't change, but output amount does
-        calculateSwapAmounts();
+        calculateSwapAmounts(); // Recalculate output and update UI
     }
 
-    /** Switches the 'from' and 'to' tokens */
     function switchSwapTokens() {
-        // ... (Swap tokens in swapState as before) ...
-        // Swap amounts: Set new 'from' amount based on old 'to' amount (estimation)
-        const oldToAmount = swapState.toAmount;
-        swapState.fromAmount = oldToAmount; // Use the *estimated* output as the new input
-        // Need to recalculate the rate and then the *new* output amount
-        calculateSwapRate(); // This recalculates rate AND calls calculateSwapAmounts
+        const tempToken = swapState.fromToken;
+        swapState.fromToken = swapState.toToken;
+        swapState.toToken = tempToken;
+        // Use the old estimated 'to' amount as the new 'from' amount for convenience
+        swapState.fromAmount = swapState.toAmount; // Note: This is the *fee-adjusted* amount
+        calculateSwapRate(); // Recalculate rate and then the new 'to' amount
     }
 
-    /** Updates the UI elements on the swap page based on swapState */
+    /** Validates swap inputs and enables/disables swap button */
+    function validateSwapInput() {
+         const { fromToken, toToken, fromAmount, toAmount } = swapState;
+         const hasSufficientBalance = (userBalances[fromToken] || 0) >= fromAmount;
+         const isValid = fromToken && toToken && fromAmount > 0 && toAmount > 0 && hasSufficientBalance;
+         if (executeSwapButton) executeSwapButton.disabled = !isValid;
+    }
+
     function updateSwapUI() {
         // ... (Update token buttons, balances as before) ...
-        swapFromAmountInput.value = swapState.fromAmount > 0 ? swapState.fromAmount : '';
-        swapToAmountInput.value = swapState.toAmount > 0 ? formatTokenAmount(swapState.toAmount) : ''; // Display formatted 'to' amount
+        if (swapFromAmountInput) swapFromAmountInput.value = swapState.fromAmount > 0 ? swapState.fromAmount : '';
+        if (swapToAmountInput) swapToAmountInput.value = swapState.toAmount > 0 ? formatTokenAmount(swapState.toAmount, availableTokens[swapState.toToken]?.symbol === 'USD' ? 2 : 6) : '';
 
-        // ... (Update rate display as before - rate itself doesn't show fee) ...
-        if (swapState.rate > 0 && swapState.fromToken && swapState.toToken) {
-             // Rate display remains the same (base rate)
-             swapRateDisplay.textContent = `1 ${swapState.fromToken} ≈ ${formatTokenAmount(swapState.rate)} ${swapState.toToken}`;
-        } else { /* ... handle no rate/loading ... */ }
-
-        // ... (Update executeSwapButton disabled state based on fromAmount > 0, toAmount > 0, and sufficient balance) ...
-        executeSwapButton.disabled = !(
-             swapState.fromToken &&
-             swapState.toToken &&
-             swapState.fromAmount > 0 &&
-             swapState.toAmount > 0 && // Ensure calculated output is positive
-             (userBalances[swapState.fromToken] || 0) >= swapState.fromAmount
-         );
+        if (swapRateDisplay) {
+             if (swapState.rate > 0 && swapState.fromToken && swapState.toToken) {
+                swapRateDisplay.textContent = `1 ${swapState.fromToken} ≈ ${formatTokenAmount(swapState.rate)} ${swapState.toToken}`;
+                swapRateDisplay.classList.remove('error', 'loading');
+             } else if (swapState.fromToken && swapState.toToken) {
+                swapRateDisplay.textContent = 'Loading rate...';
+                swapRateDisplay.classList.add('loading');
+                swapRateDisplay.classList.remove('error');
+             } else {
+                swapRateDisplay.textContent = 'Select tokens';
+                swapRateDisplay.classList.remove('error', 'loading');
+             }
+        }
+        validateSwapInput(); // Check button state after UI updates
     }
 
-
-    /** Executes the swap (Simulated & Insecure) including fees */
     async function executeSwap() {
-        // ... (Initial checks for userDbRef, currentUser, disabled state) ...
+        if (!userDbRef || !currentUser || !executeSwapButton || executeSwapButton.disabled) return;
 
-        // Use the amounts from swapState, which already include fee calculations
         const { fromToken, toToken, fromAmount, toAmount } = swapState;
-        const currentFromBalance = userBalances[fromToken] || 0;
-
-        // ... (Final validation checks: amounts > 0, sufficient balance) ...
-        if (currentFromBalance < fromAmount) { /* ... insufficient balance error ... */ return; }
+        // Final validation before execution
+        if (!fromToken || !toToken || fromAmount <= 0 || toAmount <= 0 || (userBalances[fromToken] || 0) < fromAmount) {
+            showTgAlert("Invalid swap details or insufficient balance.", "Swap Error");
+            return;
+        }
 
         showLoading("Processing Swap...");
         executeSwapButton.disabled = true;
-        swapStatus.textContent = 'Processing...'; // ... set pending class ...
+        swapStatus.textContent = 'Processing...'; swapStatus.className = 'status-message pending';
 
-        const newFromBalance = currentFromBalance - fromAmount;
-        const currentToBalance = userBalances[toToken] || 0;
-        const newToBalance = currentToBalance + toAmount; // Use the fee-adjusted 'toAmount'
+        const newFromBalance = (userBalances[fromToken] || 0) - fromAmount;
+        const newToBalance = (userBalances[toToken] || 0) + toAmount;
 
-        // ** INSECURE: Direct Client-Side Balance Update **
-        const balanceUpdates = {};
-        balanceUpdates[`/users/${currentUser.id}/balances/${fromToken}`] = sanitizeFloat(newFromBalance.toFixed(8)); // Store with precision
-        balanceUpdates[`/users/${currentUser.id}/balances/${toToken}`] = sanitizeFloat(newToBalance.toFixed(8));
+        // ** INSECURE CLIENT-SIDE UPDATE ** Requires Backend for security
+        const updates = {};
+        const senderId = currentUser.id;
+        updates[`/users/${senderId}/balances/${fromToken}`] = sanitizeFloat(newFromBalance.toFixed(8));
+        updates[`/users/${senderId}/balances/${toToken}`] = sanitizeFloat(newToBalance.toFixed(8));
 
-        const txData = {
-            type: 'swap', fromToken, fromAmount, toToken, toAmount, // Log the actual exchanged amounts
-            rate: swapState.rate, // Log the base rate
-            feePercent: SWAP_FEE_PERCENT,
-            timestamp: firebase.database.ServerValue.TIMESTAMP, status: 'completed'
-        };
-        const newTxKey = db.ref(`/transactions/${currentUser.id}`).push().key;
-        balanceUpdates[`/transactions/${currentUser.id}/${newTxKey}`] = txData;
+        const txData = { /* ... tx details including fee ... */ };
+        const newTxKey = db.ref(`/transactions/${senderId}`).push().key;
+        updates[`/transactions/${senderId}/${newTxKey}`] = txData;
 
         try {
-            await db.ref().update(balanceUpdates);
-            // ... (Success feedback, reset form after delay) ...
-            swapStatus.textContent = 'Swap Successful!'; // ... set success class ...
-             setTimeout(() => { /* reset state, clear status */ }, 2000);
+            await db.ref().update(updates);
+            swapStatus.textContent = 'Swap Successful!'; swapStatus.className = 'status-message success';
+            setTimeout(() => { /* reset swap form, clear status */ swapState.fromAmount = 0; swapState.toAmount=0; updateSwapUI(); swapStatus.textContent=''; }, 2500);
         } catch (error) {
             handleFirebaseError(error, "executing swap");
-             swapStatus.textContent = 'Swap Failed.'; // ... set error class ...
+            swapStatus.textContent = 'Swap Failed.'; swapStatus.className = 'status-message error';
+            // Consider reverting optimistic UI changes or forcing refresh on error
         } finally {
             hideLoading();
-            // updateSwapUI(); // Let listener update balances, then re-validate button state
+            // Don't re-enable button immediately, let validation logic handle it based on updated balances
         }
     }
 
-    function setupSwapPage() { /* ... (Reset state, update UI) ... */ }
+    function setupSwapPage() {
+         // Keep selected tokens? Or reset? Let's keep them for now.
+         swapState.fromAmount = 0;
+         swapState.toAmount = 0;
+         calculateSwapRate(); // Calculate rate for current tokens
+         updateSwapUI();
+         if(swapStatus) swapStatus.textContent = '';
+    }
 
 
     // --- Internal Send/Withdraw Functionality ---
-
-    /** Populates the asset selector on the send page */
-    function updateWithdrawAssetSelector() { /* ... (same as before) ... */ }
-
-    /** Updates the available balance display on the send page */
-    function updateWithdrawPageBalance() {
-        // ... (same as before, reads withdrawAssetSelect.value, updates withdrawAvailableBalance) ...
-        validateSendInput(); // Use new validation function name
+    function updateWithdrawAssetSelector() {
+        if (!withdrawAssetSelect) return;
+        const previousValue = withdrawAssetSelect.value;
+        withdrawAssetSelect.innerHTML = '<option value="">-- Select Asset --</option>';
+        Object.keys(availableTokens)
+             .sort((a, b) => a.localeCompare(b))
+             .forEach(symbol => {
+                 const tokenInfo = availableTokens[symbol];
+                 if (tokenInfo) {
+                     const option = document.createElement('option');
+                     option.value = symbol;
+                     option.textContent = `${tokenInfo.name} (${symbol})`;
+                     withdrawAssetSelect.appendChild(option);
+                 }
+             });
+        // Restore selection if possible
+        if (previousValue && withdrawAssetSelect.querySelector(`option[value="${previousValue}"]`)) {
+             withdrawAssetSelect.value = previousValue;
+         } else {
+             withdrawAssetSelect.value = "";
+         }
+        updateWithdrawPageBalance(); // Update balance display for selected asset
     }
 
-    /** Validates the input fields on the Send Funds page */
+    function updateWithdrawPageBalance() {
+        if (!withdrawAvailableBalance || !withdrawAssetSelect) return;
+        const selectedSymbol = withdrawAssetSelect.value;
+        const balance = userBalances[selectedSymbol] || 0;
+        withdrawAvailableBalance.textContent = `${formatTokenAmount(balance, selectedSymbol === 'USD' ? 2 : 6)} ${selectedSymbol || ''}`;
+        if (withdrawMaxButton) withdrawMaxButton.disabled = balance <= 0;
+        validateSendInput(); // Re-validate inputs after balance update
+    }
+
     function validateSendInput() {
+        if (!sendButton || !withdrawAssetSelect || !withdrawAmountInput || !withdrawRecipientIdInput) return;
+
         const selectedSymbol = withdrawAssetSelect.value;
         const amount = sanitizeFloat(withdrawAmountInput.value);
         const balance = userBalances[selectedSymbol] || 0;
         const recipientIdStr = withdrawRecipientIdInput.value.trim();
+        const recipientId = sanitizeInt(recipientIdStr);
 
         let isValid = true;
         let statusMsg = '';
-        withdrawStatus.className = 'status-message'; // Reset status class
+        withdrawStatus.className = 'status-message'; // Reset status
 
-        if (!selectedSymbol) {
-            isValid = false;
-            // No message, just disable button
-        } else if (amount <= 0) {
-             isValid = false;
-             // No message for 0
-        } else if (amount > balance) {
-            isValid = false;
-            statusMsg = 'Amount exceeds available balance.';
-            withdrawStatus.className = 'status-message error';
-        } else if (!recipientIdStr) {
-             isValid = false;
-             // No message until trying to send
-        } else if (!/^\d+$/.test(recipientIdStr)) { // Basic check for digits only
-            isValid = false;
-             statusMsg = 'Recipient Chat ID must be a number.';
-             withdrawStatus.className = 'status-message error';
-        } else if (currentUser && sanitizeInt(recipientIdStr) === currentUser.id) {
-             isValid = false;
-             statusMsg = 'You cannot send funds to yourself.';
-             withdrawStatus.className = 'status-message error';
-        }
+        if (!selectedSymbol) isValid = false;
+        else if (amount <= 0) isValid = false;
+        else if (amount > balance) { isValid = false; statusMsg = 'Amount exceeds available balance.'; withdrawStatus.className = 'status-message error'; }
+        else if (!recipientIdStr) isValid = false;
+        else if (!/^\d+$/.test(recipientIdStr) || recipientId <= 0) { isValid = false; statusMsg = 'Invalid Recipient Chat ID.'; withdrawStatus.className = 'status-message error'; }
+        else if (currentUser && recipientId === currentUser.id) { isValid = false; statusMsg = 'Cannot send to yourself.'; withdrawStatus.className = 'status-message error'; }
 
-        sendButton.disabled = !isValid; // Use the renamed button ID maybe? Or keep withdrawButton ID? Let's assume sendButton ID is used in HTML now.
-        if (statusMsg && (amount > 0 || recipientIdStr)) { // Show status if user is typing valid numbers or ID
-            withdrawStatus.textContent = statusMsg;
-        } else if (!isValid && !sendButton.disabled) {
-            // Clear status if input becomes invalid silently
-            withdrawStatus.textContent = '';
-        }
+        sendButton.disabled = !isValid;
+        withdrawStatus.textContent = statusMsg; // Display error message
     }
 
-    /** Handles the internal transfer process (Simulated & Insecure) */
     async function handleSend() {
-        if (!userDbRef || !currentUser || !db) { showTgAlert("User or database connection missing.", "Send Error"); return; }
-        if (sendButton.disabled) { return; }
+        if (!userDbRef || !currentUser || !db || !sendButton || sendButton.disabled) return;
 
         const selectedSymbol = withdrawAssetSelect.value;
         const recipientId = sanitizeInt(withdrawRecipientIdInput.value);
         const amount = sanitizeFloat(withdrawAmountInput.value);
         const senderId = currentUser.id;
-        const senderBalance = userBalances[selectedSymbol] || 0;
-
-        // Final Validation
-        if (!selectedSymbol || amount <= 0 || !recipientId || amount > senderBalance || recipientId === senderId) {
-            showTgAlert("Invalid send parameters or insufficient funds.", "Send Error");
-            validateSendInput(); // Re-run validation
+        // Use current state balance for validation check
+        if (!selectedSymbol || amount <= 0 || !recipientId || recipientId === senderId || (userBalances[selectedSymbol] || 0) < amount) {
+            showTgAlert("Invalid send details or insufficient funds.", "Send Error");
+            validateSendInput();
             return;
         }
 
         showLoading("Processing Transfer...");
         sendButton.disabled = true;
-        withdrawStatus.textContent = 'Processing...';
-        withdrawStatus.className = 'status-message pending';
+        withdrawStatus.textContent = 'Verifying recipient...'; withdrawStatus.className = 'status-message pending';
 
-        // --- Simulate Recipient Lookup (INSECURE CLIENT-SIDE) ---
-        // SECURITY WARNING: This check should happen on a backend.
+        // ** INSECURE CLIENT-SIDE RECIPIENT CHECK ** Requires Backend
         const recipientRef = db.ref(`users/${recipientId}`);
         let recipientExists = false;
         try {
-            const recipientSnapshot = await recipientRef.child('profile/telegram_id').once('value'); // Check if profile/ID exists
-            if (recipientSnapshot.exists() && recipientSnapshot.val() === recipientId) {
-                 recipientExists = true;
-            }
-        } catch (error) {
-             console.error("Error checking recipient:", error);
-             // Continue cautiously, backend must verify anyway
-        }
+            // Check if recipient has a profile (basic check)
+            const recipientSnapshot = await recipientRef.child('profile').once('value');
+            recipientExists = recipientSnapshot.exists();
+        } catch (error) { console.error("Error checking recipient:", error); /* Handle error */ }
 
         if (!recipientExists) {
             hideLoading();
-             withdrawStatus.textContent = 'Recipient Chat ID not found in AB Wallet.';
-             withdrawStatus.className = 'status-message error';
-             sendButton.disabled = false; // Re-enable
-             return;
+            withdrawStatus.textContent = 'Recipient Chat ID not found.'; withdrawStatus.className = 'status-message error';
+            validateSendInput(); // Re-enable button if appropriate
+            return;
         }
-        // --- End Simulated Lookup ---
 
+        withdrawStatus.textContent = 'Processing transfer...'; // Update status
 
-        const newSenderBalance = senderBalance - amount;
-        // We need the recipient's current balance - this requires another read (or trust the listener, risky)
-        // For an atomic update, Firebase Functions (backend) is the way.
-        // SIMULATING here with potentially stale data if listener hasn't updated.
-        // **BETTER**: Use Firebase Transaction on the backend.
-        // **Client-side simulation (less safe):** Read recipient balance just before writing.
-        let recipientBalance = 0;
-        try {
-             const recipBalanceSnapshot = await recipientRef.child(`balances/${selectedSymbol}`).once('value');
-             recipientBalance = sanitizeFloat(recipBalanceSnapshot.val());
-        } catch(e) { console.warn("Could not read recipient balance accurately for update", e); }
-
-        const newRecipientBalance = recipientBalance + amount;
-
-        // --- Prepare Atomic Update (INSECURE CLIENT-SIDE EXECUTION) ---
+        // ** INSECURE CLIENT-SIDE ATOMIC UPDATE SIMULATION ** Requires Backend with Transactions
         const updates = {};
         const senderBalancePath = `/users/${senderId}/balances/${selectedSymbol}`;
         const recipientBalancePath = `/users/${recipientId}/balances/${selectedSymbol}`;
+
+        // Need recipient's current balance for accurate update - fetch just before write (still risky client-side)
+        let recipientCurrentBalance = 0;
+        try {
+            const recipBalanceSnapshot = await recipientRef.child(`balances/${selectedSymbol}`).once('value');
+            recipientCurrentBalance = sanitizeFloat(recipBalanceSnapshot.val());
+        } catch (e) { console.warn("Could not reliably read recipient balance before update", e); }
+
+        const newSenderBalance = (userBalances[selectedSymbol] || 0) - amount;
+        const newRecipientBalance = recipientCurrentBalance + amount;
+
         updates[senderBalancePath] = sanitizeFloat(newSenderBalance.toFixed(8));
         updates[recipientBalancePath] = sanitizeFloat(newRecipientBalance.toFixed(8));
 
-        // Log transaction for both sender and receiver
-        const txId = db.ref().push().key; // Generate unique ID once
+        // Log transaction for both parties
+        const txId = db.ref(`/transactions/${senderId}`).push().key; // Use sender's node to generate key
         const timestamp = firebase.database.ServerValue.TIMESTAMP;
-
         const senderTx = { type: 'send', token: selectedSymbol, amount, recipientId, timestamp, status: 'completed' };
         const receiverTx = { type: 'receive', token: selectedSymbol, amount, senderId, timestamp, status: 'completed' };
-
         updates[`/transactions/${senderId}/${txId}`] = senderTx;
-        updates[`/transactions/${recipientId}/${txId}`] = receiverTx;
-        // --- End Update Preparation ---
+        updates[`/transactions/${recipientId}/${txId}`] = receiverTx; // Log in recipient's history too
 
         try {
-             // **SECURITY FLAW:** Client executing multi-user balance changes. Requires backend.
-            await db.ref().update(updates);
-
-            console.log("Internal transfer successful (simulated).");
-            withdrawStatus.textContent = 'Funds Sent Successfully!';
-            withdrawStatus.className = 'status-message success';
-            withdrawAmountInput.value = ''; // Clear inputs
-            withdrawRecipientIdInput.value = '';
+            await db.ref().update(updates); // Attempt atomic update
+            withdrawStatus.textContent = 'Funds Sent Successfully!'; withdrawStatus.className = 'status-message success';
+            withdrawAmountInput.value = ''; withdrawRecipientIdInput.value = '';
             setTimeout(() => { withdrawStatus.textContent = ''; }, 3000);
-
         } catch (error) {
             handleFirebaseError(error, "executing internal transfer");
-            withdrawStatus.textContent = 'Send Failed. Please try again.';
-            withdrawStatus.className = 'status-message error';
-             // NOTE: A failed atomic update might leave partial changes if not structured perfectly (another reason for backend/transactions)
+            withdrawStatus.textContent = 'Send Failed.'; withdrawStatus.className = 'status-message error';
         } finally {
             hideLoading();
-            // Balances will update via listener, re-validating button state
-            // validateSendInput(); // Let listener handle UI update then validate
+            // Let listener update balances and re-validate button state via validateSendInput()
         }
     }
 
-    /** Sets up the Send Funds page (formerly Withdraw) */
     function setupSendPage() {
-         updateWithdrawAssetSelector();
-         withdrawAmountInput.value = '';
-         withdrawRecipientIdInput.value = ''; // Clear recipient ID
-         withdrawStatus.textContent = '';
-         withdrawStatus.className = 'status-message';
-         updateWithdrawPageBalance();
-         validateSendInput(); // Initial validation
+         if(withdrawAssetSelect) updateWithdrawAssetSelector(); // Populate/update asset list
+         if(withdrawAmountInput) withdrawAmountInput.value = '';
+         if(withdrawRecipientIdInput) withdrawRecipientIdInput.value = '';
+         if(withdrawStatus) { withdrawStatus.textContent = ''; withdrawStatus.className = 'status-message'; }
+         updateWithdrawPageBalance(); // Update balance display
+         validateSendInput(); // Set initial button state
     }
 
     // --- Event Listeners ---
-    // ... (Nav, Back, Refresh, Swap page listeners remain mostly the same) ...
+    navButtons.forEach(button => button.addEventListener('click', () => showPage(button.dataset.page)));
+    backButtons.forEach(button => button.addEventListener('click', () => showPage(button.dataset.target || 'home-page')));
+    if(refreshButton) refreshButton.addEventListener('click', initializeFirebaseAndUser); // Re-fetch data
 
-    // Update Send/Withdraw Page Listeners
+    // Swap Page
+    if(swapFromAmountInput) swapFromAmountInput.addEventListener('input', handleFromAmountChange);
+    if(swapSwitchButton) swapSwitchButton.addEventListener('click', switchSwapTokens);
+    if(executeSwapButton) executeSwapButton.addEventListener('click', executeSwap);
+    if(swapFromTokenButton) swapFromTokenButton.addEventListener('click', () => openTokenModal('from'));
+    if(swapToTokenButton) swapToTokenButton.addEventListener('click', () => openTokenModal('to'));
+
+    // Token Modal
+    if (closeModalButton) closeModalButton.addEventListener('click', closeTokenModal);
+    if (tokenSearchInput) tokenSearchInput.addEventListener('input', (e) => populateTokenListModal(e.target.value));
+    if (tokenModal) tokenModal.addEventListener('click', (e) => { if (e.target === tokenModal) closeTokenModal(); }); // Close on outside click
+
+    // Send Page
     if (withdrawAssetSelect) withdrawAssetSelect.addEventListener('change', updateWithdrawPageBalance);
     if (withdrawAmountInput) withdrawAmountInput.addEventListener('input', validateSendInput);
-    if (withdrawRecipientIdInput) withdrawRecipientIdInput.addEventListener('input', validateSendInput); // Changed ID
-    if (withdrawMaxButton) withdrawMaxButton.addEventListener('click', () => { /* ... same max logic ... */ validateSendInput(); });
-    if (sendButton) sendButton.addEventListener('click', handleSend); // Changed ID
+    if (withdrawRecipientIdInput) withdrawRecipientIdInput.addEventListener('input', validateSendInput);
+    if (withdrawMaxButton) withdrawMaxButton.addEventListener('click', () => {
+        const selectedSymbol = withdrawAssetSelect?.value;
+        if (selectedSymbol && withdrawAmountInput) {
+            withdrawAmountInput.value = userBalances[selectedSymbol] || 0;
+             validateSendInput();
+        }
+    });
+    if(sendButton) sendButton.addEventListener('click', handleSend);
+
 
     // --- Initialization ---
     function startApp() {
         console.log("DOM Loaded. Initializing AB Wallet Pro+...");
-        // ... (tg.ready, tg.expand, theme apply) ...
+        tg.ready();
+        tg.expand();
+        // Apply theme params if needed
 
+        // Use initDataUnsafe for display only, VALIDATE initData on backend for secure actions
         if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
             currentUser = tg.initDataUnsafe.user;
+            console.log("User Data:", currentUser.id, currentUser.username);
             displayUserInfo();
             initializeFirebaseAndUser();
-        } else { /* ... handle no user error ... */ }
-        showPage('home-page');
+        } else {
+            console.error("Could not retrieve Telegram user data.");
+            showTgAlert("Could not load user information. Wallet functionality limited.", "Initialization Error");
+            hideLoading();
+            disableAppFeatures();
+        }
+        showPage('home-page'); // Default to home page
     }
     startApp();
 
