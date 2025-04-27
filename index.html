@@ -2,30 +2,21 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <!-- Make sure viewport settings prevent zooming and ensure proper scaling -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>AB Wallet Pro</title>
-
-    <!-- Link to CSS -->
+    <title>AB Wallet Pro+</title>
     <link rel="stylesheet" href="style.css">
-
-    <!-- Telegram WebApp JS -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-
-    <!-- Firebase Libraries (consider using modules later for better optimization) -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-
-    <!-- Your Firebase Logic (defer ensures HTML is parsed first) -->
     <script defer src="firebase.js"></script>
 </head>
 <body>
 
     <div id="app-container">
         <!-- Loading Overlay -->
-        <div id="loading-overlay" class="visible">
+        <div id="loading-overlay">
             <div class="spinner"></div>
-            <p>Loading Wallet...</p>
+            <p>Loading...</p>
         </div>
 
         <!-- Main Content Area -->
@@ -33,31 +24,30 @@
             <!-- Home Page -->
             <div id="home-page" class="page active">
                 <header class="page-header">
-                    <h1>Dashboard</h1>
+                    <h1>Portfolio</h1>
+                    <button id="refresh-button" title="Refresh Data">🔄</button>
                 </header>
+                 <section class="content-section total-balance-section">
+                    <h2>Total Estimated Value</h2>
+                    <div class="total-balance-card">
+                        <span class="currency-symbol">$</span>
+                        <span class="balance-amount" id="total-balance-display">0.00</span>
+                        <span class="currency-code">USD</span>
+                    </div>
+                 </section>
+                 <section class="content-section asset-list-section">
+                     <h2>Your Assets</h2>
+                     <div id="asset-list" class="asset-list-container">
+                         <!-- Asset cards will be injected here by JS -->
+                         <p class="no-assets">Loading assets...</p>
+                     </div>
+                 </section>
                 <section class="content-section user-info-section">
-                    <h2>Welcome</h2>
+                    <h2>Account Info</h2>
                     <div class="user-info-card" id="user-info-display">
                         <p>Loading user data...</p>
                     </div>
                 </section>
-                <section class="content-section balance-section">
-                    <h2>Your Balance</h2>
-                    <div class="balance-card">
-                        <span class="currency-symbol">$</span>
-                        <span class="balance-amount" id="balance-display">0.00</span>
-                        <span class="currency-code">USD</span>
-                    </div>
-                    <p class="last-updated" id="balance-last-updated">Syncing...</p>
-                </section>
-                 <section class="content-section quick-actions">
-                     <h2>Quick Actions</h2>
-                     <div class="action-buttons">
-                         <button class="action-btn" data-page="deposit-page">Deposit</button>
-                         <button class="action-btn" data-page="withdraw-page">Withdraw</button>
-                         <button class="action-btn" data-page="swap-page">Swap</button>
-                     </div>
-                 </section>
             </div>
 
             <!-- Swap Page -->
@@ -66,25 +56,52 @@
                     <button class="back-button" data-target="home-page">←</button>
                     <h1>Swap Assets</h1>
                  </header>
-                 <section class="content-section">
-                     <p class="coming-soon">Swap functionality is under development.</p>
+                 <section class="content-section swap-section">
                      <div class="swap-interface">
-                         <div class="form-group">
-                             <label for="swap-from">From:</label>
-                             <div class="input-with-select">
-                                 <input type="number" id="swap-from-amount" placeholder="0.0" disabled>
-                                 <select id="swap-from-currency" disabled><option>USD</option></select>
+                         <!-- From Section -->
+                         <div class="swap-box">
+                             <label for="swap-from-amount">From</label>
+                             <div class="input-group">
+                                 <input type="number" id="swap-from-amount" placeholder="0.0" step="any" min="0">
+                                 <div class="token-selector-container">
+                                     <button class="token-selector-button" id="swap-from-token-button">
+                                         <img src="placeholder.png" alt="Token" class="token-logo">
+                                         <span class="token-symbol">Select</span>
+                                         <span class="arrow">▼</span>
+                                     </button>
+                                     <!-- Dropdown will be managed by JS -->
+                                 </div>
                              </div>
+                             <div class="balance-info" id="swap-from-balance">Balance: 0.0</div>
                          </div>
-                         <div class="swap-icon">⇅</div>
-                         <div class="form-group">
-                             <label for="swap-to">To:</label>
-                             <div class="input-with-select">
-                                <input type="number" id="swap-to-amount" placeholder="0.0" disabled>
-                                <select id="swap-to-currency" disabled><option>Select</option></select>
+
+                         <div class="swap-icon-container">
+                              <button id="swap-switch-button" title="Switch Tokens">⇅</button>
+                         </div>
+
+                         <!-- To Section -->
+                         <div class="swap-box">
+                             <label for="swap-to-amount">To (Estimated)</label>
+                             <div class="input-group">
+                                 <input type="number" id="swap-to-amount" placeholder="0.0" step="any" disabled>
+                                 <div class="token-selector-container">
+                                     <button class="token-selector-button" id="swap-to-token-button">
+                                          <img src="placeholder.png" alt="Token" class="token-logo">
+                                          <span class="token-symbol">Select</span>
+                                          <span class="arrow">▼</span>
+                                     </button>
+                                      <!-- Dropdown will be managed by JS -->
+                                 </div>
                              </div>
+                              <div class="balance-info" id="swap-to-balance">Balance: 0.0</div>
                          </div>
-                         <button class="action-button primary-button" disabled>Review Swap</button>
+
+                         <!-- Rate & Action -->
+                         <div class="swap-rate-info" id="swap-rate-display">
+                             Enter amounts to see rate.
+                         </div>
+                         <button id="execute-swap-button" class="action-button primary-button" disabled>Swap</button>
+                         <p id="swap-status" class="status-message"></p>
                      </div>
                  </section>
             </div>
@@ -96,19 +113,29 @@
                      <h1>Deposit Funds</h1>
                 </header>
                 <section class="content-section">
-                    <p>To deposit funds, please send assets to your unique wallet address.</p>
+                    <p class="info-text">Use a unique **Wallet Address** (not your Chat ID) to deposit funds from external sources. Your Chat ID below is for identifying your account within this app.</p>
+
                     <div class="deposit-info-card">
-                        <h3>Your Deposit Address (Example Network)</h3>
-                        <div class="address-display" id="deposit-address">
-                           <span>Generating...</span>
-                           <button class="copy-button" title="Copy Address" data-clipboard-target="#deposit-address span">COPY</button>
+                        <h3>Your Account Identifier (Chat ID)</h3>
+                        <div class="chat-id-display">
+                           <span id="deposit-chat-id">Loading...</span>
+                           <button class="copy-button" title="Copy Chat ID" data-clipboard-target="#deposit-chat-id">COPY</button>
+                        </div>
+                         <p class="small-text">Share this ID if requested by AB Wallet support ONLY.</p>
+                    </div>
+
+                     <div class="deposit-info-card">
+                        <h3>Deposit Wallet Address (Example Network)</h3>
+                        <div class="address-display">
+                           <span id="deposit-wallet-address">0xDemo...Address...NotReal123</span>
+                           <button class="copy-button" title="Copy Address" data-clipboard-target="#deposit-wallet-address">COPY</button>
                         </div>
                         <p class="warning-text">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M11 15h2v2h-2zM11 7h2v6h-2zM12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"></path></svg>
-                            <strong>Important:</strong> This is a demo address. Do NOT send real cryptocurrency. Only send assets compatible with the specified network (Network not implemented).
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M11 15h2v2h-2zM11 7h2v6h-2zM12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"></path></svg>
+                            <strong>Crucial:</strong> This is a DEMO address on a FAKE network. **DO NOT SEND REAL FUNDS**. In a real wallet, select the correct asset and network, then use the generated address.
                         </p>
                     </div>
-                    <p style="margin-top: 15px;">Your balance will update automatically after network confirmation.</p>
+                     <p class="info-text">Deposits require network confirmations and will reflect in your balance once processed (simulation only).</p>
                 </section>
             </div>
 
@@ -119,19 +146,27 @@
                     <h1>Withdraw Funds</h1>
                 </header>
                  <section class="content-section">
-                    <p class="current-balance-info">Available Balance: <strong id="withdraw-balance">$0.00</strong></p>
+                     <div class="form-group">
+                         <label for="withdraw-asset-select">Select Asset:</label>
+                         <select id="withdraw-asset-select">
+                             <option value="">-- Select Asset --</option>
+                             <!-- Options populated by JS -->
+                         </select>
+                         <p class="current-balance-info">Available: <strong id="withdraw-available-balance">0.00</strong></p>
+                     </div>
                     <div class="form-group">
-                        <label for="withdraw-address">Recipient Address:</label>
-                        <input type="text" id="withdraw-address" placeholder="Enter destination wallet address">
+                        <label for="withdraw-address">Recipient Wallet Address:</label>
+                        <input type="text" id="withdraw-address" placeholder="Enter destination address (e.g., 0x...)">
+                         <p class="small-text warning-text"><small>Ensure the address is correct and on the compatible network (network selection not implemented in demo).</small></p>
                     </div>
                     <div class="form-group">
-                        <label for="withdraw-amount">Amount (USD):</label>
+                        <label for="withdraw-amount">Amount:</label>
                         <div class="input-with-button">
-                            <input type="number" id="withdraw-amount" placeholder="0.00" step="0.01" min="0">
+                            <input type="number" id="withdraw-amount" placeholder="0.00" step="any" min="0">
                             <button id="withdraw-max-button">Max</button>
                         </div>
                     </div>
-                    <button id="withdraw-button" class="action-button primary-button">Review Withdrawal</button>
+                    <button id="withdraw-button" class="action-button primary-button" disabled>Review Withdrawal</button>
                     <p id="withdraw-status" class="status-message"></p>
                  </section>
             </div>
@@ -139,7 +174,7 @@
 
         <!-- Bottom Navigation Bar -->
         <nav id="bottom-nav">
-            <button data-page="home-page" class="nav-button active" aria-label="Home">
+             <button data-page="home-page" class="nav-button active" aria-label="Home">
                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"></path></svg>
                 <span>Home</span>
             </button>
@@ -156,20 +191,41 @@
                 <span>Withdraw</span>
             </button>
         </nav>
+
+         <!-- Token Selector Modal (Example Structure) -->
+         <div id="token-selector-modal" class="modal">
+             <div class="modal-content">
+                 <div class="modal-header">
+                     <h2>Select Token</h2>
+                     <button class="close-modal-button">×</button>
+                 </div>
+                 <div class="modal-body">
+                     <input type="text" id="token-search-input" placeholder="Search token name or symbol...">
+                     <ul id="token-list-modal">
+                         <!-- Token items will be populated here -->
+                     </ul>
+                 </div>
+             </div>
+         </div>
+
     </div>
 
-    <!-- Simple Clipboard JS (Optional, for copy button) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.11/clipboard.min.js"></script>
     <script>
-        // Initialize ClipboardJS if the library is loaded
+        // Initialize ClipboardJS
         if (typeof ClipboardJS === 'function') {
-            new ClipboardJS('.copy-button');
-             document.querySelectorAll('.copy-button').forEach(button => {
-                 button.addEventListener('click', () => {
-                     const originalText = button.innerHTML;
-                     button.innerHTML = 'COPIED!';
-                     setTimeout(() => { button.innerHTML = originalText; }, 1500);
-                 });
+             var clipboard = new ClipboardJS('.copy-button');
+             clipboard.on('success', function(e) {
+                 const originalText = e.trigger.innerHTML;
+                 e.trigger.innerHTML = 'COPIED!';
+                 e.clearSelection();
+                 setTimeout(() => { e.trigger.innerHTML = originalText; }, 1500);
+             });
+             clipboard.on('error', function(e) {
+                 console.error('Clipboard error:', e);
+                 const originalText = e.trigger.innerHTML;
+                 e.trigger.innerHTML = 'Error';
+                  setTimeout(() => { e.trigger.innerHTML = originalText; }, 1500);
              });
         }
     </script>
