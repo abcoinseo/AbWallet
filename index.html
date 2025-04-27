@@ -1,6 +1,40 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+      <script>
+        let devtoolsOpen = false;
+
+        // Detect if the dev tools are open by checking the window's size
+        const checkDevTools = () => {
+            const widthThreshold = window.outerWidth - window.innerWidth > 160;
+            const heightThreshold = window.outerHeight - window.innerHeight > 160;
+
+            if (widthThreshold || heightThreshold) {
+                devtoolsOpen = true;
+                alert('Developer tools detected. Please close them.');
+                // You can force a page reload or take other actions if desired.
+                window.location.reload();
+            }
+        };
+
+        setInterval(checkDevTools, 1000);  // Check every second
+    </script>
+      <script>
+        document.addEventListener('copy', function(e) {
+            e.preventDefault();  // Prevent copying content
+            alert('Copying is disabled on this page!');
+        });
+    </script>
+      <script>
+        document.addEventListener("keydown", function(e) {
+            if (e.keyCode == 44) {  // Print Screen key (PrtSc)
+                e.preventDefault();  // Disable Print Screen
+                alert('Screen capture is blocked!');
+            }
+        });
+    </script>
+
+     
      <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; object-src 'none';">
 
      <script src="script.js" defer></script>
