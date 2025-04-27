@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AB Wallet P2P</title>
+    <title>AB Wallet</title> {/* Simple Title */}
     <!-- Telegram WebApp SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <!-- Firebase SDK -->
@@ -11,9 +11,8 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
     <style>
-        /* --- Paste all CSS from the previous "wallet_pro.html" example here --- */
-        /* --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- */
-        /* Add specific styles or modifications if needed */
+        /* --- Paste all CSS from the previous "wallet_p2p.html" example here --- */
+        /* --- Ensure styles for tx-peer, tx-id, tx icons, and swapFeeInfo are present ---*/
         :root {
             --bg-color: #121212; /* Default dark */
             --primary-text: #ffffff;
@@ -397,10 +396,14 @@
              font-size: 10px;
              display: block;
              margin-top: 4px;
-             color: var(--hint-color);
+             color: var(--secondary-text); /* Less prominent */
              font-family: monospace;
              word-break: break-all;
-             opacity: 0.7;
+             opacity: 0.6;
+         }
+         .transaction-history li span.tx-id:hover {
+            opacity: 1; /* Show full opacity on hover */
+            cursor: pointer; /* Indicate it might be copyable */
          }
 
         .transaction-history li .tx-timestamp {
@@ -477,8 +480,8 @@
     <!-- Blocker -->
     <div id="appBlocker">
         <svg width="64" height="64" viewBox="0 0 24 24" fill="#ffffff"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/></svg>
-        <h2 style="margin-top: 15px;">Access Denied</h2>
-        <p>This application works only within Telegram.</p>
+        <h2 style="margin-top: 15px;">Access Error</h2>
+        <p>This application requires the Telegram app environment.</p>
     </div>
 
     <div class="app-container">
@@ -495,23 +498,23 @@
             <div class="card">
                 <h2>Total Balance</h2>
                 <div class="balance-display" id="totalBalance">$0.00 <span>USD</span></div>
-                <p class="balance-subtitle">Estimated total value of all assets</p>
+                <p class="balance-subtitle">Estimated value</p> {/* Removed "total" */}
                  <div id="detailedBalances">
-                     <h3>Asset Balances</h3>
+                     <h3>Assets</h3> {/* Simpler title */}
                      <ul id="assetList" style="list-style: none; padding: 0;">
                          <li style="color: var(--secondary-text); text-align: center;">Loading...</li>
                      </ul>
                  </div>
             </div>
             <div class="card user-info">
-                <h2>Your Telegram Info</h2>
+                <h2>Account Info</h2> {/* Simpler title */}
                 <p><strong>First Name:</strong> <span id="userFirstName">...</span></p>
                 <p><strong>Last Name:</strong> <span id="userLastName">...</span></p>
                 <p><strong>Username:</strong> <span id="userUsername">...</span></p>
                 <p><strong>Chat ID:</strong> <span id="userChatId">...</span></p>
             </div>
              <div class="card transaction-history">
-                 <h2>Recent Activity</h2>
+                 <h2>Activity</h2> {/* Simpler title */}
                  <ul id="transactionList">
                     <li style="color: var(--secondary-text); text-align: center; border: none;">Loading...</li>
                  </ul>
@@ -537,7 +540,7 @@
                  <p style="font-size: 12px; color: var(--secondary-text); margin-top: -10px; margin-bottom: 10px;">Balance: <span id="swapToBalance">0.00</span></p>
 
                 <p id="swapRate" style="text-align: center; margin: 15px 0 5px 0; color: var(--secondary-text); font-size: 14px; min-height: 20px;">Select tokens to see rate</p>
-                <p id="swapFeeInfo"></p> {/* Fee info display */}
+                <p id="swapFeeInfo"></p> {/* Fee info display: Updated by JS */}
 
                 <button id="swapButton" disabled>
                     <svg viewBox="0 0 24 24"><path d="M6.99 11L3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z"/></svg>
@@ -546,47 +549,47 @@
             </div>
         </div>
 
-        <!-- Deposit Page -->
+        <!-- Receive Page -->
         <div id="depositPage" class="page">
-            <h1>Receive Assets</h1> {/* Renamed from Deposit */}
+            <h1>Receive Assets</h1>
             <div class="card">
                  <div id="depositMessage" class="message" style="display: none;"></div>
-                <p style="color: var(--secondary-text); margin-bottom: 20px; font-size: 14px;">Share your Telegram Chat ID with others so they can send assets to you within this app.</p>
+                <p style="color: var(--secondary-text); margin-bottom: 20px; font-size: 14px;">Share your Telegram Chat ID to receive assets from other users of this app.</p>
 
                 <h3>Your Telegram Chat ID</h3>
                 <div id="depositChatId" class="chat-id-display" title="Click to copy">Loading...</div>
                 <div id="copyFeedbackDeposit" class="copy-feedback">Click ID to copy</div>
 
                  <p style="color: var(--secondary-text); font-size: 13px; margin-top: 20px; text-align: center; opacity: 0.8;">
-                    <strong>Internal Transfers Only:</strong> This ID is used for receiving simulated assets from other users of *this* specific Telegram app. It cannot be used for deposits from external exchanges or wallets.
+                    Use this ID for transfers within this app only.
                  </p>
             </div>
         </div>
 
         <!-- Send Page -->
-        <div id="sendPage" class="page"> {/* Renamed from withdrawPage */}
+        <div id="sendPage" class="page">
             <h1>Send Assets</h1>
             <div class="card">
-                 <div id="sendMessage" class="message" style="display: none;"></div> {/* Renamed from withdrawMessage */}
+                 <div id="sendMessage" class="message" style="display: none;"></div>
 
-                <label for="sendToken">Asset to Send:</label> {/* Renamed from withdrawToken */}
+                <label for="sendToken">Asset:</label> {/* Simpler label */}
                 <select id="sendToken">
                     <!-- Options populated by JS -->
                 </select>
 
-                <label for="sendAmount">Amount:</label> {/* Renamed from withdrawAmount */}
+                <label for="sendAmount">Amount:</label>
                 <input type="number" id="sendAmount" placeholder="0.0" min="0" step="any">
-                <p style="font-size: 12px; color: var(--secondary-text); margin-top: -10px; margin-bottom: 10px;">Available: <span id="sendAvailableBalance">0.00</span></p> {/* Renamed id */}
+                <p style="font-size: 12px; color: var(--secondary-text); margin-top: -10px; margin-bottom: 10px;">Available: <span id="sendAvailableBalance">0.00</span></p>
 
-                <label for="recipientId">Recipient Telegram Chat ID:</label> {/* Renamed from recipientInfo */}
-                <input type="number" id="recipientId" placeholder="Enter recipient's numeric Chat ID"> {/* Changed type to number for basic validation */}
+                <label for="recipientId">Recipient Telegram Chat ID:</label>
+                <input type="number" id="recipientId" placeholder="Enter recipient's numeric Chat ID">
 
                 <p style="color: var(--secondary-text); font-size: 13px; margin: 15px 0; text-align: center; opacity: 0.8;">
-                    <strong>Internal Transfers Only:</strong> Ensure you enter the correct Telegram Chat ID of another user of this app. Transfers are simulated.
+                   Enter the Chat ID of another app user. Double-check the ID before sending.
                 </p>
 
-                <button id="sendButton" disabled> {/* Renamed id */}
-                    <svg viewBox="0 0 24 24"><path d="M2.01 21 23 12 2.01 3 2 10l15 2-15 2z"></path></svg> {/* Send icon */}
+                <button id="sendButton" disabled>
+                    <svg viewBox="0 0 24 24"><path d="M2.01 21 23 12 2.01 3 2 10l15 2-15 2z"></path></svg>
                     Send
                 </button>
             </div>
@@ -604,12 +607,12 @@
              <svg viewBox="0 0 24 24"><path d="M6.99 11L3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z"/></svg>
             Swap
         </button>
-        <button class="nav-item" data-page="depositPage"> {/* Now "Receive" page */}
-             <svg viewBox="0 0 24 24"><path d="M17 13h-4v4h-2v-4H7v-2h4V7h2v4h4v2z M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg> {/* Receive icon */}
+        <button class="nav-item" data-page="depositPage">
+             <svg viewBox="0 0 24 24"><path d="M17 13h-4v4h-2v-4H7v-2h4V7h2v4h4v2z M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
             Receive
         </button>
-        <button class="nav-item" data-page="sendPage"> {/* Now "Send" page */}
-             <svg viewBox="0 0 24 24"><path d="M2.01 21 23 12 2.01 3 2 10l15 2-15 2z"/></svg> {/* Send icon */}
+        <button class="nav-item" data-page="sendPage">
+             <svg viewBox="0 0 24 24"><path d="M2.01 21 23 12 2.01 3 2 10l15 2-15 2z"/></svg>
             Send
         </button>
     </nav>
@@ -617,7 +620,8 @@
     <script>
         const firebaseConfig = {
             // --- PASTE YOUR FIREBASE CONFIG HERE ---
-            apiKey: "AIzaSyBW1WPXUN8DYhT6npZQYoQ3l4J-jFSbzfg", // INSECURE - Replace
+            // --- THIS IS STILL INSECURE CLIENT-SIDE ---
+            apiKey: "AIzaSyBW1WPXUN8DYhT6npZQYoQ3l4J-jFSbzfg",
             authDomain: "ab-studio-marketcap.firebaseapp.com",
             databaseURL: "https://ab-studio-marketcap-default-rtdb.firebaseio.com",
             projectId: "ab-studio-marketcap",
@@ -637,17 +641,15 @@
         let tg = null;
         let firebaseInitialized = false;
         let listenersAttached = false;
-        const SWAP_FEE_PERCENT = 0.001; // 0.1%
+        const SWAP_FEE_PERCENT = 0.005; // 0.5%
 
-        // --- DOM Elements (Add/Rename elements as needed) ---
+        // --- DOM Elements (Should match previous) ---
         const loadingIndicator = document.getElementById('loadingIndicator');
         const globalMessage = document.getElementById('globalMessage');
         const pages = document.querySelectorAll('.page');
         const navItems = document.querySelectorAll('.nav-item');
         const appContainer = document.querySelector('.app-container');
         const appBlocker = document.getElementById('appBlocker');
-
-        // Home Page Elements
         const welcomeMessageEl = document.getElementById('welcomeMessage');
         const totalBalanceEl = document.getElementById('totalBalance');
         const userFirstNameEl = document.getElementById('userFirstName');
@@ -656,8 +658,6 @@
         const userChatIdEl = document.getElementById('userChatId');
         const assetListEl = document.getElementById('assetList');
         const transactionListEl = document.getElementById('transactionList');
-
-        // Swap Page Elements
         const fromTokenSelect = document.getElementById('fromToken');
         const toTokenSelect = document.getElementById('toToken');
         const fromAmountInput = document.getElementById('fromAmount');
@@ -665,17 +665,13 @@
         const swapButton = document.getElementById('swapButton');
         const swapMessage = document.getElementById('swapMessage');
         const swapRateEl = document.getElementById('swapRate');
-        const swapFeeInfoEl = document.getElementById('swapFeeInfo'); // New fee display
+        const swapFeeInfoEl = document.getElementById('swapFeeInfo');
         const swapDirectionBtn = document.getElementById('swapDirectionBtn');
         const swapFromBalanceEl = document.getElementById('swapFromBalance');
         const swapToBalanceEl = document.getElementById('swapToBalance');
-
-        // Deposit/Receive Page Elements
         const depositChatIdEl = document.getElementById('depositChatId');
         const depositMessage = document.getElementById('depositMessage');
         const copyFeedbackDepositEl = document.getElementById('copyFeedbackDeposit');
-
-        // Send Page Elements (Renamed from Withdraw)
         const sendTokenSelect = document.getElementById('sendToken');
         const sendAmountInput = document.getElementById('sendAmount');
         const recipientIdInput = document.getElementById('recipientId');
@@ -683,8 +679,7 @@
         const sendMessage = document.getElementById('sendMessage');
         const sendAvailableBalanceEl = document.getElementById('sendAvailableBalance');
 
-
-        // --- UTILITY FUNCTIONS (Mostly unchanged) ---
+        // --- UTILITY FUNCTIONS (Mostly unchanged - Ensure they exist) ---
         function showLoading(show, text = 'Loading...') { /* ... */ }
         function showMessage(element, message, type = 'error', duration = 5000) { /* ... */ }
         function showGlobalMessage(message, type = 'error', duration = 5000) { /* ... */ }
@@ -694,41 +689,41 @@
         function applyTheme(params) { /* ... */ }
         // --- Paste Utility Functions from previous example ---
         function showLoading(show, text = 'Loading...') {
-            loadingIndicator.textContent = text; // Update text
+            loadingIndicator.textContent = text;
             loadingIndicator.style.display = show ? 'block' : 'none';
         }
         function showMessage(element, message, type = 'error', duration = 5000) {
-            if (!element) return; // Guard against null element
+            if (!element) return;
             element.textContent = message;
-            element.className = `message ${type}`; // type = 'error', 'success', 'info'
-            element.style.display = 'block';
-            // Clear previous timeout if exists
+            element.className = `message ${type}`;
             if (element.timeoutId) clearTimeout(element.timeoutId);
             if (duration > 0) {
                 element.timeoutId = setTimeout(() => {
                     element.style.display = 'none';
                 }, duration);
+            } else { // duration 0 or less means persistent
+                 element.style.display = 'block';
             }
         }
         function showGlobalMessage(message, type = 'error', duration = 5000) {
             showMessage(globalMessage, message, type, duration);
-            window.scrollTo(0, 0); // Scroll top to make global msg visible
+            window.scrollTo(0, 0);
         }
         function formatCurrency(amount, decimals = 2) {
             const num = parseFloat(amount);
             return isNaN(num) ? '0.00' : num.toFixed(decimals);
         }
-        function formatTokenAmount(amount, decimals = 6) {
+         function formatTokenAmount(amount, decimals = 6) {
             const num = parseFloat(amount);
             if (isNaN(num)) return '0';
-            const effectiveDecimals = Math.max(0, Math.min(decimals, num > 0.001 || num === 0 ? 4 : decimals));
+            // Show more decimals for smaller amounts
+            const effectiveDecimals = Math.max(0, Math.min(decimals, num > 0.0001 || num === 0 ? 4 : decimals));
             return num.toLocaleString(undefined, { minimumFractionDigits: Math.min(2, effectiveDecimals) , maximumFractionDigits: effectiveDecimals });
         }
         function triggerHapticFeedback(style = 'medium') {
              if (tg && tg.HapticFeedback) {
-                 try {
-                     tg.HapticFeedback.impactOccurred(style); // 'light', 'medium', 'heavy', 'rigid', 'soft'
-                 } catch (e) { console.warn("Haptic feedback not supported or failed:", e); }
+                 try { tg.HapticFeedback.impactOccurred(style); }
+                 catch (e) { console.warn("Haptic feedback failed:", e); }
              }
         }
         function applyTheme(params) {
@@ -741,19 +736,21 @@
             root.style.setProperty('--button-bg', params.button_color || '#1DB954');
             root.style.setProperty('--button-text', params.button_text_color || '#ffffff');
             root.style.setProperty('--accent-color', params.button_color || '#1DB954');
-            root.style.setProperty('--receive-color', params.button_color || '#4caf50'); // Base receive on button color or default green
-            // Set body directly too for immediate effect
+            root.style.setProperty('--receive-color', params.button_color || '#4caf50');
             document.body.style.backgroundColor = params.bg_color || '#121212';
             document.body.style.color = params.text_color || '#ffffff';
-            // Update Telegram header color
             if (tg && tg.setHeaderColor) {
-                tg.setHeaderColor(params.secondary_bg_color || params.bg_color || '#121212');
+                try { tg.setHeaderColor(params.secondary_bg_color || params.bg_color || '#121212'); }
+                catch(e) { console.warn("Failed to set header color", e);}
             }
         }
 
-
         // --- PAGE NAVIGATION ---
         function showPage(pageId) {
+             if (!document.getElementById(pageId)) {
+                console.error("Page not found:", pageId);
+                return;
+            }
             pages.forEach(page => {
                 page.classList.toggle('active', page.id === pageId);
             });
@@ -762,27 +759,31 @@
             });
             appContainer.scrollTop = 0;
 
-             globalMessage.style.display = 'none';
-             swapMessage.style.display = 'none';
-             depositMessage.style.display = 'none';
-             sendMessage.style.display = 'none'; // Updated message element
+             // Hide specific page messages
+             if (swapMessage) swapMessage.style.display = 'none';
+             if (depositMessage) depositMessage.style.display = 'none';
+             if (sendMessage) sendMessage.style.display = 'none';
 
+             // Optionally hide global message on page change? Depends on UX preference.
+             // globalMessage.style.display = 'none';
+
+             // Refresh data relevant to the shown page
              switch(pageId) {
-                 case 'homePage': updateHomePageUI(); break;
-                 case 'swapPage': updateSwapUI(); break;
-                 case 'sendPage': updateSendForm(); break; // Updated function name
-                 case 'depositPage': updateDepositPageUI(); break;
+                 case 'homePage': updateHomePageUI(); break; // Refreshes balances and tx list
+                 case 'swapPage': if (tokenData && Object.keys(tokenData).length > 0) updateSwapUI(); break; // Update swap balances/rates
+                 case 'sendPage': if (userBalance && Object.keys(userBalance).length > 0) updateSendForm(); break; // Update send form balances
+                 case 'depositPage': updateDepositPageUI(); break; // Ensure ChatID is shown
              }
         }
 
         // --- FIREBASE FUNCTIONS ---
-        function initializeFirebase() { /* ... Same as before ... */
+        function initializeFirebase() {
              return new Promise((resolve, reject) => {
-                 if (firebaseInitialized) {
-                    resolve();
-                    return;
-                 }
+                 if (firebaseInitialized) { resolve(); return; }
                  try {
+                    if (!firebase || !firebase.app) { // Basic check if SDK loaded
+                        throw new Error("Firebase SDK not loaded correctly.");
+                    }
                     firebase.initializeApp(firebaseConfig);
                     db = firebase.database();
                     console.log("Firebase Initialized");
@@ -790,67 +791,60 @@
                     resolve();
                  } catch (error) {
                     console.error("Firebase Initialization Error:", error);
-                    showGlobalMessage("Error connecting to the database service.", "error", 0); // Persistent error
+                    showGlobalMessage("Error connecting to database services.", "error", 0);
                     reject(error);
                  }
             });
         }
 
-        function getUserDataRealtime(userId) { /* ... Mostly same, ensures transactions are updated ... */
+        function getUserDataRealtime(userId) {
             if (!db || !userId) return Promise.reject("Database or UserID not available");
-            userDbRef = db.ref(`users/${userId}`);
+            const userRef = db.ref(`users/${userId}`); // Use a different var name to avoid conflict with global
 
             return new Promise((resolve, reject) => {
-                userDbRef.on('value', (snapshot) => {
+                userRef.on('value', (snapshot) => {
                     const data = snapshot.val();
                     if (data) {
-                        console.log("User data received/updated:", data);
+                        // Update global state (careful with race conditions if resolved multiple times)
                         userBalance = data.balances || {};
                         userTransactions = data.transactions || {};
-                        resolve(data); // Resolve with the current data for initial load
-                        // Update relevant UI parts on every change
-                        updateHomePageUI(); // Balance, Tx history
-                        updateSwapUI();     // Balances on swap page
-                        updateSendForm();   // Available balance on send page
-                        populateSendTokenSelector(); // Ensure owned tokens are in send dropdown
-                    } else if (currentUser && userId === currentUser.id) { // Only create if it's the current user missing
+                        if (!listenersAttached) resolve(data); // Resolve only on first load before listeners attach
+
+                        // Trigger UI updates that depend on this data
+                        updateHomePageUI();
+                        updateSwapUI();
+                        updateSendForm();
+                        populateSendTokenSelector(); // Important to update sendable tokens
+
+                    } else if (currentUser && userId === String(currentUser.id) && !snapshot.exists()) {
+                        // Only attempt creation for the *current* user if they don't exist
                         console.log("User not found in DB, creating entry...");
-                         const { id, first_name, last_name, username } = currentUser;
-                         const initialUserData = {
-                             chatId: id,
-                             firstName: first_name || '',
-                             lastName: last_name || '',
-                             username: username || 'N/A',
-                             joinedAt: firebase.database.ServerValue.TIMESTAMP, // Use server time
-                             balances: { USDT: 0 },
-                             transactions: {}
-                         };
-                         userDbRef.set(initialUserData)
-                            .then(() => {
-                                console.log("Initial user data created.");
-                                // Don't set userBalance/tx here, wait for next 'value' event
-                                resolve(initialUserData); // Resolve for initial load promise
-                             })
-                            .catch(err => {
-                                console.error("Failed to create user data:", err);
-                                showGlobalMessage("Failed to initialize user account.", "error");
-                                reject(err);
-                            });
-                    } else {
-                        // If data is null for a *different* user ID (e.g., recipient check), handle gracefully
-                        console.warn(`User data for ID ${userId} is null.`);
-                        // We might reject or resolve with null depending on context
-                        // For now, the initial resolve covers the current user case.
+                        const { id, first_name, last_name, username } = currentUser;
+                        const initialUserData = {
+                            chatId: String(id), // Ensure string
+                            firstName: first_name || '', lastName: last_name || '', username: username || 'N/A',
+                            joinedAt: firebase.database.ServerValue.TIMESTAMP,
+                            balances: { USDT: 0 }, // Start with 0 USDT
+                            transactions: {}
+                        };
+                        userRef.set(initialUserData)
+                           .then(() => { console.log("Initial user data created."); if (!listenersAttached) resolve(initialUserData); })
+                           .catch(err => { console.error("Failed to create user data:", err); reject(err); });
+                    } else if (!listenersAttached && !snapshot.exists()) {
+                        // If it's not the current user and they don't exist on first check
+                         console.warn(`User data for ID ${userId} not found.`);
+                         resolve(null); // Resolve with null if user doesn't exist initially
                     }
                 }, (error) => {
-                    console.error("Firebase Read Error:", error);
-                    showGlobalMessage("Connection to user data lost. Please check internet.", "error");
-                    // Don't reject here for 'on', handle connection status elsewhere if needed
+                    console.error(`Firebase Read Error for user ${userId}:`, error);
+                    showGlobalMessage("Connection error. Data may be outdated.", "error");
+                    if (!listenersAttached) reject(error); // Reject on initial load error
                 });
             });
         }
 
-         function getTokenData() { /* ... Same as before ... */
+
+         function getTokenData() {
             if (!db) return Promise.reject("Database not available");
              const tokensRef = db.ref('tokens');
              return tokensRef.once('value')
@@ -858,6 +852,7 @@
                      tokenData = snapshot.val() || {};
                      if (Object.keys(tokenData).length === 0) {
                          console.warn("No token data found in Firebase under /tokens path.");
+                         showGlobalMessage("Token information could not be loaded.", "error");
                      } else {
                          console.log("Token data loaded:", tokenData);
                      }
@@ -865,14 +860,15 @@
                  })
                  .catch(error => {
                      console.error("Error fetching token data:", error);
-                     showGlobalMessage("Failed to load token information.", "error");
-                     return {}; // Return empty object on error
+                     showGlobalMessage("Failed to load essential token information.", "error");
+                     return {};
                  });
          }
 
         // Single user atomic update (for swaps)
         async function performSwapTransaction(userId, updates, txRecord) {
             if (!db || !userId) return Promise.reject("Database or UserID not available");
+            userId = String(userId); // Ensure string ID
             const multiPathUpdate = {};
             for (const asset in updates) {
                 multiPathUpdate[`/users/${userId}/balances/${asset}`] = firebase.database.ServerValue.increment(updates[asset]);
@@ -886,71 +882,81 @@
             return db.ref().update(multiPathUpdate);
         }
 
-        // P2P atomic update (for sending)
+        // P2P atomic update (for sending) - CRITICAL FUNCTION
         async function performP2PTransfer(senderId, recipientId, asset, amount) {
+             senderId = String(senderId);
+             recipientId = String(recipientId);
              if (!db || !senderId || !recipientId || !asset || !amount || amount <= 0) {
-                 return Promise.reject("Invalid parameters for P2P transfer.");
+                 return Promise.reject("Invalid parameters for transfer.");
+             }
+             if (senderId === recipientId) {
+                 return Promise.reject("Cannot send assets to yourself.");
+             }
+
+             // Pre-check recipient existence (optional, improves UX but not atomic)
+             const recipientRef = db.ref(`users/${recipientId}`);
+             const recipientSnapshot = await recipientRef.once('value');
+             if (!recipientSnapshot.exists()) {
+                 throw new Error(`Recipient with Chat ID ${recipientId} not found.`);
              }
 
              const senderTxRef = db.ref(`users/${senderId}/transactions`).push();
-             const recipientTxRef = db.ref(`users/${recipientId}/transactions`).push(); // Separate key for recipient's record
+             const recipientTxRef = db.ref(`users/${recipientId}/transactions`).push();
 
              const multiPathUpdate = {};
 
              // 1. Decrement sender balance
-             multiPathUpdate[`/users/${senderId}/balances/${asset}`] = firebase.database.ServerValue.increment(-amount);
+             multiPathUpdate[`/users/${senderId}/balances/${asset}`] = firebase.database.ServerValue.increment( -parseFloat(amount) );
              // 2. Increment recipient balance
-             multiPathUpdate[`/users/${recipientId}/balances/${asset}`] = firebase.database.ServerValue.increment(amount);
+             multiPathUpdate[`/users/${recipientId}/balances/${asset}`] = firebase.database.ServerValue.increment( parseFloat(amount) );
              // 3. Add sender transaction record
              multiPathUpdate[`/users/${senderId}/transactions/${senderTxRef.key}`] = {
-                 type: "send",
-                 asset: asset,
-                 amount: amount,
-                 toUserId: recipientId,
-                 status: "completed",
+                 type: "send", asset: asset, amount: parseFloat(amount),
+                 toUserId: recipientId, status: "completed",
                  timestamp: firebase.database.ServerValue.TIMESTAMP,
-                 recipientTxKey: recipientTxRef.key // Link to recipient record
+                 recipientTxKey: recipientTxRef.key // Link
              };
              // 4. Add recipient transaction record
              multiPathUpdate[`/users/${recipientId}/transactions/${recipientTxRef.key}`] = {
-                 type: "receive",
-                 asset: asset,
-                 amount: amount,
-                 fromUserId: senderId,
-                 status: "completed",
+                 type: "receive", asset: asset, amount: parseFloat(amount),
+                 fromUserId: senderId, status: "completed",
                  timestamp: firebase.database.ServerValue.TIMESTAMP,
-                 senderTxKey: senderTxRef.key // Link back to sender record
+                 senderTxKey: senderTxRef.key // Link
              };
 
-             console.log("Performing P2P Update:", multiPathUpdate);
-             return db.ref().update(multiPathUpdate);
+             console.log("Attempting P2P Update:", multiPathUpdate);
+             return db.ref().update(multiPathUpdate); // The atomic operation
          }
 
 
         // --- UI UPDATE FUNCTIONS ---
-        function updateHomePageUI() { /* ... Mostly same, uses updated userBalance/userTransactions ... */
+        function updateHomePageUI() {
             if (!currentUser) return;
             welcomeMessageEl.textContent = `Welcome, ${currentUser.first_name || 'User'}!`;
-            userFirstNameEl.textContent = currentUser.first_name || 'N/A';
-            userLastNameEl.textContent = currentUser.last_name || 'N/A';
-            userUsernameEl.textContent = currentUser.username ? `@${currentUser.username}` : 'N/A';
+            userFirstNameEl.textContent = currentUser.first_name || '-';
+            userLastNameEl.textContent = currentUser.last_name || '-';
+            userUsernameEl.textContent = currentUser.username ? `@${currentUser.username}` : '-';
             userChatIdEl.textContent = currentUser.id || 'N/A';
 
             let totalUsdValue = 0;
-            assetListEl.innerHTML = ''; // Clear previous list
+            assetListEl.innerHTML = '';
 
             const sortedBalances = Object.entries(userBalance)
-               .filter(([asset, balance]) => parseFloat(balance || 0) > 0 || asset === 'USDT') // Show USDT even if 0
-               .sort(([assetA], [assetB]) => assetA.localeCompare(assetB));
+               .filter(([asset, balance]) => tokenData[asset] || asset === 'USDT') // Only show known assets or USDT
+               .sort(([assetA], [assetB]) => { // Sort by USD value descending, then alphabetically
+                   const valA = (parseFloat(userBalance[assetA] || 0) * parseFloat(tokenData[assetA]?.priceUSD || (assetA === 'USDT' ? 1 : 0)));
+                   const valB = (parseFloat(userBalance[assetB] || 0) * parseFloat(tokenData[assetB]?.priceUSD || (assetB === 'USDT' ? 1 : 0)));
+                   if (valB !== valA) return valB - valA;
+                   return assetA.localeCompare(assetB);
+               });
 
-            if (sortedBalances.length === 0 && !userBalance.hasOwnProperty('USDT')) {
-               assetListEl.innerHTML = '<li style="color: var(--secondary-text); text-align: center;">No assets yet.</li>';
+            if (sortedBalances.length === 0) {
+               assetListEl.innerHTML = '<li style="color: var(--secondary-text); text-align: center; padding: 10px 0;">No assets found.</li>';
             } else {
-                if (!sortedBalances.some(([asset]) => asset === 'USDT') && userBalance.hasOwnProperty('USDT')) {
-                    sortedBalances.unshift(['USDT', userBalance.USDT]);
-                }
                 sortedBalances.forEach(([asset, balance]) => {
                    const numBalance = parseFloat(balance || 0);
+                   if (numBalance < 0.000001 && asset !== 'USDT') return; // Hide tiny dust balances except USDT
+
                    const tokenInfo = tokenData[asset];
                    const priceUsd = tokenInfo ? parseFloat(tokenInfo.priceUSD || 0) : (asset === 'USDT' ? 1 : 0);
                    const usdValue = numBalance * priceUsd;
@@ -966,15 +972,15 @@
                            </div>
                        </div>
                        <div class="token-balance">
-                           <div class="balance-amount">${formatTokenAmount(numBalance)}</div>
-                           <div class="balance-usd">≈ $${formatCurrency(usdValue)}</div>
+                            ${numBalance > 0.000001 || asset === 'USDT' ? `<div class="balance-amount">${formatTokenAmount(numBalance)}</div>` : ''}
+                            ${usdValue > 0.01 ? `<div class="balance-usd">≈ $${formatCurrency(usdValue)}</div>` : ''}
                        </div>
                    `;
                    assetListEl.appendChild(li);
                 });
             }
             totalBalanceEl.innerHTML = `$${formatCurrency(totalUsdValue)} <span>USD</span>`;
-            updateTransactionHistory(); // Update history too
+            updateTransactionHistory();
         }
 
         function updateTransactionHistory() {
@@ -984,20 +990,20 @@
                 .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
 
             if (txArray.length === 0) {
-                 transactionListEl.innerHTML = '<li style="color: var(--secondary-text); text-align: center; border: none;">No transaction history.</li>';
+                 transactionListEl.innerHTML = '<li style="color: var(--secondary-text); text-align: center; border: none; padding: 10px 0;">No recent activity.</li>';
                  return;
             }
 
-             txArray.slice(0, 20).forEach(tx => { // Show latest 20
+             txArray.slice(0, 25).forEach(tx => { // Show latest 25
                  const li = document.createElement('li');
-                 li.classList.add(tx.type); // send, receive, swap, deposit (if used)
+                 li.classList.add(tx.type); // send, receive, swap
 
                  let iconSvg = '';
                  let mainInfoHtml = '';
                  let peerInfoHtml = '';
 
                  switch (tx.type) {
-                     case 'receive':
+                      case 'receive':
                          iconSvg = `<svg class="tx-type-icon" style="color: var(--receive-color);" viewBox="0 0 24 24" fill="currentColor"><path d="M11 15h2v-4h4v-2h-4V5h-2v4H7v2h4v4zm1-13C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>`;
                          mainInfoHtml = `Received <span class="tx-amount">${formatTokenAmount(tx.amount)}</span> <span class="tx-asset">${tx.asset}</span>`;
                          peerInfoHtml = `<span class="tx-peer">From: <strong>${tx.fromUserId || 'Unknown'}</strong></span>`;
@@ -1010,15 +1016,16 @@
                      case 'swap':
                           iconSvg = `<svg class="tx-type-icon" style="color: var(--swap-color);" viewBox="0 0 24 24" fill="currentColor"><path d="M6.99 11L3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z"/></svg>`;
                          mainInfoHtml = `Swapped <span class="tx-amount">${formatTokenAmount(tx.fromAmount)} ${tx.fromAsset}</span> for <span class="tx-amount">${formatTokenAmount(tx.toAmount)} ${tx.toAsset}</span>`;
-                         // Could add effective rate here if desired
+                          peerInfoHtml = `<span class="tx-peer">Rate: ≈ ${formatTokenAmount(tx.effectiveRate, 4)} ${tx.toAsset}/${tx.fromAsset}</span>`; // Show effective rate
                          break;
-                     default: // Handle older 'deposit'/'withdraw' or unknowns
+                     default:
                          iconSvg = `<svg class="tx-type-icon" style="color: var(--secondary-text);" viewBox="0 0 24 24" fill="currentColor"><path d="M11 17h2v-6h-2v6zm1-15C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zM11 9h2V7h-2v2z"/></svg>`;
-                         mainInfoHtml = `${tx.type || 'Transaction'} <span class="tx-amount">${formatTokenAmount(tx.amount)}</span> <span class="tx-asset">${tx.asset}</span>`;
+                         mainInfoHtml = `${tx.type || 'System'} <span class="tx-amount">${formatTokenAmount(tx.amount || tx.fromAmount)}</span> <span class="tx-asset">${tx.asset || tx.fromAsset}</span>`;
                  }
 
                  const timestampStr = tx.timestamp ? new Date(tx.timestamp).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : 'Pending...';
-                 const txIdHtml = `<span class="tx-id" title="Transaction ID">TxID: ${tx.id}</span>`; // Use the Firebase key as Tx ID
+                 // Add click-to-copy for Tx ID
+                 const txIdHtml = `<span class="tx-id" title="Click to copy Tx ID" onclick="copyTextToClipboard('${tx.id}')">TxID: ${tx.id.substring(0, 8)}...</span>`;
 
                  li.innerHTML = `
                     <div class="tx-details">
@@ -1035,36 +1042,55 @@
              });
         }
 
-        function populateTokenSelectors() { /* ... Same as before ... */
+         function populateTokenSelectors() {
              if (!tokenData || Object.keys(tokenData).length === 0) {
+                 console.warn("Token data not available for populating selectors.");
                  swapButton.disabled = true;
-                 fromTokenSelect.innerHTML = '<option>No tokens</option>';
-                 toTokenSelect.innerHTML = '<option>No tokens</option>';
+                 fromTokenSelect.innerHTML = '<option>Unavailable</option>';
+                 toTokenSelect.innerHTML = '<option>Unavailable</option>';
                  return;
              }
-             const sortedSymbols = Object.keys(tokenData).sort();
+             const sortedSymbols = Object.keys(tokenData).sort((a,b) => (tokenData[a].name || a).localeCompare(tokenData[b].name || b) );
              let fromOptions = '';
              let toOptions = '';
+
              sortedSymbols.forEach(symbol => {
                  const token = tokenData[symbol];
                  const optionHtml = `<option value="${symbol}" data-logo="${token.logoUrl || ''}">${token.name} (${symbol})</option>`;
                  fromOptions += optionHtml;
                  toOptions += optionHtml;
              });
+
              fromTokenSelect.innerHTML = fromOptions;
              toTokenSelect.innerHTML = toOptions;
-             if (sortedSymbols.length > 0) fromTokenSelect.value = sortedSymbols[0];
-             if (sortedSymbols.length > 1) toTokenSelect.value = sortedSymbols[1];
-             else if (sortedSymbols.length === 1) toTokenSelect.value = sortedSymbols[0];
-             updateSwapUI();
-        }
 
-         function populateSendTokenSelector() { // Renamed from populateWithdrawTokenSelector
-            sendTokenSelect.innerHTML = ''; // Clear
+             // Default selection (e.g., USDT and the first non-USDT token)
+             const nonUsdtTokens = sortedSymbols.filter(s => s !== 'USDT');
+             if (sortedSymbols.includes('USDT')) {
+                fromTokenSelect.value = 'USDT';
+                if (nonUsdtTokens.length > 0) {
+                    toTokenSelect.value = nonUsdtTokens[0];
+                } else if (sortedSymbols.length > 1) {
+                    toTokenSelect.value = sortedSymbols.find(s => s !== 'USDT') || sortedSymbols[1]; // Fallback
+                } else {
+                     toTokenSelect.value = 'USDT'; // Only USDT available
+                }
+             } else if (sortedSymbols.length > 0) {
+                 fromTokenSelect.value = sortedSymbols[0];
+                 if (sortedSymbols.length > 1) toTokenSelect.value = sortedSymbols[1];
+                 else toTokenSelect.value = sortedSymbols[0];
+             }
+
+             updateSwapUI();
+         }
+
+
+         function populateSendTokenSelector() {
+            sendTokenSelect.innerHTML = '';
              let hasOptions = false;
              const availableAssets = Object.entries(userBalance)
-                 .filter(([asset, balance]) => parseFloat(balance || 0) > 0 && tokenData[asset])
-                 .sort(([assetA], [assetB]) => assetA.localeCompare(assetB));
+                 .filter(([asset, balance]) => parseFloat(balance || 0) > 0.000001 && tokenData[asset]) // Min balance threshold
+                 .sort(([assetA], [assetB]) => (tokenData[assetA]?.name || assetA).localeCompare(tokenData[assetB]?.name || assetB));
 
              if (availableAssets.length > 0) {
                  availableAssets.forEach(([asset, balance]) => {
@@ -1072,99 +1098,114 @@
                      const option = document.createElement('option');
                      option.value = asset;
                      option.textContent = `${token.name} (${asset})`;
-                     sendTokenSelect.appendChild(option); // Add to sendTokenSelect
+                     sendTokenSelect.appendChild(option);
                      hasOptions = true;
                  });
              }
 
              if (!hasOptions) {
                  const option = document.createElement('option');
-                 option.textContent = 'No assets to send';
+                 option.textContent = 'No assets available';
                  option.disabled = true;
                  sendTokenSelect.appendChild(option);
              }
-             updateSendForm(); // Update available balance display
+             updateSendForm();
          }
 
          function updateSwapUI() {
-            if (!fromTokenSelect || !toTokenSelect) return;
+            if (!fromTokenSelect || !toTokenSelect || !tokenData) return; // Ensure elements and data exist
 
             const fromAsset = fromTokenSelect.value;
             const toAsset = toTokenSelect.value;
-            const fromAmount = parseFloat(fromAmountInput.value || 0);
+            const fromAmount = parseFloat(fromAmountInput.value || 0); // Keep fromAmount as entered by user
             const fromBalance = parseFloat(userBalance[fromAsset] || 0);
             const toBalance = parseFloat(userBalance[toAsset] || 0);
 
+            // Update balance displays below inputs
             swapFromBalanceEl.textContent = `${formatTokenAmount(fromBalance)} ${fromAsset || ''}`;
             swapToBalanceEl.textContent = `${formatTokenAmount(toBalance)} ${toAsset || ''}`;
 
-            updateSwapRateAndToAmount(); // Calculate rate, fee, and toAmount
+            // Calculate rate, apply fee, update 'toAmount' input and fee info
+            updateSwapRateAndToAmount();
 
-            const toAmount = parseFloat(toAmountInput.value || 0);
-             if (fromAsset && toAsset && fromAmount > 0 && fromAsset !== toAsset && fromBalance >= fromAmount && toAmount > 0) {
-                 swapButton.disabled = false;
-             } else {
-                 swapButton.disabled = true;
+            // Enable/disable swap button based on validation
+            const toAmount = parseFloat(toAmountInput.value || 0); // Use the calculated toAmount
+            const hasSufficientBalance = fromBalance >= fromAmount;
+            const isValidSwap = fromAsset && toAsset && fromAmount > 0 && fromAsset !== toAsset && toAmount > 0 && hasSufficientBalance;
+
+            swapButton.disabled = !isValidSwap;
+
+            // Provide clearer feedback if balance is insufficient
+             if (fromAmount > 0 && !hasSufficientBalance && fromAsset) {
+                 // Consider showing a temporary message near the balance or input
+                 showMessage(swapMessage, `Insufficient ${fromAsset} balance`, 'error', 3000);
+             } else if (swapMessage.textContent.includes('Insufficient')) {
+                 swapMessage.style.display = 'none'; // Hide previous insufficient balance message if now ok
              }
          }
+
 
          function updateSwapRateAndToAmount() {
             const fromAsset = fromTokenSelect.value;
             const toAsset = toTokenSelect.value;
             const fromAmount = parseFloat(fromAmountInput.value || 0);
-            let feeText = ''; // Text to display about the fee
+            let feeText = '';
 
             // Reset outputs
              toAmountInput.value = '';
-             swapRateEl.textContent = 'Select tokens to see rate';
-             swapFeeInfoEl.textContent = ''; // Clear fee info
+             swapRateEl.textContent = 'Select tokens';
+             swapFeeInfoEl.textContent = '';
 
             if (!fromAsset || !toAsset || !tokenData[fromAsset] || !tokenData[toAsset]) {
-                 swapRateEl.textContent = 'Token info missing'; return;
-             }
+                return; // Exit if token data is missing
+            }
             if (fromAsset === toAsset) {
-                  swapRateEl.textContent = 'Cannot swap the same token'; return;
+                 swapRateEl.textContent = 'Cannot swap same token'; return;
             }
 
             const fromPrice = parseFloat(tokenData[fromAsset].priceUSD || 0);
             const toPrice = parseFloat(tokenData[toAsset].priceUSD || 0);
 
              if (fromPrice <= 0 || toPrice <= 0) {
-                 swapRateEl.textContent = 'Pricing info unavailable'; return;
+                 swapRateEl.textContent = 'Price info unavailable'; return;
              }
 
-            const baseRate = fromPrice / toPrice; // 1 FromAsset = X ToAsset (before fee)
+            const baseRate = fromPrice / toPrice; // 1 FromAsset = X ToAsset (no fee)
             let effectiveRate = baseRate;
             let calculatedToAmount = fromAmount * baseRate;
+            const feePercentDisplay = (SWAP_FEE_PERCENT * 100).toFixed(2) + '%';
 
-            // Apply Fee Logic
-            const isFiatToCrypto = fromAsset === 'USDT' && toAsset !== 'USDT'; // Basic assumption
-            const isCryptoToFiat = fromAsset !== 'USDT' && toAsset === 'USDT';
+            // --- Asymmetric Fee Logic ---
+            const isUsdtToX = fromAsset === 'USDT' && toAsset !== 'USDT';
+            const isXToUsdt = fromAsset !== 'USDT' && toAsset === 'USDT';
 
-            if (isFiatToCrypto) {
-                // Price of crypto is higher, get less crypto
-                effectiveRate = fromPrice / (toPrice * (1 + SWAP_FEE_PERCENT));
+            if (isUsdtToX) {
+                // Buying X with USDT: Increase X's price (get less X)
+                effectiveRate = baseRate / (1 + SWAP_FEE_PERCENT); // Divide by increased price factor
                 calculatedToAmount = fromAmount * effectiveRate;
-                feeText = `Includes ~${(SWAP_FEE_PERCENT * 100).toFixed(2)}% fee`;
-            } else if (isCryptoToFiat) {
-                // Price of crypto is lower, get less fiat
-                effectiveRate = (fromPrice * (1 - SWAP_FEE_PERCENT)) / toPrice;
-                 calculatedToAmount = fromAmount * effectiveRate;
-                 feeText = `Includes ~${(SWAP_FEE_PERCENT * 100).toFixed(2)}% fee`;
+                feeText = `Fee: ${feePercentDisplay}`;
+            } else if (isXToUsdt) {
+                // Selling X for USDT: Decrease X's price (get less USDT)
+                effectiveRate = baseRate * (1 - SWAP_FEE_PERCENT); // Multiply by decreased price factor
+                calculatedToAmount = fromAmount * effectiveRate;
+                 feeText = `Fee: ${feePercentDisplay}`;
             } else {
-                 // Assume crypto-to-crypto or fiat-to-fiat has no fee in this sim
-                 // Or apply a standard fee if desired
-                  // calculatedToAmount = fromAmount * baseRate * (1 - SWAP_FEE_PERCENT); // Example: Flat fee
-                  // feeText = `Includes ~${(SWAP_FEE_PERCENT * 100).toFixed(2)}% fee`;
+                // Crypto-to-crypto or other cases: Apply flat fee or no fee
+                 // Example: Apply flat fee for simplicity here
+                 effectiveRate = baseRate * (1 - SWAP_FEE_PERCENT);
+                 calculatedToAmount = fromAmount * effectiveRate;
+                 feeText = `Fee: ${feePercentDisplay}`;
+                 // Or set feeText = '' if no fee for C2C
             }
+            // --- End Fee Logic ---
 
-
-            swapRateEl.textContent = `1 ${fromAsset} ≈ ${formatTokenAmount(baseRate, 4)} ${toAsset}`; // Show rate before fee
-            swapFeeInfoEl.textContent = feeText; // Display fee info
-            toAmountInput.value = isNaN(calculatedToAmount) ? '' : formatTokenAmount(calculatedToAmount, 6);
+            swapRateEl.textContent = `1 ${fromAsset} ≈ ${formatTokenAmount(baseRate, 5)} ${toAsset}`; // Show rate before fee
+            swapFeeInfoEl.textContent = feeText;
+            // Ensure calculated amount isn't negative or NaN before displaying
+             toAmountInput.value = (isNaN(calculatedToAmount) || calculatedToAmount < 0) ? '' : formatTokenAmount(calculatedToAmount, 6);
         }
 
-        function updateSendForm() { // Renamed from updateWithdrawForm
+        function updateSendForm() {
              const selectedAsset = sendTokenSelect.value;
              const availableBalance = parseFloat(userBalance[selectedAsset] || 0);
              sendAvailableBalanceEl.textContent = `${formatTokenAmount(availableBalance)} ${selectedAsset || ''}`;
@@ -1172,13 +1213,18 @@
              const sendAmount = parseFloat(sendAmountInput.value || 0);
              const recipientId = recipientIdInput.value.trim();
 
-             // Basic validation for Chat ID (numeric) and non-self
              const isValidRecipient = /^\d+$/.test(recipientId) && recipientId !== String(currentUser?.id);
+             const hasSufficientBalance = availableBalance >= sendAmount;
 
-             if (selectedAsset && sendAmount > 0 && recipientId && isValidRecipient && availableBalance >= sendAmount) {
-                 sendButton.disabled = false;
-             } else {
-                 sendButton.disabled = true;
+             sendButton.disabled = !(selectedAsset && sendAmount > 0 && recipientId && isValidRecipient && hasSufficientBalance);
+
+             // Clear previous error messages if condition changes
+             if (sendMessage.style.display !== 'none' && sendMessage.classList.contains('error')) {
+                 if (sendAmount <= 0 || !recipientId || !isValidRecipient || !hasSufficientBalance) {
+                     // Keep showing message if still invalid
+                 } else {
+                     sendMessage.style.display = 'none'; // Hide if conditions met
+                 }
              }
          }
 
@@ -1186,9 +1232,26 @@
              if (currentUser) {
                 depositChatIdEl.textContent = currentUser.id;
              } else {
-                 depositChatIdEl.textContent = 'Loading...';
+                 depositChatIdEl.textContent = 'N/A';
              }
          }
+
+         // Helper for copying text
+         function copyTextToClipboard(text) {
+            if (!navigator.clipboard) {
+                // Fallback or show message 'copy not supported'
+                showGlobalMessage('Clipboard copy not available.', 'info');
+                return;
+            }
+            navigator.clipboard.writeText(text).then(() => {
+                showGlobalMessage('Copied to clipboard!', 'success', 2000);
+                triggerHapticFeedback('success');
+            }).catch(err => {
+                console.error('Failed to copy text: ', err);
+                showGlobalMessage('Failed to copy.', 'error');
+                triggerHapticFeedback('error');
+            });
+        }
 
 
         // --- ACTION HANDLERS ---
@@ -1196,16 +1259,15 @@
              const fromAsset = fromTokenSelect.value;
              const toAsset = toTokenSelect.value;
              const fromAmount = parseFloat(fromAmountInput.value);
-             // IMPORTANT: Use the calculated toAmount from the input, which already includes the fee
-             const toAmount = parseFloat(toAmountInput.value);
+             const toAmount = parseFloat(toAmountInput.value); // Use calculated amount including fee
 
              // --- Validation ---
              if (!currentUser || !fromAsset || !toAsset || fromAsset === toAsset || isNaN(fromAmount) || fromAmount <= 0 || isNaN(toAmount) || toAmount <= 0) {
-                 showMessage(swapMessage, "Invalid swap parameters.", "error"); return;
+                 showMessage(swapMessage, "Invalid swap details.", "error"); return;
              }
              const fromBalance = parseFloat(userBalance[fromAsset] || 0);
              if (fromBalance < fromAmount) {
-                 showMessage(swapMessage, `Insufficient ${fromAsset} balance. You have ${formatTokenAmount(fromBalance)}.`, "error"); return;
+                 showMessage(swapMessage, `Insufficient ${fromAsset} balance.`, "error"); return;
              }
              // --- End Validation ---
 
@@ -1213,27 +1275,23 @@
              swapButton.disabled = true;
 
              try {
+                 // Recalculate rates just before transaction for accuracy in logs
                  const fromPrice = parseFloat(tokenData[fromAsset]?.priceUSD || 0);
                  const toPrice = parseFloat(tokenData[toAsset]?.priceUSD || 0);
                  const baseRate = (fromPrice > 0 && toPrice > 0) ? fromPrice / toPrice : 0;
-                 const effectiveRate = toAmount / fromAmount; // Calculate effective rate from actual amounts
+                 const effectiveRate = (fromAmount > 0) ? toAmount / fromAmount : 0;
 
                  const balanceUpdates = { [fromAsset]: -fromAmount, [toAsset]: toAmount };
                  const txRecord = {
-                     type: "swap",
-                     fromAsset: fromAsset, fromAmount: fromAmount,
-                     toAsset: toAsset, toAmount: toAmount, // Record the amount *after* fee
-                     rate: baseRate, // Store original rate
-                     effectiveRate: effectiveRate, // Store rate after fee
-                     status: "completed"
+                     type: "swap", fromAsset, fromAmount, toAsset, toAmount,
+                     rate: baseRate, effectiveRate: effectiveRate, status: "completed"
                  };
 
                  await performSwapTransaction(currentUser.id, balanceUpdates, txRecord);
 
-                 showMessage(swapMessage, `Swap successful!`, "success");
+                 showMessage(swapMessage, `Swap successful!`, "success", 4000);
                  triggerHapticFeedback('success');
-                 fromAmountInput.value = '';
-                 // UI updates via listener
+                 fromAmountInput.value = ''; // Clear input, balance updates via listener
 
              } catch (error) {
                  console.error("Swap Transaction Error:", error);
@@ -1241,11 +1299,11 @@
                  triggerHapticFeedback('error');
              } finally {
                  showLoading(false);
-                 // Button status updated by listener via updateSwapUI
+                 // updateSwapUI will re-enable button if possible after data refresh
              }
          }
 
-        async function handleSend() { // Renamed from handleWithdraw
+        async function handleSend() {
              const asset = sendTokenSelect.value;
              const amount = parseFloat(sendAmountInput.value);
              const recipientId = recipientIdInput.value.trim();
@@ -1257,34 +1315,24 @@
              if (!/^\d+$/.test(recipientId)) {
                   showMessage(sendMessage, "Recipient Chat ID must be numeric.", "error"); return;
              }
-             if (recipientId === String(currentUser.id)) {
-                 showMessage(sendMessage, "Cannot send assets to yourself.", "error"); return;
+             const senderId = String(currentUser.id);
+              if (recipientId === senderId) {
+                 showMessage(sendMessage, "You cannot send assets to yourself.", "error"); return;
              }
              const balance = parseFloat(userBalance[asset] || 0);
              if (balance < amount) {
-                 showMessage(sendMessage, `Insufficient ${asset} balance. You have ${formatTokenAmount(balance)}.`, "error"); return;
+                 showMessage(sendMessage, `Insufficient ${asset} balance.`, "error"); return;
              }
              // --- End Validation ---
 
-             // Optional: Check if recipient exists (not atomic, but good UX)
-             // try {
-             //     const recipientSnapshot = await db.ref(`users/${recipientId}`).once('value');
-             //     if (!recipientSnapshot.exists()) {
-             //         showMessage(sendMessage, `Recipient Chat ID ${recipientId} not found or hasn't used the app.`, "error");
-             //         return;
-             //     }
-             // } catch (e) {
-             //     showMessage(sendMessage, `Error checking recipient. Please try again.`, "error"); return;
-             // }
-
-
-             showLoading(true, 'Processing Transfer...');
+             showLoading(true, 'Sending Transfer...');
              sendButton.disabled = true;
 
              try {
-                 await performP2PTransfer(String(currentUser.id), recipientId, asset, amount);
+                 // performP2PTransfer includes recipient existence check now
+                 await performP2PTransfer(senderId, recipientId, asset, amount);
 
-                 showMessage(sendMessage, `Successfully sent ${formatTokenAmount(amount)} ${asset} to ${recipientId}.`, "success");
+                 showMessage(sendMessage, `Sent ${formatTokenAmount(amount)} ${asset} to ${recipientId}.`, "success", 4000);
                  triggerHapticFeedback('success');
                  sendAmountInput.value = '';
                  recipientIdInput.value = '';
@@ -1292,16 +1340,18 @@
 
              } catch (error) {
                  console.error("Send Transaction Error:", error);
-                  // Check if error might be due to recipient path write rules/non-existence
-                 if (error.message.includes("permission_denied") || error.message.includes("not found")) {
-                      showMessage(sendMessage, `Could not complete transfer. Recipient ID ${recipientId} might be invalid or has restricted access.`, "error");
+                 // Provide more specific feedback if possible
+                 if (error.message.includes("Recipient with Chat ID")) {
+                     showMessage(sendMessage, error.message, "error"); // Show the specific "not found" error
+                 } else if (error.message.includes("permission_denied")) {
+                      showMessage(sendMessage, `Transfer failed. Check recipient ID or permissions.`, "error");
                  } else {
                       showMessage(sendMessage, "Send failed. Please try again.", "error");
                  }
                  triggerHapticFeedback('error');
              } finally {
                  showLoading(false);
-                  // Button status updated by listener via updateSendForm
+                 // Re-enable button state managed by updateSendForm after data refresh
              }
          }
 
@@ -1309,28 +1359,32 @@
         function setupEventListeners() {
              if (listenersAttached) return;
 
-             // Navigation
-             navItems.forEach(item => {
-                 item.addEventListener('click', () => {
-                     showPage(item.dataset.page);
-                 });
-             });
+             navItems.forEach(item => item.addEventListener('click', () => showPage(item.dataset.page)));
 
-             // Swap Page
              fromTokenSelect.addEventListener('change', updateSwapUI);
              toTokenSelect.addEventListener('change', updateSwapUI);
              fromAmountInput.addEventListener('input', updateSwapUI);
              swapButton.addEventListener('click', handleSwap);
-             swapDirectionBtn.addEventListener('click', () => { /* ... Same ... */ });
+             swapDirectionBtn.addEventListener('click', () => {
+                 const fromVal = fromTokenSelect.value;
+                 const toVal = toTokenSelect.value;
+                 fromTokenSelect.value = toVal;
+                 toTokenSelect.value = fromVal;
+                 triggerHapticFeedback('light');
+                 updateSwapUI();
+             });
 
-             // Deposit Page - Copy Chat ID
-             depositChatIdEl.addEventListener('click', () => { /* ... Same ... */ });
+             depositChatIdEl.addEventListener('click', () => {
+                if(currentUser && currentUser.id) copyTextToClipboard(String(currentUser.id));
+             });
 
-             // Send Page (Renamed)
              sendTokenSelect.addEventListener('change', updateSendForm);
              sendAmountInput.addEventListener('input', updateSendForm);
              recipientIdInput.addEventListener('input', updateSendForm);
-             sendButton.addEventListener('click', handleSend); // Calls handleSend now
+             sendButton.addEventListener('click', handleSend);
+
+             // Add listener for clicking transaction IDs (already in innerHTML)
+             // The onclick attribute handles this directly now
 
              listenersAttached = true;
              console.log("Event listeners attached.");
@@ -1342,8 +1396,7 @@
             showLoading(true, 'Connecting...');
              if (typeof window.Telegram === 'undefined' || !window.Telegram.WebApp) {
                  console.error("Telegram SDK not found.");
-                 showLoading(false);
-                 appBlocker.style.display = 'flex'; return;
+                 showLoading(false); appBlocker.style.display = 'flex'; return;
              }
              tg = window.Telegram.WebApp;
 
@@ -1356,10 +1409,10 @@
 
                  if (tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.id) {
                      currentUser = tg.initDataUnsafe.user;
-                     console.log("User Identified:", currentUser);
-                     // Update static UI immediately
-                     updateHomePageUI(); // Shows basic info
-                     updateDepositPageUI(); // Shows Chat ID
+                     console.log("User Identified:", currentUser.id);
+                     // Show basic user info immediately
+                     updateHomePageUI();
+                     updateDepositPageUI();
                  } else {
                      throw new Error("Telegram user data unavailable.");
                  }
@@ -1367,19 +1420,21 @@
                  showLoading(true, 'Loading Wallet Data...');
                  await initializeFirebase();
 
-                 // Fetch static token data first
+                 // Fetch static token data first is essential for pricing
                  await getTokenData();
-                 populateTokenSelectors(); // Populate swap dropdowns
+                 populateTokenSelectors(); // Populate swap dropdowns now that tokens are known
 
-                 // Start listening for user data (incl. balances/tx) AFTER tokens are known
+                 // Start listening for user data AFTER tokens loaded & swap populated
+                 // The getUserDataRealtime function will resolve once the first data comes in
+                 // or user is created.
                  await getUserDataRealtime(String(currentUser.id));
 
-                 // Initial population based on potentially loaded data
+                 // Initial population of send tokens based on fetched balance
                  populateSendTokenSelector();
 
-                 setupEventListeners();
+                 setupEventListeners(); // Setup interactions only after data is ready
                  showLoading(false);
-                 showPage('homePage');
+                 showPage('homePage'); // Ensure home is active
 
             } catch (error) {
                  console.error("Initialization Failed:", error);
@@ -1390,6 +1445,7 @@
                  } else {
                      showGlobalMessage(`Initialization Error: ${error.message}`, "error", 0);
                  }
+                 // Disable interactions if init fails
                  document.querySelectorAll('button, input, select').forEach(el => el.disabled = true);
             }
         }
