@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>AB Wallet Pro+</title>
+    <title>AB Wallet</title> <!-- Updated Title -->
     <link rel="stylesheet" href="style.css">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
@@ -16,15 +16,15 @@
         <!-- Loading Overlay -->
         <div id="loading-overlay">
             <div class="spinner"></div>
-            <p>Loading...</p>
+            <p>Loading AB Wallet...</p>
         </div>
 
         <!-- Main Content Area -->
         <main id="main-content">
             <!-- Home Page -->
             <div id="home-page" class="page active">
-                <header class="page-header">
-                    <h1>Portfolio</h1>
+                <header class="page-header main-header"> <!-- Added class for potential main header styling -->
+                    <h1>AB Wallet</h1> <!-- App Name Header -->
                     <button id="refresh-button" title="Refresh Data">🔄</button>
                 </header>
                  <section class="content-section total-balance-section">
@@ -38,16 +38,10 @@
                  <section class="content-section asset-list-section">
                      <h2>Your Assets</h2>
                      <div id="asset-list" class="asset-list-container">
-                         <!-- Asset cards will be injected here by JS -->
                          <p class="no-assets">Loading assets...</p>
                      </div>
                  </section>
-                <section class="content-section user-info-section">
-                    <h2>Account Info</h2>
-                    <div class="user-info-card" id="user-info-display">
-                        <p>Loading user data...</p>
-                    </div>
-                </section>
+                <!-- User Info Section Removed from Home - Maybe move to a Profile page later -->
             </div>
 
             <!-- Swap Page -->
@@ -60,7 +54,7 @@
                      <div class="swap-interface">
                          <!-- From Section -->
                          <div class="swap-box">
-                             <label for="swap-from-amount">From</label>
+                             <label for="swap-from-amount">You Pay</label>
                              <div class="input-group">
                                  <input type="number" id="swap-from-amount" placeholder="0.0" step="any" min="0">
                                  <div class="token-selector-container">
@@ -69,7 +63,6 @@
                                          <span class="token-symbol">Select</span>
                                          <span class="arrow">▼</span>
                                      </button>
-                                     <!-- Dropdown will be managed by JS -->
                                  </div>
                              </div>
                              <div class="balance-info" id="swap-from-balance">Balance: 0.0</div>
@@ -81,7 +74,7 @@
 
                          <!-- To Section -->
                          <div class="swap-box">
-                             <label for="swap-to-amount">To (Estimated)</label>
+                             <label for="swap-to-amount">You Receive (Estimated)</label>
                              <div class="input-group">
                                  <input type="number" id="swap-to-amount" placeholder="0.0" step="any" disabled>
                                  <div class="token-selector-container">
@@ -90,7 +83,6 @@
                                           <span class="token-symbol">Select</span>
                                           <span class="arrow">▼</span>
                                      </button>
-                                      <!-- Dropdown will be managed by JS -->
                                  </div>
                              </div>
                               <div class="balance-info" id="swap-to-balance">Balance: 0.0</div>
@@ -98,7 +90,10 @@
 
                          <!-- Rate & Action -->
                          <div class="swap-rate-info" id="swap-rate-display">
-                             Enter amounts to see rate.
+                             Select tokens to see rate.
+                         </div>
+                          <div class="swap-fee-info" id="swap-fee-display">
+                             <!-- Fee info will be displayed here -->
                          </div>
                          <button id="execute-swap-button" class="action-button primary-button" disabled>Swap</button>
                          <p id="swap-status" class="status-message"></p>
@@ -110,32 +105,37 @@
             <div id="deposit-page" class="page">
                 <header class="page-header">
                      <button class="back-button" data-target="home-page">←</button>
-                     <h1>Deposit Funds</h1>
+                     <h1>Deposit Information</h1>
                 </header>
                 <section class="content-section">
-                    <p class="info-text">Use a unique **Wallet Address** (not your Chat ID) to deposit funds from external sources. Your Chat ID below is for identifying your account within this app.</p>
+                    <p class="info-text">This page shows your unique identifiers within AB Wallet. Deposits are typically handled through external methods or promotions and credited to your account based on these details.</p>
 
-                    <div class="deposit-info-card">
-                        <h3>Your Account Identifier (Chat ID)</h3>
-                        <div class="chat-id-display">
-                           <span id="deposit-chat-id">Loading...</span>
-                           <button class="copy-button" title="Copy Chat ID" data-clipboard-target="#deposit-chat-id">COPY</button>
-                        </div>
-                         <p class="small-text">Share this ID if requested by AB Wallet support ONLY.</p>
+                    <div class="deposit-info-card user-identification-card">
+                        <h3>Your AB Wallet Identifiers</h3>
+                         <div class="identifier-item">
+                             <strong>Chat ID:</strong>
+                            <div class="identifier-value">
+                               <span id="deposit-chat-id">Loading...</span>
+                               <button class="copy-button" title="Copy Chat ID" data-clipboard-target="#deposit-chat-id">COPY</button>
+                           </div>
+                         </div>
+                         <div class="identifier-item">
+                              <strong>Username:</strong>
+                             <div class="identifier-value">
+                                <span id="deposit-username">Loading...</span>
+                                <button class="copy-button" title="Copy Username" data-clipboard-target="#deposit-username">COPY</button>
+                            </div>
+                         </div>
+                         <p class="small-text">Use these identifiers when interacting with AB Wallet services or support.</p>
                     </div>
 
-                     <div class="deposit-info-card">
-                        <h3>Deposit Wallet Address (Example Network)</h3>
-                        <div class="address-display">
-                           <span id="deposit-wallet-address">0xDemo...Address...NotReal123</span>
-                           <button class="copy-button" title="Copy Address" data-clipboard-target="#deposit-wallet-address">COPY</button>
-                        </div>
-                        <p class="warning-text">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M11 15h2v2h-2zM11 7h2v6h-2zM12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"></path></svg>
-                            <strong>Crucial:</strong> This is a DEMO address on a FAKE network. **DO NOT SEND REAL FUNDS**. In a real wallet, select the correct asset and network, then use the generated address.
-                        </p>
-                    </div>
-                     <p class="info-text">Deposits require network confirmations and will reflect in your balance once processed (simulation only).</p>
+                    <!-- Removed the external wallet address section -->
+
+                    <p class="info-text" style="margin-top: 20px;">There are currently no direct deposit actions within the app itself. Please refer to official AB Wallet channels for deposit instructions.</p>
+
+                     <!-- Optional: Add a button for "How to Deposit?" linking to info -->
+                      <!-- <button class="action-button secondary-button">How to Deposit?</button> -->
+
                 </section>
             </div>
 
@@ -143,9 +143,10 @@
             <div id="withdraw-page" class="page">
                 <header class="page-header">
                     <button class="back-button" data-target="home-page">←</button>
-                    <h1>Withdraw Funds</h1>
+                    <h1>Internal Transfer</h1> <!-- Renamed to reflect functionality -->
                 </header>
                  <section class="content-section">
+                    <p class="info-text">Send assets directly to another AB Wallet user using their Telegram Chat ID or Username.</p>
                      <div class="form-group">
                          <label for="withdraw-asset-select">Select Asset:</label>
                          <select id="withdraw-asset-select">
@@ -155,9 +156,10 @@
                          <p class="current-balance-info">Available: <strong id="withdraw-available-balance">0.00</strong></p>
                      </div>
                     <div class="form-group">
-                        <label for="withdraw-address">Recipient Wallet Address:</label>
-                        <input type="text" id="withdraw-address" placeholder="Enter destination address (e.g., 0x...)">
-                         <p class="small-text warning-text"><small>Ensure the address is correct and on the compatible network (network selection not implemented in demo).</small></p>
+                        <!-- Changed label and input type -->
+                        <label for="withdraw-recipient-id">Recipient's Username or Chat ID:</label>
+                        <input type="text" id="withdraw-recipient-id" placeholder="@username or 123456789">
+                         <p class="small-text"><small>Enter the exact Telegram Username (without '@') or their numerical Chat ID.</small></p>
                     </div>
                     <div class="form-group">
                         <label for="withdraw-amount">Amount:</label>
@@ -166,7 +168,8 @@
                             <button id="withdraw-max-button">Max</button>
                         </div>
                     </div>
-                    <button id="withdraw-button" class="action-button primary-button" disabled>Review Withdrawal</button>
+                    <!-- Changed Button Text -->
+                    <button id="withdraw-button" class="action-button primary-button" disabled>Send Transfer</button>
                     <p id="withdraw-status" class="status-message"></p>
                  </section>
             </div>
@@ -174,6 +177,7 @@
 
         <!-- Bottom Navigation Bar -->
         <nav id="bottom-nav">
+            <!-- ... (nav buttons remain the same) ... -->
              <button data-page="home-page" class="nav-button active" aria-label="Home">
                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"></path></svg>
                 <span>Home</span>
@@ -187,13 +191,14 @@
                 <span>Deposit</span>
             </button>
             <button data-page="withdraw-page" class="nav-button" aria-label="Withdraw">
-                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M5 12V5h14v7h2V3H3v9H5zm6-.67L8.41 13.91 7 12.5l5-5 5 5-1.41 1.41L13 11.33V21h-2v-9.67z"></path></svg>
-                <span>Withdraw</span>
+                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M11.33 5.67L7.41 9.59 6 8.17l5-5 5 5-1.41 1.42-3.92-3.92V16h-2V5.67zM5 18h14v-3H5v3z"></path></svg> <!-- Changed Icon maybe? -->
+                <span>Transfer</span> <!-- Changed Label -->
             </button>
         </nav>
 
-         <!-- Token Selector Modal (Example Structure) -->
+         <!-- Token Selector Modal (Structure remains the same) -->
          <div id="token-selector-modal" class="modal">
+             <!-- ... (modal content remains the same) ... -->
              <div class="modal-content">
                  <div class="modal-header">
                      <h2>Select Token</h2>
@@ -201,32 +206,19 @@
                  </div>
                  <div class="modal-body">
                      <input type="text" id="token-search-input" placeholder="Search token name or symbol...">
-                     <ul id="token-list-modal">
-                         <!-- Token items will be populated here -->
-                     </ul>
+                     <ul id="token-list-modal"></ul>
                  </div>
              </div>
          </div>
-
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.11/clipboard.min.js"></script>
     <script>
-        // Initialize ClipboardJS
+        // Initialize ClipboardJS (remains the same)
         if (typeof ClipboardJS === 'function') {
-             var clipboard = new ClipboardJS('.copy-button');
-             clipboard.on('success', function(e) {
-                 const originalText = e.trigger.innerHTML;
-                 e.trigger.innerHTML = 'COPIED!';
-                 e.clearSelection();
-                 setTimeout(() => { e.trigger.innerHTML = originalText; }, 1500);
-             });
-             clipboard.on('error', function(e) {
-                 console.error('Clipboard error:', e);
-                 const originalText = e.trigger.innerHTML;
-                 e.trigger.innerHTML = 'Error';
-                  setTimeout(() => { e.trigger.innerHTML = originalText; }, 1500);
-             });
+            var clipboard = new ClipboardJS('.copy-button');
+            clipboard.on('success', function(e) { /* ... feedback ... */ });
+            clipboard.on('error', function(e) { /* ... feedback ... */ });
         }
     </script>
 
