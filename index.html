@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>AB Wallet</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AB Wallet Pro</title>
     <!-- Telegram WebApp SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <!-- Firebase SDK -->
@@ -12,17 +12,18 @@
 
     <style>
         :root {
-            --bg-color: #121212;
+            --bg-color: #121212; /* Default dark */
             --primary-text: #ffffff;
             --secondary-text: #b3b3b3;
             --card-bg: #282828;
-            --accent-color: #1DB954; /* Example: Spotify Green */
+            --accent-color: #1DB954; /* Default accent */
             --button-bg: #1DB954;
             --button-text: #ffffff;
             --input-bg: #333333;
             --border-color: #444444;
             --error-color: #f44336;
             --success-color: #4caf50;
+            --link-color: #8774e1; /* Telegram link color */
         }
 
         * {
@@ -32,25 +33,29 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
         }
 
+        html, body {
+           height: 100%; /* Needed for flex column */
+        }
+
         body {
             background-color: var(--bg-color);
             color: var(--primary-text);
             overscroll-behavior: none; /* Prevent pull-to-refresh */
             display: flex;
             flex-direction: column;
-            min-height: 100vh;
-            padding-bottom: 60px; /* Space for bottom nav */
+            transition: background-color 0.3s, color 0.3s; /* Smooth theme transition */
         }
 
         .app-container {
             flex-grow: 1;
-            padding: 15px;
+            padding: 15px 15px 75px 15px; /* Added more bottom padding for nav */
             overflow-y: auto;
+            -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
         }
 
         /* --- Page Sections --- */
         .page {
-            display: none; /* Hidden by default */
+            display: none;
             animation: fadeIn 0.3s ease-in-out;
         }
         .page.active {
@@ -58,8 +63,8 @@
         }
 
         @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         /* --- Navigation --- */
@@ -75,6 +80,7 @@
             align-items: center;
             border-top: 1px solid var(--border-color);
             z-index: 1000;
+            box-shadow: 0 -2px 5px rgba(0,0,0,0.2);
         }
 
         .nav-item {
@@ -85,20 +91,22 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            font-size: 12px;
-            padding: 5px;
+            font-size: 10px; /* Slightly smaller */
+            padding: 8px 5px;
             transition: color 0.2s ease;
+            flex: 1; /* Distribute space evenly */
+            text-align: center;
         }
-        .nav-item svg { /* Basic icon styling */
-            width: 24px;
-            height: 24px;
+        .nav-item svg {
+            width: 22px;
+            height: 22px;
             margin-bottom: 4px;
             fill: currentColor;
         }
         .nav-item.active {
             color: var(--accent-color);
         }
-        .nav-item:hover {
+        .nav-item:hover:not(.active) { /* Hover effect only on non-active */
             color: var(--primary-text);
         }
 
@@ -108,37 +116,53 @@
             color: var(--primary-text);
             margin-bottom: 15px;
         }
-        h1 { font-size: 24px; }
-        h2 { font-size: 20px; }
-        h3 { font-size: 16px; color: var(--secondary-text); margin-bottom: 10px;}
+        h1 { font-size: 22px; font-weight: 600; }
+        h2 { font-size: 18px; font-weight: 500; border-bottom: 1px solid var(--border-color); padding-bottom: 8px; margin-bottom: 15px;}
+        h3 { font-size: 16px; color: var(--secondary-text); margin-bottom: 10px; font-weight: 500;}
 
         .card {
             background-color: var(--card-bg);
-            padding: 20px;
-            border-radius: 8px;
+            padding: 15px;
+            border-radius: 10px;
             margin-bottom: 20px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
         }
 
         .balance-display {
-            font-size: 28px;
-            font-weight: bold;
+            font-size: 32px;
+            font-weight: 700;
             color: var(--primary-text);
             text-align: center;
-            margin-bottom: 20px;
+            margin-bottom: 10px;
         }
         .balance-display span {
             font-size: 16px;
             font-weight: normal;
             color: var(--secondary-text);
+            margin-left: 5px;
+        }
+        .balance-subtitle {
+             text-align: center;
+             color: var(--secondary-text);
+             font-size: 14px;
+             margin-top: -5px;
+             margin-bottom: 20px;
         }
 
         .user-info p {
-            margin-bottom: 5px;
+            margin-bottom: 8px;
             color: var(--secondary-text);
+            font-size: 14px;
+            display: flex;
+            justify-content: space-between;
         }
         .user-info strong {
             color: var(--primary-text);
+            font-weight: 500;
+        }
+        .user-info span {
+            text-align: right;
+            word-break: break-all; /* Prevent long usernames/IDs from overflowing */
         }
 
 
@@ -147,183 +171,315 @@
             margin-bottom: 5px;
             color: var(--secondary-text);
             font-size: 14px;
+            font-weight: 500;
         }
 
         input[type="text"], input[type="number"], select {
             width: 100%;
-            padding: 12px;
+            padding: 12px 15px;
             margin-bottom: 15px;
             background-color: var(--input-bg);
             border: 1px solid var(--border-color);
-            border-radius: 5px;
+            border-radius: 8px;
             color: var(--primary-text);
             font-size: 16px;
+            appearance: none; /* Remove default styling */
+            -webkit-appearance: none;
         }
+        select {
+             background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23b3b3b3' viewBox='0 0 16 16'%3E%3Cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3E%3C/svg%3E");
+             background-repeat: no-repeat;
+             background-position: right 15px center;
+             padding-right: 40px; /* Space for arrow */
+        }
+
         input:focus, select:focus {
             outline: none;
             border-color: var(--accent-color);
+            box-shadow: 0 0 0 2px rgba(29, 185, 84, 0.3); /* Subtle focus ring */
         }
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button {
+             -webkit-appearance: none;
+             margin: 0;
+        }
+         input[type="number"] { -moz-appearance: textfield; } /* Firefox */
 
         button {
             background-color: var(--button-bg);
             color: var(--button-text);
             border: none;
-            padding: 15px;
+            padding: 14px 20px;
             border-radius: 25px; /* Pill shape */
             cursor: pointer;
             font-size: 16px;
-            font-weight: bold;
+            font-weight: 600; /* Bolder */
             text-align: center;
             width: 100%;
             transition: background-color 0.2s ease, transform 0.1s ease;
             margin-top: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
         }
         button:hover {
-            background-color: #1aa34a; /* Slightly darker green */
+            opacity: 0.9;
         }
         button:active {
-            transform: scale(0.98);
+            transform: scale(0.97);
         }
         button:disabled {
             background-color: #555;
+            color: #999;
             cursor: not-allowed;
+            opacity: 0.7;
         }
-
-
-        .token-select-item {
-            display: flex;
-            align-items: center;
+        button svg { /* For potential icons in buttons */
+            width: 18px;
+            height: 18px;
+            fill: currentColor;
         }
-         .token-select-item img {
-             width: 24px;
-             height: 24px;
-             margin-right: 10px;
-             border-radius: 50%;
-             background-color: #fff; /* Placeholder bg */
-         }
 
         .swap-icon {
             text-align: center;
-            margin: 15px 0;
+            margin: 10px 0;
             font-size: 24px;
             cursor: pointer;
             color: var(--accent-color);
+            transform: rotate(90deg);
+            transition: transform 0.3s ease;
+        }
+        .swap-icon:hover {
+             transform: rotate(270deg);
         }
 
         .message {
-            padding: 10px;
+            padding: 12px;
             margin: 15px 0;
-            border-radius: 5px;
+            border-radius: 8px;
             text-align: center;
             font-size: 14px;
+            border: 1px solid transparent;
         }
         .message.error {
-            background-color: rgba(244, 67, 54, 0.2);
+            background-color: rgba(244, 67, 54, 0.1);
             color: var(--error-color);
-            border: 1px solid var(--error-color);
+            border-color: rgba(244, 67, 54, 0.3);
         }
         .message.success {
-             background-color: rgba(76, 175, 80, 0.2);
+             background-color: rgba(76, 175, 80, 0.1);
              color: var(--success-color);
-             border: 1px solid var(--success-color);
+             border-color: rgba(76, 175, 80, 0.3);
+         }
+         .message.info {
+             background-color: rgba(33, 150, 243, 0.1);
+             color: var(--link-color); /* Use link color for info */
+             border-color: rgba(33, 150, 243, 0.3);
          }
 
         .loading-indicator {
              text-align: center;
-             padding: 20px;
+             padding: 30px;
              color: var(--secondary-text);
              display: none; /* Hidden initially */
+             font-size: 16px;
          }
          .loading-indicator.active {
              display: block;
          }
+         /* Simple spinner */
+         .loading-indicator::before {
+            content: '';
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: var(--primary-text);
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 10px;
+            vertical-align: middle;
+         }
+         @keyframes spin {
+            to { transform: rotate(360deg); }
+         }
+
 
         .chat-id-display {
             background-color: var(--input-bg);
-            padding: 10px;
-            border-radius: 5px;
-            font-family: monospace;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', Courier, monospace;
             word-break: break-all;
             margin-top: 5px;
-            margin-bottom: 15px;
-            border: 1px solid var(--border-color);
+            margin-bottom: 5px; /* Reduced bottom margin */
+            border: 1px dashed var(--border-color); /* Dashed border */
             cursor: pointer;
             text-align: center;
+            color: var(--secondary-text);
+            transition: background-color 0.2s;
+        }
+        .chat-id-display:hover {
+            background-color: rgba(255, 255, 255, 0.1);
         }
          .copy-feedback {
              font-size: 12px;
              color: var(--success-color);
              text-align: center;
-             height: 15px; /* Reserve space */
-             margin-top: -10px;
-             margin-bottom: 10px;
+             height: 18px; /* Reserve space */
+             margin-bottom: 15px;
+             opacity: 0;
+             transition: opacity 0.3s ease;
+         }
+         .copy-feedback.visible {
+              opacity: 1;
          }
 
         .transaction-history ul {
             list-style: none;
             padding: 0;
-            max-height: 200px;
+            max-height: 250px; /* Increased height */
             overflow-y: auto;
         }
         .transaction-history li {
-            background-color: var(--input-bg);
-            padding: 10px;
-            margin-bottom: 5px;
-            border-radius: 4px;
+            background-color: transparent; /* Use card bg */
+            padding: 12px 0;
+            margin-bottom: 0px;
+            border-bottom: 1px solid var(--border-color);
             font-size: 13px;
             color: var(--secondary-text);
-            border-left: 3px solid var(--accent-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
-         .transaction-history li.deposit { border-left-color: var(--success-color); }
-         .transaction-history li.withdraw { border-left-color: var(--error-color); }
-         .transaction-history li.swap { border-left-color: orange; }
+         .transaction-history li:last-child {
+             border-bottom: none; /* No border for last item */
+         }
+        .transaction-history li .tx-details {
+             flex-grow: 1;
+             margin-right: 10px;
+        }
 
-        .transaction-history li span { color: var(--primary-text); font-weight: 500;}
+        .transaction-history li .tx-type-icon {
+             width: 16px;
+             height: 16px;
+             margin-right: 8px;
+             vertical-align: middle;
+        }
+        .transaction-history li span.tx-amount { color: var(--primary-text); font-weight: 500;}
+        .transaction-history li span.tx-asset { font-weight: 500; }
+        .transaction-history li span.tx-recipient { font-size: 11px; display: block; margin-top: 2px; }
+        .transaction-history li .tx-timestamp {
+            font-size: 11px;
+            color: var(--secondary-text);
+            white-space: nowrap;
+        }
+        .transaction-history li.deposit .tx-amount { color: var(--success-color); }
+        .transaction-history li.withdraw .tx-amount { color: var(--error-color); }
+        /* Swap needs more specific styling maybe */
 
+        #appBlocker {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            z-index: 2000;
+            padding: 20px;
+            color: white;
+            display: none; /* Hidden by default */
+        }
+        #appBlocker p {
+            margin-bottom: 15px;
+        }
+        #appBlocker button {
+            width: auto;
+            padding: 10px 20px;
+        }
+
+        .token-list-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border-color);
+         }
+         .token-list-item:last-child { border-bottom: none; }
+         .token-list-item .token-info { display: flex; align-items: center; }
+         .token-list-item img {
+             width: 32px;
+             height: 32px;
+             margin-right: 12px;
+             border-radius: 50%;
+             background-color: #fff; /* Placeholder bg */
+         }
+         .token-list-item .token-name { font-weight: 500; color: var(--primary-text);}
+         .token-list-item .token-symbol { font-size: 12px; color: var(--secondary-text); }
+         .token-list-item .token-balance { text-align: right; }
+         .token-list-item .balance-amount { font-weight: 500; color: var(--primary-text); }
+         .token-list-item .balance-usd { font-size: 12px; color: var(--secondary-text); }
 
     </style>
 </head>
 <body>
 
+    <!-- Blocker for non-Telegram environments -->
+    <div id="appBlocker">
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="#ffffff"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/></svg>
+        <h2 style="margin-top: 15px;">Access Denied</h2>
+        <p>This application is designed to work exclusively within the Telegram app.</p>
+        <p>Please open it through your Telegram bot.</p>
+        <!-- Optional: Add a button to try closing (might not work everywhere) -->
+        <!-- <button id="closeWebAppBtn">Close</button> -->
+    </div>
+
     <div class="app-container">
 
         <!-- Loading Indicator -->
-        <div id="loadingIndicator" class="loading-indicator">Loading...</div>
+        <div id="loadingIndicator" class="loading-indicator active">Initializing...</div>
 
         <!-- Global Message Area -->
         <div id="globalMessage" class="message" style="display: none;"></div>
 
         <!-- Home Page -->
         <div id="homePage" class="page active">
-            <h1>Welcome, <span id="userName">User</span>!</h1>
+            <!-- Welcome message injected by JS -->
+            <h1 id="welcomeMessage">Welcome!</h1>
 
             <div class="card">
                 <h2>Total Balance</h2>
                 <div class="balance-display" id="totalBalance">
                     $0.00 <span>USD</span>
                 </div>
-                <!-- Detailed Balances (Optional) -->
+                <p class="balance-subtitle">Estimated total value of all assets</p>
                  <div id="detailedBalances">
-                     <h3>Asset Balances:</h3>
-                     <ul id="assetList">
-                         <!-- Asset balances will be listed here -->
+                     <h3>Asset Balances</h3>
+                     <ul id="assetList" style="list-style: none; padding: 0;">
+                         <!-- Populated by JS -->
+                         <li style="color: var(--secondary-text); text-align: center;">Loading balances...</li>
                      </ul>
                  </div>
             </div>
 
             <div class="card user-info">
-                <h2>User Information</h2>
-                <p><strong>First Name:</strong> <span id="userFirstName"></span></p>
-                <p><strong>Last Name:</strong> <span id="userLastName"></span></p>
-                <p><strong>Username:</strong> <span id="userUsername"></span></p>
-                <p><strong>Chat ID:</strong> <span id="userChatId"></span></p>
+                <h2>Your Telegram Info</h2>
+                <p><strong>First Name:</strong> <span id="userFirstName">Loading...</span></p>
+                <p><strong>Last Name:</strong> <span id="userLastName">Loading...</span></p>
+                <p><strong>Username:</strong> <span id="userUsername">Loading...</span></p>
+                <p><strong>Chat ID:</strong> <span id="userChatId">Loading...</span></p>
             </div>
 
              <div class="card transaction-history">
                  <h2>Recent Activity</h2>
                  <ul id="transactionList">
-                    <!-- Transactions will be listed here -->
-                    <li>No transactions yet.</li>
+                    <li style="color: var(--secondary-text); text-align: center; border: none;">Loading transactions...</li>
                  </ul>
             </div>
         </div>
@@ -336,17 +492,24 @@
 
                 <label for="fromToken">From:</label>
                 <select id="fromToken"></select>
-                <input type="number" id="fromAmount" placeholder="Amount to swap" min="0" step="any">
+                <input type="number" id="fromAmount" placeholder="0.0" min="0" step="any">
+                <p style="font-size: 12px; color: var(--secondary-text); margin-top: -10px; margin-bottom: 10px;">Balance: <span id="swapFromBalance">0.00</span></p>
 
-                <div class="swap-icon" id="swapDirectionBtn">⇅</div>
+
+                <div class="swap-icon" id="swapDirectionBtn" title="Swap Tokens">⇅</div>
 
                 <label for="toToken">To:</label>
                 <select id="toToken"></select>
-                <input type="number" id="toAmount" placeholder="Estimated amount" readonly>
+                <input type="number" id="toAmount" placeholder="0.0" readonly style="background-color: var(--input-bg); opacity: 0.7;">
+                 <p style="font-size: 12px; color: var(--secondary-text); margin-top: -10px; margin-bottom: 10px;">Balance: <span id="swapToBalance">0.00</span></p>
 
-                <p id="swapRate" style="text-align: center; margin-bottom: 15px; color: var(--secondary-text); font-size: 14px;">Select tokens to see rate</p>
 
-                <button id="swapButton" disabled>Swap</button>
+                <p id="swapRate" style="text-align: center; margin: 15px 0; color: var(--secondary-text); font-size: 14px; min-height: 20px;">Select tokens to see rate</p>
+
+                <button id="swapButton" disabled>
+                    <svg viewBox="0 0 24 24"><path d="M6.99 11L3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z"/></svg>
+                    Swap
+                </button>
             </div>
         </div>
 
@@ -355,23 +518,25 @@
             <h1>Deposit Assets</h1>
             <div class="card">
                  <div id="depositMessage" class="message" style="display: none;"></div>
-                <p style="color: var(--secondary-text); margin-bottom: 15px;">To deposit assets, you would typically send them to a specific wallet address. Since this is a simulation within Telegram, we'll use your unique Chat ID for identification.</p>
+                <p style="color: var(--secondary-text); margin-bottom: 20px; font-size: 14px;">To simulate receiving assets, use your unique Telegram Chat ID. In a real wallet, you would see specific crypto addresses here.</p>
 
-                <h3>Your Unique Deposit Identifier (Chat ID):</h3>
+                <h3>Your Unique Identifier (Chat ID)</h3>
                 <div id="depositChatId" class="chat-id-display" title="Click to copy">Loading...</div>
-                <div id="copyFeedbackDeposit" class="copy-feedback"></div>
+                <div id="copyFeedbackDeposit" class="copy-feedback">Click ID to copy</div>
 
-                <p style="color: var(--secondary-text;); font-size: 14px; margin-top: 15px;">
-                    **Simulation Only:** In a real scenario, you'd see deposit addresses for different cryptocurrencies here. For this demo, any simulated "deposit" action will be linked to your Chat ID in the database. You could simulate receiving USDT by contacting support or via a simulated faucet (not implemented here).
+                 <p style="color: var(--secondary-text); font-size: 13px; margin-top: 20px; text-align: center; opacity: 0.8;">
+                    <strong>Simulation Only:</strong> No real funds will be moved. Actions are recorded in the database using this ID.
                  </p>
-
-                 <!-- Example Simulation Button (Optional) -->
-                 <!--
-                 <label for="depositAmountSim">Simulate USDT Deposit Amount:</label>
-                 <input type="number" id="depositAmountSim" placeholder="e.g., 100" min="1">
-                 <button id="simulateDepositBtn">Simulate Receiving USDT</button>
-                 -->
             </div>
+             <!-- Example: Add a card explaining how simulation works -->
+             <div class="card">
+                 <h2>How Simulation Works</h2>
+                 <p style="color: var(--secondary-text); font-size: 14px;">
+                     Deposits and withdrawals in this demo are simulated by updating your balance directly in our database, linked to your Chat ID above.
+                     <br><br>
+                     To test, you might need an admin or another function (not built here) to manually add funds to your simulated balance using your Chat ID.
+                 </p>
+             </div>
         </div>
 
         <!-- Withdraw Page -->
@@ -379,23 +544,27 @@
             <h1>Withdraw Assets</h1>
             <div class="card">
                  <div id="withdrawMessage" class="message" style="display: none;"></div>
+
                 <label for="withdrawToken">Asset to Withdraw:</label>
                 <select id="withdrawToken">
                     <!-- Options populated by JS -->
                 </select>
 
                 <label for="withdrawAmount">Amount:</label>
-                <input type="number" id="withdrawAmount" placeholder="Amount" min="0" step="any">
+                <input type="number" id="withdrawAmount" placeholder="0.0" min="0" step="any">
                 <p style="font-size: 12px; color: var(--secondary-text); margin-top: -10px; margin-bottom: 10px;">Available: <span id="withdrawAvailableBalance">0.00</span></p>
 
-                <label for="recipientInfo">Recipient Info (e.g., Chat ID for simulation):</label>
-                <input type="text" id="recipientInfo" placeholder="Enter Recipient Chat ID (for simulation)">
+                <label for="recipientInfo">Recipient Info (Simulated: e.g., Target Chat ID)</label>
+                <input type="text" id="recipientInfo" placeholder="Enter Recipient Chat ID for simulation">
 
-                <p style="color: var(--secondary-text;); font-size: 14px; margin-bottom: 15px;">
-                    **Simulation Only:** In a real wallet, you would enter a valid crypto address. Here, we simulate sending based on the provided info (like another user's Chat ID). No actual crypto is moved.
+                <p style="color: var(--secondary-text); font-size: 13px; margin: 15px 0; text-align: center; opacity: 0.8;">
+                    <strong>Simulation Only:</strong> Enter another user's Chat ID or identifier for this demo. No real crypto is sent.
                 </p>
 
-                <button id="withdrawButton" disabled>Withdraw</button>
+                <button id="withdrawButton" disabled>
+                    <svg viewBox="0 0 24 24"><path d="M9 16h6v-6h4l-7-7-7 7h4v6zm-4 2h14v2H5v-2z"/></svg>
+                    Withdraw
+                </button>
             </div>
         </div>
 
@@ -423,7 +592,8 @@
 
     <script>
         const firebaseConfig = {
-            apiKey: "AIzaSyBW1WPXUN8DYhT6npZQYoQ3l4J-jFSbzfg", // Replace with your actual key if needed, but insecure!
+            // IMPORTANT: KEEP YOUR CONFIG HERE, BUT REMEMBER IT'S INSECURE CLIENT-SIDE
+            apiKey: "AIzaSyBW1WPXUN8DYhT6npZQYoQ3l4J-jFSbzfg",
             authDomain: "ab-studio-marketcap.firebaseapp.com",
             databaseURL: "https://ab-studio-marketcap-default-rtdb.firebaseio.com",
             projectId: "ab-studio-marketcap",
@@ -438,16 +608,22 @@
         let db = null;
         let userBalance = {}; // { USDT: 100, ABT: 5000 }
         let tokenData = {}; // { USDT: { name: ..., priceUSD: ... }, ABT: { ... } }
-        let tg = window.Telegram.WebApp;
+        let userTransactions = {};
+        let tg = null;
+        let firebaseInitialized = false;
+        let listenersAttached = false; // Flag to prevent double attachment
 
         // --- DOM Elements ---
         const loadingIndicator = document.getElementById('loadingIndicator');
         const globalMessage = document.getElementById('globalMessage');
         const pages = document.querySelectorAll('.page');
         const navItems = document.querySelectorAll('.nav-item');
+        const appContainer = document.querySelector('.app-container');
+        const appBlocker = document.getElementById('appBlocker');
+        // const closeWebAppBtn = document.getElementById('closeWebAppBtn'); // Optional
 
         // Home Page Elements
-        const userNameEl = document.getElementById('userName');
+        const welcomeMessageEl = document.getElementById('welcomeMessage');
         const totalBalanceEl = document.getElementById('totalBalance');
         const userFirstNameEl = document.getElementById('userFirstName');
         const userLastNameEl = document.getElementById('userLastName');
@@ -465,13 +641,13 @@
         const swapMessage = document.getElementById('swapMessage');
         const swapRateEl = document.getElementById('swapRate');
         const swapDirectionBtn = document.getElementById('swapDirectionBtn');
+        const swapFromBalanceEl = document.getElementById('swapFromBalance');
+        const swapToBalanceEl = document.getElementById('swapToBalance');
 
         // Deposit Page Elements
         const depositChatIdEl = document.getElementById('depositChatId');
         const depositMessage = document.getElementById('depositMessage');
         const copyFeedbackDepositEl = document.getElementById('copyFeedbackDeposit');
-        // const simulateDepositBtn = document.getElementById('simulateDepositBtn'); // Uncomment if using simulation button
-        // const depositAmountSimInput = document.getElementById('depositAmountSim'); // Uncomment if using simulation button
 
         // Withdraw Page Elements
         const withdrawTokenSelect = document.getElementById('withdrawToken');
@@ -483,33 +659,73 @@
 
 
         // --- UTILITY FUNCTIONS ---
-        function showLoading(show) {
+        function showLoading(show, text = 'Loading...') {
+            loadingIndicator.textContent = text; // Update text
             loadingIndicator.style.display = show ? 'block' : 'none';
         }
 
-        function showMessage(element, message, type = 'error') {
+        function showMessage(element, message, type = 'error', duration = 5000) {
             element.textContent = message;
-            element.className = `message ${type}`;
+            element.className = `message ${type}`; // type = 'error', 'success', 'info'
             element.style.display = 'block';
-            setTimeout(() => {
-                element.style.display = 'none';
-            }, 5000); // Hide after 5 seconds
+            if (duration > 0) {
+                setTimeout(() => {
+                    element.style.display = 'none';
+                }, duration);
+            }
         }
 
-        function showGlobalMessage(message, type = 'error') {
-            showMessage(globalMessage, message, type);
+        function showGlobalMessage(message, type = 'error', duration = 5000) {
+            showMessage(globalMessage, message, type, duration);
+            window.scrollTo(0, 0); // Scroll top to make global msg visible
         }
 
         function formatCurrency(amount, decimals = 2) {
-            return parseFloat(amount).toFixed(decimals);
+            const num = parseFloat(amount);
+            return isNaN(num) ? '0.00' : num.toFixed(decimals);
         }
 
         function formatTokenAmount(amount, decimals = 6) {
-            // Adjust decimals based on token if needed
             const num = parseFloat(amount);
             if (isNaN(num)) return '0';
-            return num.toLocaleString(undefined, { maximumFractionDigits: decimals });
-         }
+            // Use fewer decimals for display if number is large, more if small
+            const effectiveDecimals = Math.max(0, Math.min(decimals, num > 0.001 ? 4 : decimals));
+            return num.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: effectiveDecimals });
+        }
+
+        function triggerHapticFeedback(style = 'medium') {
+             if (tg && tg.HapticFeedback) {
+                 try {
+                     tg.HapticFeedback.impactOccurred(style); // 'light', 'medium', 'heavy', 'rigid', 'soft'
+                 } catch (e) { console.warn("Haptic feedback not supported or failed:", e); }
+             }
+        }
+
+        // --- THEME APPLICATION ---
+        function applyTheme(params) {
+            if (!params) return;
+            const root = document.documentElement;
+            root.style.setProperty('--bg-color', params.bg_color || '#121212');
+            root.style.setProperty('--primary-text', params.text_color || '#ffffff');
+            root.style.setProperty('--secondary-text', params.hint_color || '#b3b3b3');
+            root.style.setProperty('--link-color', params.link_color || '#8774e1');
+            root.style.setProperty('--button-bg', params.button_color || '#1DB954');
+            root.style.setProperty('--button-text', params.button_text_color || '#ffffff');
+            root.style.setProperty('--accent-color', params.button_color || '#1DB954'); // Use button color as accent
+            // Infer card/input background slightly darker/lighter than main bg
+            // This is tricky without more theme params, so keeping defaults might be safer
+            // root.style.setProperty('--card-bg', adjustColor(params.bg_color, 15)); // Example helper needed
+            // root.style.setProperty('--input-bg', adjustColor(params.bg_color, 25));
+
+            // Set body directly too for immediate effect
+            document.body.style.backgroundColor = params.bg_color || '#121212';
+            document.body.style.color = params.text_color || '#ffffff';
+
+            // Update Telegram header color
+            if (tg && tg.setHeaderColor) {
+                tg.setHeaderColor(params.secondary_bg_color || params.bg_color || '#121212');
+            }
+        }
 
         // --- PAGE NAVIGATION ---
         function showPage(pageId) {
@@ -519,40 +735,45 @@
             navItems.forEach(item => {
                 item.classList.toggle('active', item.dataset.page === pageId);
             });
-            window.scrollTo(0, 0); // Scroll to top on page change
+            appContainer.scrollTop = 0; // Scroll page content to top
+
              // Reset messages on page change
              globalMessage.style.display = 'none';
              swapMessage.style.display = 'none';
              depositMessage.style.display = 'none';
              withdrawMessage.style.display = 'none';
-             // Refresh data if needed when switching to certain pages
-             if (pageId === 'homePage') {
-                 updateHomePageUI();
-             } else if (pageId === 'swapPage') {
-                 populateTokenSelectors(); // Ensure tokens are loaded
-                 updateSwapUI();
-             } else if (pageId === 'withdrawPage') {
-                 populateWithdrawTokenSelector();
-                 updateWithdrawForm();
+
+             // Refresh data/UI relevant to the shown page
+             switch(pageId) {
+                 case 'homePage': updateHomePageUI(); break;
+                 case 'swapPage': updateSwapUI(); break;
+                 case 'withdrawPage': updateWithdrawForm(); break;
+                 case 'depositPage': updateDepositPageUI(); break; // Ensure ChatID is shown
              }
         }
 
         // --- FIREBASE FUNCTIONS ---
         function initializeFirebase() {
-            try {
-                firebase.initializeApp(firebaseConfig);
-                db = firebase.database();
-                console.log("Firebase Initialized");
-                return true;
-            } catch (error) {
-                console.error("Firebase Initialization Error:", error);
-                showGlobalMessage("Error connecting to database. Please try again later.", "error");
-                showLoading(false);
-                return false;
-            }
+            return new Promise((resolve, reject) => {
+                 if (firebaseInitialized) {
+                    resolve();
+                    return;
+                 }
+                 try {
+                    firebase.initializeApp(firebaseConfig);
+                    db = firebase.database();
+                    console.log("Firebase Initialized");
+                    firebaseInitialized = true;
+                    resolve();
+                 } catch (error) {
+                    console.error("Firebase Initialization Error:", error);
+                    showGlobalMessage("Error connecting to the database service.", "error", 0); // Persistent error
+                    reject(error);
+                 }
+            });
         }
 
-        function getUserData(userId) {
+        function getUserDataRealtime(userId) {
              if (!db || !userId) return Promise.reject("Database or UserID not available");
              userDbRef = db.ref(`users/${userId}`);
 
@@ -560,38 +781,51 @@
                  userDbRef.on('value', (snapshot) => {
                      const data = snapshot.val();
                      if (data) {
-                         userBalance = data.balances || {}; // Initialize if no balances yet
-                         updateHomePageUI(); // Update UI whenever data changes
-                         updateSwapUI(); // Update swap page balances
-                         updateWithdrawForm(); // Update withdraw form balances
-                         populateWithdrawTokenSelector(); // Repopulate withdraw tokens based on balance
-                         updateTransactionHistory(data.transactions || {});
-                         resolve(data);
+                         console.log("User data received:", data);
+                         userBalance = data.balances || {};
+                         userTransactions = data.transactions || {};
+                         resolve(data); // Resolve with the current data
+                         // Update UI elements that depend on live data
+                         updateHomePageUI();
+                         updateSwapUI();
+                         updateWithdrawForm();
+                         populateWithdrawTokenSelector();
+                         updateTransactionHistory();
                      } else {
-                         // User doesn't exist yet, create basic structure
+                         // User doesn't exist, create basic structure
                          console.log("User not found in DB, creating entry...");
+                         const { id, first_name, last_name, username } = currentUser;
                          const initialUserData = {
-                             chatId: currentUser.id,
-                             firstName: currentUser.first_name || '',
-                             lastName: currentUser.last_name || '',
-                             username: currentUser.username || 'N/A',
-                             balances: { USDT: 0 }, // Start with 0 USDT balance
+                             chatId: id,
+                             firstName: first_name || '',
+                             lastName: last_name || '',
+                             username: username || 'N/A',
+                             joinedAt: new Date().toISOString(),
+                             balances: { USDT: 0 }, // Start with 0 USDT or preferred default
                              transactions: {}
                          };
                          userDbRef.set(initialUserData)
                             .then(() => {
+                                console.log("Initial user data created.");
                                 userBalance = initialUserData.balances;
-                                updateHomePageUI();
+                                userTransactions = initialUserData.transactions;
+                                resolve(initialUserData); // Resolve with the new data
+                                updateHomePageUI(); // Update UI after creation
                                 updateWithdrawForm();
-                                updateTransactionHistory({});
-                                resolve(initialUserData);
+                                updateTransactionHistory();
+                                populateWithdrawTokenSelector();
                              })
-                            .catch(reject);
+                            .catch(err => {
+                                console.error("Failed to create user data:", err);
+                                showGlobalMessage("Failed to initialize user account.", "error");
+                                reject(err);
+                            });
                      }
                  }, (error) => {
                      console.error("Firebase Read Error:", error);
-                     showGlobalMessage("Failed to load user data.", "error");
-                     reject(error);
+                     showGlobalMessage("Connection to user data lost. Please check internet.", "error");
+                     // Don't reject here, as 'on' provides continuous updates/errors
+                     // Maybe implement a retry mechanism or clearer status indicator
                  });
              });
         }
@@ -602,9 +836,12 @@
              return tokensRef.once('value')
                  .then(snapshot => {
                      tokenData = snapshot.val() || {};
-                     console.log("Token data loaded:", tokenData);
-                     populateTokenSelectors(); // Populate swap dropdowns now
-                     updateHomePageUI(); // Recalculate total balance with token prices
+                     if (Object.keys(tokenData).length === 0) {
+                         console.warn("No token data found in Firebase under /tokens path.");
+                         // Maybe show a warning, but don't block the app
+                     } else {
+                         console.log("Token data loaded:", tokenData);
+                     }
                      return tokenData;
                  })
                  .catch(error => {
@@ -614,105 +851,130 @@
                  });
          }
 
-        async function updateBalance(userId, asset, amountChange) {
-            if (!db || !userId) return Promise.reject("Database or UserID not available");
-            const balanceRef = db.ref(`users/${userId}/balances/${asset}`);
+        async function updateBalanceTransaction(userId, updates, txRecord) {
+             if (!db || !userId) return Promise.reject("Database or UserID not available");
 
-            return db.runTransaction(balanceRef, (currentBalance) => {
-                 const currentVal = parseFloat(currentBalance || 0);
-                 const newVal = currentVal + parseFloat(amountChange);
-                 if (newVal < 0) {
-                     // Insufficient funds - transaction will abort
-                     console.warn(`Transaction aborted: Insufficient ${asset} balance.`);
-                     return; // Abort transaction by returning undefined
-                 }
-                 return newVal;
-             });
-         }
+             // Prepare the atomic update object
+             const multiPathUpdate = {};
+             for (const asset in updates) {
+                 multiPathUpdate[`/users/${userId}/balances/${asset}`] = firebase.database.ServerValue.increment(updates[asset]);
+             }
 
-        async function recordTransaction(userId, txData) {
-            if (!db || !userId) return Promise.reject("Database or UserID not available");
+             // Add the transaction record
              const txRef = db.ref(`users/${userId}/transactions`).push();
-             const timestamp = new Date().toISOString();
-             return txRef.set({
-                 ...txData,
-                 timestamp: timestamp,
-                 status: txData.status || "completed" // Default to completed
-             });
-         }
+             multiPathUpdate[`/users/${userId}/transactions/${txRef.key}`] = {
+                 ...txRecord,
+                 timestamp: firebase.database.ServerValue.TIMESTAMP // Use server timestamp
+             };
+
+             // Perform the atomic update
+              console.log("Performing multi-path update:", multiPathUpdate);
+             return db.ref().update(multiPathUpdate);
+        }
+
 
         // --- UI UPDATE FUNCTIONS ---
         function updateHomePageUI() {
              if (!currentUser) return;
 
-             userNameEl.textContent = currentUser.first_name || 'User';
+             // Welcome Message & User Info Card
+             welcomeMessageEl.textContent = `Welcome, ${currentUser.first_name || 'User'}!`;
              userFirstNameEl.textContent = currentUser.first_name || 'N/A';
              userLastNameEl.textContent = currentUser.last_name || 'N/A';
              userUsernameEl.textContent = currentUser.username ? `@${currentUser.username}` : 'N/A';
              userChatIdEl.textContent = currentUser.id || 'N/A';
-             depositChatIdEl.textContent = currentUser.id || 'N/A'; // Also update deposit page
 
-             // Calculate total balance in USD
+             // Calculate total balance & list assets
              let totalUsdValue = 0;
              assetListEl.innerHTML = ''; // Clear previous list
-             if (Object.keys(userBalance).length === 0) {
-                assetListEl.innerHTML = '<li>No assets yet.</li>';
-             } else {
-                 for (const asset in userBalance) {
-                     const balance = parseFloat(userBalance[asset] || 0);
-                     const tokenInfo = tokenData[asset];
-                     const priceUsd = tokenInfo ? parseFloat(tokenInfo.priceUSD || 0) : 0;
-                     const usdValue = balance * priceUsd;
-                     totalUsdValue += usdValue;
 
-                     // Add to asset list
-                     const li = document.createElement('li');
-                     li.style.display = 'flex';
-                     li.style.justifyContent = 'space-between';
-                     li.style.padding = '5px 0';
-                     li.style.borderBottom = `1px solid ${getComputedStyle(document.documentElement).getPropertyValue('--border-color')}`;
-                     li.innerHTML = `
-                        <span>
-                            <img src="${tokenInfo?.logoUrl || 'https://via.placeholder.com/24'}" alt="${asset}" style="width: 20px; height: 20px; vertical-align: middle; margin-right: 5px; border-radius: 50%;">
-                            ${formatTokenAmount(balance)} <strong>${asset}</strong>
-                        </span>
-                        <span style="color: var(--secondary-text); font-size: 12px;">≈ $${formatCurrency(usdValue)}</span>
-                    `;
-                     assetListEl.appendChild(li);
+             const sortedBalances = Object.entries(userBalance)
+                .filter(([asset, balance]) => parseFloat(balance || 0) > 0 || asset === 'USDT') // Show USDT even if 0, others only if > 0
+                .sort(([assetA], [assetB]) => assetA.localeCompare(assetB)); // Sort alphabetically
+
+             if (sortedBalances.length === 0 && !userBalance['USDT']) { // Handle case where even USDT is missing initially
+                assetListEl.innerHTML = '<li style="color: var(--secondary-text); text-align: center;">No assets yet.</li>';
+             } else {
+                 // Ensure USDT is shown if present, even if balance is 0
+                 if (!sortedBalances.some(([asset]) => asset === 'USDT') && userBalance.hasOwnProperty('USDT')) {
+                     sortedBalances.unshift(['USDT', userBalance.USDT]);
                  }
+
+                 sortedBalances.forEach(([asset, balance]) => {
+                    const numBalance = parseFloat(balance || 0);
+                    const tokenInfo = tokenData[asset];
+                    const priceUsd = tokenInfo ? parseFloat(tokenInfo.priceUSD || 0) : (asset === 'USDT' ? 1 : 0); // Assume USDT=1 if no price data
+                    const usdValue = numBalance * priceUsd;
+                    totalUsdValue += usdValue;
+
+                    const li = document.createElement('li');
+                    li.className = 'token-list-item';
+                    li.innerHTML = `
+                        <div class="token-info">
+                            <img src="${tokenInfo?.logoUrl || 'https://via.placeholder.com/32/cccccc/000000?text=?'}" alt="${asset}">
+                            <div>
+                                <div class="token-name">${tokenInfo?.name || asset}</div>
+                                <div class="token-symbol">${asset}</div>
+                            </div>
+                        </div>
+                        <div class="token-balance">
+                            <div class="balance-amount">${formatTokenAmount(numBalance)}</div>
+                            <div class="balance-usd">≈ $${formatCurrency(usdValue)}</div>
+                        </div>
+                    `;
+                    assetListEl.appendChild(li);
+                 });
              }
 
              totalBalanceEl.innerHTML = `$${formatCurrency(totalUsdValue)} <span>USD</span>`;
          }
 
-         function updateTransactionHistory(transactions) {
+        function updateTransactionHistory() {
             transactionListEl.innerHTML = ''; // Clear previous list
-            const txArray = Object.entries(transactions || {}).map(([key, value]) => ({ id: key, ...value }));
-            txArray.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)); // Sort newest first
+            const txArray = Object.entries(userTransactions || {})
+                .map(([key, value]) => ({ id: key, ...value }))
+                .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)); // Sort newest first using server timestamp
 
             if (txArray.length === 0) {
-                 transactionListEl.innerHTML = '<li>No transactions yet.</li>';
+                 transactionListEl.innerHTML = '<li style="color: var(--secondary-text); text-align: center; border: none;">No transaction history.</li>';
                  return;
             }
 
-             txArray.slice(0, 10).forEach(tx => { // Show latest 10 transactions
+             txArray.slice(0, 15).forEach(tx => { // Show latest 15 transactions
                  const li = document.createElement('li');
-                 li.classList.add(tx.type); // Add class for styling (deposit, withdraw, swap)
-                 let description = '';
+                 li.classList.add(tx.type); // deposit, withdraw, swap
+
+                 let iconSvg = '';
+                 let detailsHtml = '';
+
                  switch (tx.type) {
                      case 'deposit':
-                         description = `Deposited <span>${formatTokenAmount(tx.amount)} ${tx.asset}</span>`;
+                         iconSvg = `<svg class="tx-type-icon" style="color: var(--success-color);" viewBox="0 0 24 24" fill="currentColor"><path d="M5 4v2h14V4H5zm0 10h4v6h6v-6h4l-7-7-7 7z"/></svg>`;
+                         detailsHtml = `Deposited <span class="tx-amount">${formatTokenAmount(tx.amount)}</span> <span class="tx-asset">${tx.asset}</span>`;
                          break;
                      case 'withdraw':
-                         description = `Withdrew <span>${formatTokenAmount(tx.amount)} ${tx.asset}</span> to ${tx.to || 'recipient'}`;
+                         iconSvg = `<svg class="tx-type-icon" style="color: var(--error-color);" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16h6v-6h4l-7-7-7 7h4v6zm-4 2h14v2H5v-2z"/></svg>`;
+                         detailsHtml = `Withdrew <span class="tx-amount">${formatTokenAmount(tx.amount)}</span> <span class="tx-asset">${tx.asset}</span>`
+                                    + (tx.to ? `<span class="tx-recipient">To: ${tx.to}</span>` : '');
                          break;
                      case 'swap':
-                         description = `Swapped <span>${formatTokenAmount(tx.fromAmount)} ${tx.fromAsset}</span> for <span>${formatTokenAmount(tx.toAmount)} ${tx.toAsset}</span>`;
+                          iconSvg = `<svg class="tx-type-icon" style="color: orange;" viewBox="0 0 24 24" fill="currentColor"><path d="M6.99 11L3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z"/></svg>`;
+                         detailsHtml = `Swapped <span class="tx-amount">${formatTokenAmount(tx.fromAmount)} ${tx.fromAsset}</span> for <span class="tx-amount">${formatTokenAmount(tx.toAmount)} ${tx.toAsset}</span>`;
                          break;
                      default:
-                         description = `Unknown transaction type`;
+                          iconSvg = `<svg class="tx-type-icon" style="color: var(--secondary-text);" viewBox="0 0 24 24" fill="currentColor"><path d="M11 17h2v-6h-2v6zm1-15C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zM11 9h2V7h-2v2z"/></svg>`;
+                         detailsHtml = `Unknown Transaction`;
                  }
-                 li.innerHTML = `${description} <small style="float: right; color: var(--secondary-text)">${new Date(tx.timestamp).toLocaleString()}</small>`;
+
+                 const timestampStr = tx.timestamp ? new Date(tx.timestamp).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : 'Pending...';
+
+                 li.innerHTML = `
+                    <div class="tx-details">
+                        ${iconSvg}
+                        ${detailsHtml}
+                    </div>
+                    <div class="tx-timestamp">${timestampStr}</div>
+                 `;
                  transactionListEl.appendChild(li);
              });
         }
@@ -720,46 +982,49 @@
         function populateTokenSelectors() {
              if (!tokenData || Object.keys(tokenData).length === 0) {
                  console.warn("Token data not available for populating selectors.");
-                 // Maybe show a message in the swap UI
+                 // Disable swap functionality if no tokens
+                 swapButton.disabled = true;
+                 fromTokenSelect.innerHTML = '<option>No tokens</option>';
+                 toTokenSelect.innerHTML = '<option>No tokens</option>';
                  return;
              }
 
-             // Clear existing options
-             fromTokenSelect.innerHTML = '';
-             toTokenSelect.innerHTML = '';
+             const sortedSymbols = Object.keys(tokenData).sort();
+             let fromOptions = '';
+             let toOptions = '';
 
-             let firstOption = true;
-             for (const symbol in tokenData) {
+             sortedSymbols.forEach(symbol => {
                  const token = tokenData[symbol];
-                 const option = document.createElement('option');
-                 option.value = symbol;
-                 option.textContent = `${token.name} (${symbol})`;
-                 option.dataset.logo = token.logoUrl || ''; // Store logo URL if available
+                 const optionHtml = `<option value="${symbol}" data-logo="${token.logoUrl || ''}">${token.name} (${symbol})</option>`;
+                 fromOptions += optionHtml;
+                 toOptions += optionHtml;
+             });
 
-                 fromTokenSelect.appendChild(option.cloneNode(true));
-                 toTokenSelect.appendChild(option.cloneNode(true));
+             fromTokenSelect.innerHTML = fromOptions;
+             toTokenSelect.innerHTML = toOptions;
 
-                 // Set default different selections if possible
-                 if (firstOption) {
-                     fromTokenSelect.value = symbol;
-                     firstOption = false;
-                 } else if (toTokenSelect.value === fromTokenSelect.value) {
-                     toTokenSelect.value = symbol; // Try to select a different second token
-                 }
+             // Set default different selections if possible
+             if (sortedSymbols.length > 0) {
+                fromTokenSelect.value = sortedSymbols[0]; // Default to first token
+             }
+             if (sortedSymbols.length > 1) {
+                 toTokenSelect.value = sortedSymbols[1]; // Default to second if available
+             } else if (sortedSymbols.length === 1) {
+                 toTokenSelect.value = sortedSymbols[0]; // Default to first if only one
              }
 
-             // Ensure default selections are different if possible
-             if (fromTokenSelect.value === toTokenSelect.value && toTokenSelect.options.length > 1) {
-                 toTokenSelect.selectedIndex = 1;
-             }
-             updateSwapRate(); // Update rate after populating
+             updateSwapUI(); // Update rate and balances after populating
          }
 
          function populateWithdrawTokenSelector() {
             withdrawTokenSelect.innerHTML = ''; // Clear
              let hasOptions = false;
-            for (const asset in userBalance) {
-                 if (userBalance[asset] > 0 && tokenData[asset]) { // Only list owned assets with known token data
+             const availableAssets = Object.entries(userBalance)
+                 .filter(([asset, balance]) => parseFloat(balance || 0) > 0 && tokenData[asset]) // Only owned assets with known token data
+                 .sort(([assetA], [assetB]) => assetA.localeCompare(assetB)); // Sort alphabetically
+
+             if (availableAssets.length > 0) {
+                 availableAssets.forEach(([asset, balance]) => {
                      const token = tokenData[asset];
                      const option = document.createElement('option');
                      option.value = asset;
@@ -767,11 +1032,12 @@
                      option.dataset.logo = token.logoUrl || '';
                      withdrawTokenSelect.appendChild(option);
                      hasOptions = true;
-                 }
-            }
+                 });
+             }
+
              if (!hasOptions) {
                  const option = document.createElement('option');
-                 option.textContent = 'No assets to withdraw';
+                 option.textContent = 'No withdrawable assets';
                  option.disabled = true;
                  withdrawTokenSelect.appendChild(option);
              }
@@ -779,29 +1045,42 @@
          }
 
          function updateSwapUI() {
-             // Enable/disable swap button based on inputs and balance
-             const fromAsset = fromTokenSelect.value;
-             const fromAmount = parseFloat(fromAmountInput.value || 0);
-             const balance = parseFloat(userBalance[fromAsset] || 0);
-             const toAsset = toTokenSelect.value;
+            if (!fromTokenSelect || !toTokenSelect) return; // Exit if elements not ready
 
-             if (fromAsset && toAsset && fromAmount > 0 && fromAsset !== toAsset && balance >= fromAmount) {
+            const fromAsset = fromTokenSelect.value;
+            const toAsset = toTokenSelect.value;
+            const fromAmount = parseFloat(fromAmountInput.value || 0);
+            const fromBalance = parseFloat(userBalance[fromAsset] || 0);
+            const toBalance = parseFloat(userBalance[toAsset] || 0);
+
+             // Update balance displays
+             swapFromBalanceEl.textContent = `${formatTokenAmount(fromBalance)} ${fromAsset}`;
+             swapToBalanceEl.textContent = `${formatTokenAmount(toBalance)} ${toAsset}`;
+
+            // Calculate rate and toAmount
+            updateSwapRateAndToAmount();
+
+            // Enable/disable swap button
+            const toAmount = parseFloat(toAmountInput.value || 0); // Get the calculated amount
+             if (fromAsset && toAsset && fromAmount > 0 && fromAsset !== toAsset && fromBalance >= fromAmount && toAmount > 0) {
                  swapButton.disabled = false;
              } else {
                  swapButton.disabled = true;
              }
-             updateSwapRate(); // Also update the calculated rate and toAmount
          }
 
-         function updateSwapRate() {
+         function updateSwapRateAndToAmount() {
             const fromAsset = fromTokenSelect.value;
             const toAsset = toTokenSelect.value;
             const fromAmount = parseFloat(fromAmountInput.value || 0);
 
-            if (!fromAsset || !toAsset || !tokenData[fromAsset] || !tokenData[toAsset] || fromAsset === toAsset) {
-                swapRateEl.textContent = 'Select different tokens to see rate';
-                toAmountInput.value = '';
-                return;
+            if (!fromAsset || !toAsset || !tokenData[fromAsset] || !tokenData[toAsset]) {
+                swapRateEl.textContent = 'Token info missing';
+                toAmountInput.value = ''; return;
+            }
+            if (fromAsset === toAsset) {
+                 swapRateEl.textContent = 'Cannot swap the same token';
+                 toAmountInput.value = ''; return;
             }
 
             const fromPrice = parseFloat(tokenData[fromAsset].priceUSD || 0);
@@ -809,21 +1088,20 @@
 
              if (fromPrice <= 0 || toPrice <= 0) {
                  swapRateEl.textContent = 'Pricing info unavailable';
-                 toAmountInput.value = '';
-                 return;
+                 toAmountInput.value = ''; return;
              }
 
             const rate = fromPrice / toPrice;
             const calculatedToAmount = fromAmount * rate;
 
             swapRateEl.textContent = `1 ${fromAsset} ≈ ${formatTokenAmount(rate, 4)} ${toAsset}`;
-            toAmountInput.value = isNaN(calculatedToAmount) ? '' : formatTokenAmount(calculatedToAmount, 6); // Update 'To' amount field
+            toAmountInput.value = isNaN(calculatedToAmount) ? '' : formatTokenAmount(calculatedToAmount, 6);
         }
 
         function updateWithdrawForm() {
              const selectedAsset = withdrawTokenSelect.value;
              const availableBalance = parseFloat(userBalance[selectedAsset] || 0);
-             withdrawAvailableBalanceEl.textContent = `${formatTokenAmount(availableBalance)} ${selectedAsset}`;
+             withdrawAvailableBalanceEl.textContent = `${formatTokenAmount(availableBalance)} ${selectedAsset || ''}`;
 
              const withdrawAmount = parseFloat(withdrawAmountInput.value || 0);
              const recipient = recipientInfoInput.value.trim();
@@ -835,6 +1113,14 @@
              }
          }
 
+         function updateDepositPageUI() {
+             if (currentUser) {
+                depositChatIdEl.textContent = currentUser.id;
+             } else {
+                 depositChatIdEl.textContent = 'Loading...';
+             }
+         }
+
 
         // --- ACTION HANDLERS ---
         async function handleSwap() {
@@ -843,52 +1129,52 @@
              const fromAmount = parseFloat(fromAmountInput.value);
              const toAmount = parseFloat(toAmountInput.value); // Use the calculated value
 
-             if (!currentUser || !fromAsset || !toAsset || fromAsset === toAsset || isNaN(fromAmount) || fromAmount <= 0 || isNaN(toAmount)) {
+             // --- Validation ---
+             if (!currentUser || !fromAsset || !toAsset || fromAsset === toAsset || isNaN(fromAmount) || fromAmount <= 0 || isNaN(toAmount) || toAmount <= 0) {
                  showMessage(swapMessage, "Invalid swap parameters.", "error");
                  return;
              }
-
              const fromBalance = parseFloat(userBalance[fromAsset] || 0);
              if (fromBalance < fromAmount) {
-                 showMessage(swapMessage, `Insufficient ${fromAsset} balance.`, "error");
+                 showMessage(swapMessage, `Insufficient ${fromAsset} balance. You have ${formatTokenAmount(fromBalance)}.`, "error");
                  return;
              }
+             // --- End Validation ---
 
-             showLoading(true);
+             showLoading(true, 'Processing Swap...');
              swapButton.disabled = true;
 
              try {
-                 // 1. Decrease 'from' asset balance
-                 await updateBalance(currentUser.id, fromAsset, -fromAmount);
-                 // 2. Increase 'to' asset balance
-                 await updateBalance(currentUser.id, toAsset, toAmount);
-                 // 3. Record the transaction
-                 await recordTransaction(currentUser.id, {
+                 // Prepare updates for atomic transaction
+                 const balanceUpdates = {
+                     [fromAsset]: -fromAmount,
+                     [toAsset]: toAmount
+                 };
+                 const txRecord = {
                      type: "swap",
                      fromAsset: fromAsset,
                      fromAmount: fromAmount,
                      toAsset: toAsset,
                      toAmount: toAmount,
-                 });
+                     rate: tokenData[fromAsset]?.priceUSD / tokenData[toAsset]?.priceUSD, // Record approximate rate
+                     status: "completed"
+                 };
+
+                 await updateBalanceTransaction(currentUser.id, balanceUpdates, txRecord);
 
                  showMessage(swapMessage, `Successfully swapped ${formatTokenAmount(fromAmount)} ${fromAsset} for ${formatTokenAmount(toAmount)} ${toAsset}!`, "success");
-                 // Clear inputs after successful swap
-                 fromAmountInput.value = '';
-                 toAmountInput.value = '';
+                 triggerHapticFeedback('success');
+                 fromAmountInput.value = ''; // Clear input
+                 // UI will update automatically via the 'on' listener
 
              } catch (error) {
                  console.error("Swap Transaction Error:", error);
-                 // IMPORTANT: Need logic here to potentially revert the first balance update if the second one fails.
-                 // Firebase transactions help, but atomicity across multiple paths needs careful handling (e.g., cloud function).
-                 // For this simulation, we'll show an error, but the state might be inconsistent if only one update succeeded.
-                  if (error && error.message.includes('Insufficient')) {
-                     showMessage(swapMessage, `Swap failed: Insufficient ${fromAsset} balance.`, "error");
-                 } else {
-                     showMessage(swapMessage, "Swap failed. Please try again.", "error");
-                 }
+                 showMessage(swapMessage, "Swap failed. Please try again.", "error");
+                 triggerHapticFeedback('error');
+                 // Don't need manual revert due to atomic update failure
              } finally {
                  showLoading(false);
-                 updateSwapUI(); // Re-enable button if conditions met, update balances
+                 // Re-enable button will happen naturally when balance updates trigger updateSwapUI
              }
          }
 
@@ -897,53 +1183,59 @@
              const amount = parseFloat(withdrawAmountInput.value);
              const recipient = recipientInfoInput.value.trim();
 
+             // --- Validation ---
              if (!currentUser || !asset || isNaN(amount) || amount <= 0 || !recipient) {
-                 showMessage(withdrawMessage, "Invalid withdrawal details.", "error");
+                 showMessage(withdrawMessage, "Please fill all withdrawal details correctly.", "error");
                  return;
              }
-
+              if (recipient == currentUser.id) { // Basic check: cannot withdraw to self in this sim
+                 showMessage(withdrawMessage, "Cannot withdraw to your own Chat ID in this simulation.", "error");
+                 return;
+             }
              const balance = parseFloat(userBalance[asset] || 0);
              if (balance < amount) {
-                 showMessage(withdrawMessage, `Insufficient ${asset} balance.`, "error");
+                 showMessage(withdrawMessage, `Insufficient ${asset} balance. You have ${formatTokenAmount(balance)}.`, "error");
                  return;
              }
+             // --- End Validation ---
 
-             showLoading(true);
+             showLoading(true, 'Processing Withdrawal...');
              withdrawButton.disabled = true;
 
              try {
-                 // 1. Decrease balance
-                 await updateBalance(currentUser.id, asset, -amount);
-                 // 2. Record transaction
-                 await recordTransaction(currentUser.id, {
+                 // Prepare updates
+                 const balanceUpdates = {
+                     [asset]: -amount
+                 };
+                 const txRecord = {
                      type: "withdraw",
                      asset: asset,
                      amount: amount,
-                     to: recipient, // Store recipient info (e.g., chat id for simulation)
-                     status: "pending" // Or "completed" for simulation
-                 });
+                     to: recipient, // Store recipient info
+                     status: "completed" // Mark as completed for simulation
+                 };
 
-                 showMessage(withdrawMessage, `Withdrawal of ${formatTokenAmount(amount)} ${asset} initiated (simulation).`, "success");
-                 // Clear inputs
+                 await updateBalanceTransaction(currentUser.id, balanceUpdates, txRecord);
+
+                 showMessage(withdrawMessage, `Withdrawal of ${formatTokenAmount(amount)} ${asset} to ${recipient} completed (simulation).`, "success");
+                 triggerHapticFeedback('success');
                  withdrawAmountInput.value = '';
                  recipientInfoInput.value = '';
+                 // UI will update automatically via 'on' listener
 
              } catch (error) {
                  console.error("Withdrawal Transaction Error:", error);
-                  if (error && error.message.includes('Insufficient')) {
-                     showMessage(withdrawMessage, `Withdrawal failed: Insufficient ${asset} balance.`, "error");
-                 } else {
-                    showMessage(withdrawMessage, "Withdrawal failed. Please try again.", "error");
-                 }
-                 // Again, error handling for partial success is needed in real apps.
+                 showMessage(withdrawMessage, "Withdrawal failed. Please try again.", "error");
+                 triggerHapticFeedback('error');
              } finally {
                  showLoading(false);
-                 updateWithdrawForm(); // Re-enable/disable button, update balance display
              }
          }
 
-         // --- EVENT LISTENERS ---
-         function setupEventListeners() {
+        // --- EVENT LISTENERS SETUP ---
+        function setupEventListeners() {
+             if (listenersAttached) return; // Prevent attaching multiple times
+
              // Navigation
              navItems.forEach(item => {
                  item.addEventListener('click', () => {
@@ -958,23 +1250,36 @@
              swapButton.addEventListener('click', handleSwap);
              swapDirectionBtn.addEventListener('click', () => {
                  const fromVal = fromTokenSelect.value;
-                 fromTokenSelect.value = toTokenSelect.value;
+                 const toVal = toTokenSelect.value;
+                 fromTokenSelect.value = toVal;
                  toTokenSelect.value = fromVal;
+                 triggerHapticFeedback('light');
                  updateSwapUI(); // Update rates and amounts after swap
              });
 
 
              // Deposit Page - Copy Chat ID
              depositChatIdEl.addEventListener('click', () => {
+                 if (!currentUser || !currentUser.id) return;
                  navigator.clipboard.writeText(currentUser.id)
                      .then(() => {
-                         copyFeedbackDepositEl.textContent = 'Copied!';
-                         setTimeout(() => { copyFeedbackDepositEl.textContent = ''; }, 2000);
+                         copyFeedbackDepositEl.textContent = 'Chat ID Copied!';
+                         copyFeedbackDepositEl.classList.add('visible');
+                         triggerHapticFeedback('success');
+                         setTimeout(() => {
+                            copyFeedbackDepositEl.textContent = 'Click ID to copy'; // Reset text
+                            copyFeedbackDepositEl.classList.remove('visible');
+                         }, 2000);
                      })
                      .catch(err => {
-                         copyFeedbackDepositEl.textContent = 'Failed to copy';
+                         copyFeedbackDepositEl.textContent = 'Copy failed';
+                         copyFeedbackDepositEl.classList.add('visible');
                          console.error('Failed to copy Chat ID: ', err);
-                         setTimeout(() => { copyFeedbackDepositEl.textContent = ''; }, 2000);
+                         triggerHapticFeedback('error');
+                          setTimeout(() => {
+                            copyFeedbackDepositEl.textContent = 'Click ID to copy';
+                            copyFeedbackDepositEl.classList.remove('visible');
+                          }, 2000);
                      });
              });
 
@@ -984,84 +1289,86 @@
              recipientInfoInput.addEventListener('input', updateWithdrawForm);
              withdrawButton.addEventListener('click', handleWithdraw);
 
-              // --- Optional Deposit Simulation ---
-             /*
-              const simulateDepositBtn = document.getElementById('simulateDepositBtn');
-              const depositAmountSimInput = document.getElementById('depositAmountSim');
-              if (simulateDepositBtn && depositAmountSimInput) {
-                  simulateDepositBtn.addEventListener('click', async () => {
-                      const amount = parseFloat(depositAmountSimInput.value);
-                      if (!currentUser || isNaN(amount) || amount <= 0) {
-                          showMessage(depositMessage, 'Please enter a valid amount to simulate deposit.', 'error');
-                          return;
-                      }
-                      showLoading(true);
-                      try {
-                          await updateBalance(currentUser.id, 'USDT', amount);
-                          await recordTransaction(currentUser.id, {
-                              type: "deposit",
-                              asset: "USDT",
-                              amount: amount,
-                              status: "completed"
-                          });
-                          showMessage(depositMessage, `Successfully simulated deposit of ${formatTokenAmount(amount)} USDT.`, 'success');
-                          depositAmountSimInput.value = '';
-                      } catch (error) {
-                          console.error("Simulated Deposit Error:", error);
-                          showMessage(depositMessage, 'Failed to simulate deposit.', 'error');
-                      } finally {
-                          showLoading(false);
-                      }
-                  });
-              }
-              */
+             // Optional: Close button for blocker
+             // if(closeWebAppBtn) {
+             //     closeWebAppBtn.addEventListener('click', () => {
+             //         if(tg) tg.close();
+             //     });
+             // }
+
+             listenersAttached = true;
+             console.log("Event listeners attached.");
          }
 
         // --- INITIALIZATION ---
-        functioninitializeApp() {
-            tg.ready(); // Let Telegram know the web app is ready
-            tg.expand(); // Expand the web app to full height
+        async function initializeApp() {
+            console.log("Initializing App...");
+            showLoading(true, 'Connecting...');
 
-             showLoading(true);
-             console.log("Telegram WebApp Initialized");
-             // console.log("Init Data Unsafe:", tg.initDataUnsafe); // Debugging
-
-             if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
-                 currentUser = tg.initDataUnsafe.user;
-                 // Security Note: In production, VERIFY tg.initData on your backend!
-                 console.log("User Data:", currentUser);
-
-                 if (initializeFirebase()) {
-                    // Fetch data only after Firebase is confirmed to be initialized
-                    Promise.all([
-                        getTokenData(), // Fetch token definitions first
-                        getUserData(currentUser.id) // Fetch/create user data (depends on getTokenData for balance calc)
-                    ]).then(() => {
-                        console.log("Initial data loaded.");
-                        updateHomePageUI(); // Initial UI update after all data is fetched
-                        setupEventListeners(); // Setup listeners after initial data load
-                    }).catch(error => {
-                        console.error("Error during initial data fetch:", error);
-                        showGlobalMessage("Error loading initial application data.", "error");
-                    }).finally(() => {
-                         showLoading(false); // Hide loading indicator after all fetches
-                    });
-                 }
-             } else {
-                 console.error("Could not get user data from Telegram.");
-                 showGlobalMessage("Error: Could not identify user. Please run this app through Telegram.", "error");
+            // Make sure Telegram SDK is loaded
+             if (typeof window.Telegram === 'undefined' || !window.Telegram.WebApp) {
+                 console.error("Telegram WebApp SDK not found. Make sure the script is loaded.");
                  showLoading(false);
-                 // Optionally disable all functionality
-                 document.querySelectorAll('button, input, select').forEach(el => el.disabled = true);
-                 userNameEl.textContent = "Error";
+                 appBlocker.style.display = 'flex'; // Show blocker
+                 appBlocker.querySelector('p').textContent = "Error: Could not load Telegram components.";
+                 return;
              }
+             tg = window.Telegram.WebApp;
 
-             // Set background color based on Telegram theme (optional)
-             document.body.style.backgroundColor = tg.themeParams.bg_color || '#121212';
-             document.body.style.color = tg.themeParams.text_color || '#ffffff';
-             // You might need to update CSS variables dynamically if you want full theme support
-             // document.documentElement.style.setProperty('--bg-color', tg.themeParams.bg_color); ... etc.
+            try {
+                 tg.ready();
+                 console.log("Telegram WebApp Ready");
+                 tg.expand();
 
+                 // Apply theme colors ASAP
+                 applyTheme(tg.themeParams);
+                 tg.onEvent('themeChanged', () => applyTheme(tg.themeParams)); // Listen for theme changes
+
+
+                 // --- CRITICAL: Get User Data ---
+                 if (tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.id) {
+                     currentUser = tg.initDataUnsafe.user;
+                     // SECURITY WARNING: tg.initData should be verified on a backend in production!
+                     console.log("User Identified:", currentUser);
+                     // Display user info immediately for better perceived performance
+                     updateHomePageUI();
+                     updateDepositPageUI();
+
+                 } else {
+                     throw new Error("Telegram user data is unavailable. Please ensure you are opening this from within Telegram.");
+                 }
+
+                 // --- Initialize Firebase and Fetch Data ---
+                 showLoading(true, 'Loading Wallet Data...');
+                 await initializeFirebase(); // Wait for Firebase to be ready
+
+                 // Fetch initial token and user data concurrently
+                 const [tokens, userData] = await Promise.all([
+                     getTokenData(),
+                     getUserDataRealtime(currentUser.id) // Start listening for realtime updates
+                 ]);
+
+                 // Once initial data is potentially fetched/created and listener is attached:
+                 console.log("Initial data fetch cycle complete.");
+                 populateTokenSelectors(); // Populate dropdowns with token data
+                 populateWithdrawTokenSelector(); // Populate withdraw based on initial balance
+                 setupEventListeners(); // Setup interactions now that data is loaded
+
+                 showLoading(false); // Hide loading indicator
+                 showPage('homePage'); // Ensure home page is active
+
+            } catch (error) {
+                 console.error("Initialization Failed:", error);
+                 showLoading(false);
+                 // Show specific error in blocker or global message
+                 if (error.message.includes("Telegram user data")) {
+                     appBlocker.style.display = 'flex'; // Show blocker specifically for this
+                 } else {
+                     showGlobalMessage(`Initialization Error: ${error.message}`, "error", 0); // Persistent error
+                 }
+                 // Optionally disable UI elements
+                 document.querySelectorAll('button, input, select').forEach(el => el.disabled = true);
+            }
         }
 
         // Start the app when the DOM is ready
