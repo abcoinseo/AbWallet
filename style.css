@@ -47,8 +47,7 @@ main#main-content {
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     padding: calc(var(--spacing-unit) * 2);
-    /* Adjust padding-bottom to account for nav bar height */
-    padding-bottom: calc(var(--nav-height) + var(--spacing-unit) * 2);
+    padding-bottom: calc(var(--nav-height) + var(--spacing-unit) * 2); /* Space for bottom nav */
 }
 
 /* --- Loading Overlay --- */
@@ -74,23 +73,21 @@ main#main-content {
 @keyframes pageFadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
 .page-header {
-    display: flex; align-items: center; justify-content: space-between; /* Adjust alignment */
+    display: flex; align-items: center; justify-content: space-between;
     margin-bottom: calc(var(--spacing-unit) * 3);
-    min-height: var(--header-height); /* Ensure consistent height */
+    min-height: var(--header-height);
 }
 .page-header h1 {
     font-size: 1.8em; font-weight: 600; color: var(--text-main);
-    margin: 0; text-align: center; flex-grow: 1; /* Allow title to center */
-    padding: 0 45px; /* Space for potential buttons on both sides */
+    margin: 0; text-align: center; flex-grow: 1;
+    padding: 0 45px; /* Space for buttons */
 }
 .page-header .back-button, .page-header #refresh-button {
     background: none; border: none; color: var(--primary-accent);
     font-size: 1.8em; cursor: pointer; padding: 5px; line-height: 1;
-    width: 40px; /* Fixed width for alignment */ text-align: center;
+    width: 40px; text-align: center;
 }
-.page-header .back-button { /* Position explicitly if needed */ }
-.page-header #refresh-button { font-size: 1.4em; } /* Slightly smaller refresh icon */
-
+.page-header #refresh-button { font-size: 1.4em; }
 
 .content-section { margin-bottom: calc(var(--spacing-unit) * 3); }
 .content-section h2 {
@@ -105,7 +102,7 @@ main#main-content {
     border-top: 1px solid var(--border-color); background-color: var(--card-background);
     position: fixed; bottom: 0; left: 0; right: 0; height: var(--nav-height);
     padding-bottom: env(safe-area-inset-bottom); box-shadow: 0 -2px 5px rgba(0,0,0,0.05);
-    z-index: 100; /* Ensure nav is above scrolling content */
+    z-index: 100;
 }
 .nav-button {
     background: none; border: none; color: var(--text-secondary); font-size: 0.7em;
@@ -158,7 +155,7 @@ input[type="text"], input[type="number"], select {
 input[type="text"]:focus, input[type="number"]:focus, select:focus { outline: none; border-color: var(--primary-accent); }
 input[type="number"]::-webkit-inner-spin-button, input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 input[type="number"] { -moz-appearance: textfield; }
-select { appearance: none; /* For custom arrow */ background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%23${(props) => props.theme.textColor.substring(1)}'%3E%3Cpath fill-rule='evenodd' d='M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right calc(var(--spacing-unit) * 1.5) center; background-size: 16px 16px; padding-right: calc(var(--spacing-unit) * 4); }
+select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%23${(props) => props.theme.textColor.substring(1)}'%3E%3Cpath fill-rule='evenodd' d='M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right calc(var(--spacing-unit) * 1.5) center; background-size: 16px 16px; padding-right: calc(var(--spacing-unit) * 4); }
 
 .input-with-button { display: flex; gap: var(--spacing-unit); }
 .input-with-button input { flex-grow: 1; }
@@ -183,35 +180,34 @@ select { appearance: none; /* For custom arrow */ background-image: url("data:im
 .status-message.pending { color: var(--warning-color); }
 .status-message.info { color: var(--text-secondary); }
 
-/* --- Deposit Page --- */
+/* --- Receive/Send Pages --- */
 .info-text { color: var(--text-secondary); font-size: 0.9em; margin-bottom: var(--spacing-unit) * 2; line-height: 1.5; }
 .deposit-info-card h3 { font-size: 1em; font-weight: 600; margin-bottom: var(--spacing-unit); }
-.chat-id-display, .address-display {
+.chat-id-display {
     background-color: var(--background-main); padding: var(--spacing-unit) calc(var(--spacing-unit)*1.5);
     border-radius: calc(var(--border-radius) / 1.5); word-wrap: break-word; font-family: monospace;
     margin: var(--spacing-unit) 0; border: 1px solid var(--border-color);
     display: flex; justify-content: space-between; align-items: center; gap: var(--spacing-unit);
 }
-.chat-id-display span, .address-display span { flex-grow: 1; font-size: 0.9em; }
+.chat-id-display span { flex-grow: 1; font-size: 1em; font-weight: 500; color: var(--text-main); }
 .copy-button { background: none; border: none; color: var(--primary-accent); cursor: pointer; font-weight: 600; font-size: 0.8em; padding: 5px; }
+.small-text { font-size: 0.8em; color: var(--text-secondary); margin-top: 4px;}
 .warning-text { font-size: 0.85em; color: var(--warning-color); margin-top: calc(var(--spacing-unit) * 1.5); display: flex; align-items: center; gap: calc(var(--spacing-unit) / 2); }
 .warning-text svg { width: 16px; height: 16px; fill: currentColor; flex-shrink: 0; margin-right: 4px; }
-.warning-text strong { font-weight: 600; }
-.small-text { font-size: 0.8em; color: var(--text-secondary); margin-top: 4px;}
 
-/* --- Withdraw Page --- */
+/* Send Page Specific */
 .current-balance-info { font-size: 0.9em; color: var(--text-secondary); margin-top: var(--spacing-unit); text-align: left; }
 .current-balance-info strong { color: var(--text-main); font-weight: 600; }
 
 /* --- Swap Page --- */
-.swap-section .swap-interface { padding: 0; /* Remove padding if swap-box has it */ }
-.swap-box { position: relative; margin-bottom: 0; /* Reset margin, handle spacing with icon container */ }
+.swap-section .swap-interface { padding: 0; }
+.swap-box { position: relative; margin-bottom: 0; }
 .swap-box label { font-size: 0.8em; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 4px; }
 .swap-box .input-group { display: flex; align-items: center; gap: var(--spacing-unit); }
 .swap-box input[type="number"] {
-    flex-grow: 1; font-size: 1.4em; /* Larger font for amounts */ padding: 10px;
-    border: none; background: none; /* Remove default input styling */
-    outline: none; appearance: textfield; -moz-appearance: textfield;
+    flex-grow: 1; font-size: 1.4em; padding: 10px;
+    border: none; background: none; outline: none;
+    appearance: textfield; -moz-appearance: textfield;
 }
 .swap-box .token-selector-container { flex-shrink: 0; }
 .token-selector-button {
@@ -227,12 +223,7 @@ select { appearance: none; /* For custom arrow */ background-image: url("data:im
 
 .swap-box .balance-info { font-size: 0.8em; color: var(--text-secondary); text-align: right; margin-top: 4px; min-height: 1.2em; }
 
-.swap-icon-container {
-    display: flex; justify-content: center; align-items: center;
-    height: 50px; /* Vertical space between boxes */
-    margin: calc(var(--spacing-unit) * -1) 0; /* Overlap slightly */
-    z-index: 10; /* Ensure button is clickable */
-}
+.swap-icon-container { display: flex; justify-content: center; align-items: center; height: 50px; margin: calc(var(--spacing-unit) * -1) 0; z-index: 10; }
 #swap-switch-button {
     background-color: var(--card-background); border: 1px solid var(--border-color);
     border-radius: 50%; width: 36px; height: 36px; display: flex;
@@ -242,288 +233,28 @@ select { appearance: none; /* For custom arrow */ background-image: url("data:im
 }
 #swap-switch-button:hover { transform: rotate(180deg); }
 
-.swap-rate-info {
-    font-size: 0.9em; color: var(--text-secondary); text-align: center;
-    margin: calc(var(--spacing-unit) * 2) 0;
-    min-height: 1.4em;
-}
+.swap-rate-info { font-size: 0.9em; color: var(--text-secondary); text-align: center; margin: calc(var(--spacing-unit) * 2) 0; min-height: 1.4em; }
+.fee-info { font-size: 0.8em; color: var(--text-secondary); text-align: center; margin-top: calc(var(--spacing-unit) * -1); margin-bottom: calc(var(--spacing-unit) * 2); }
+
 
 /* --- Token Selector Modal --- */
-.modal {
-    display: none; /* Hidden by default */
-    position: fixed; z-index: 1001; /* Above everything else */
-    left: 0; top: 0; width: 100%; height: 100%;
-    overflow: auto; background-color: rgba(0,0,0,0.5); /* Dim background */
-    animation: fadeInModal 0.3s ease-out;
-}
+.modal { display: none; position: fixed; z-index: 1001; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5); animation: fadeInModal 0.3s ease-out; }
 @keyframes fadeInModal { from { opacity: 0; } to { opacity: 1; } }
-
 .modal-content {
-    background-color: var(--background-main);
-    margin: 10% auto; /* Centered, responsive margin */
-    padding: 0; /* Remove padding, handle inside */
-    border: 1px solid var(--border-color);
-    width: 90%; max-width: 400px; /* Responsive width */
-    border-radius: var(--border-radius);
-    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-    display: flex; flex-direction: column;
-    max-height: 80vh; /* Limit height */
+    background-color: var(--background-main); margin: 10% auto; padding: 0;
+    border: 1px solid var(--border-color); width: 90%; max-width: 400px;
+    border-radius: var(--border-radius); box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    display: flex; flex-direction: column; max-height: 80vh;
 }
-.modal-header {
-    padding: calc(var(--spacing-unit) * 2);
-    border-bottom: 1px solid var(--border-color);
-    display: flex; justify-content: space-between; align-items: center;
-}
+.modal-header { padding: calc(var(--spacing-unit) * 2); border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
 .modal-header h2 { margin: 0; font-size: 1.2em; }
 .close-modal-button { background: none; border: none; font-size: 1.8em; cursor: pointer; color: var(--text-secondary); padding: 0 5px; line-height: 1; }
 .modal-body { padding: calc(var(--spacing-unit) * 2); overflow-y: auto; }
-
 #token-search-input { margin-bottom: var(--spacing-unit) * 2; }
 #token-list-modal { list-style: none; padding: 0; margin: 0; }
-#token-list-modal li {
-    display: flex; align-items: center; padding: var(--spacing-unit) 0;
-    cursor: pointer; border-bottom: 1px solid var(--border-color);
-    transition: background-color 0.1s;
-}
+#token-list-modal li { display: flex; align-items: center; padding: var(--spacing-unit) 0; cursor: pointer; border-bottom: 1px solid var(--border-color); transition: background-color 0.1s; }
 #token-list-modal li:last-child { border-bottom: none; }
 #token-list-modal li:hover { background-color: var(--card-background); }
 #token-list-modal .token-logo { width: 32px; height: 32px; margin-right: var(--spacing-unit) * 1.5; }
 #token-list-modal .token-details .name { font-weight: 500; }
 #token-list-modal .token-details .symbol { font-size: 0.85em; color: var(--text-secondary); }
-/* --- Base & Variables --- */
-:root {
-    /* ... (TG Variables remain the same) ... */
-    --primary-accent: var(--tg-theme-link-color, #007aff);
-    --primary-button: var(--tg-theme-button-color, #007aff);
-    --primary-button-text: var(--tg-theme-button-text-color, #ffffff);
-    --background-main: var(--tg-bg-color, #f7f8fa); /* Slightly off-white default */
-    --text-main: var(--tg-theme-text-color, #1c1c1e); /* Darker text */
-    --text-secondary: var(--tg-hint-color, #8a8a8e); /* Hint color */
-    --card-background: var(--tg-secondary-bg-color, #ffffff); /* Cards are white */
-    --border-color: #e5e5ea; /* Lighter border */
-    --success-color: #34c759;
-    --error-color: #ff3b30;
-    --warning-color: #ff9500;
-
-    --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-    --border-radius: 14px; /* More pronounced radius */
-    --spacing-unit: 8px;
-    --header-height: 55px;
-    --nav-height: 65px;
-    --content-padding: calc(var(--spacing-unit) * 2.5); /* 20px */
-}
-
-/* ... (Basic reset *, html, body - remain mostly the same, use new variables) ... */
-body {
-     background-color: var(--background-main);
-     color: var(--text-main);
-     /* ... rest */
-}
-
-/* --- App Layout --- */
-#app-container { /* ... same ... */ }
-main#main-content {
-    flex-grow: 1;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-    padding: var(--content-padding);
-    padding-top: var(--spacing-unit); /* Reduce top padding slightly */
-    padding-bottom: calc(var(--nav-height) + var(--content-padding));
-}
-
-/* --- Loading Overlay --- */
-#loading-overlay { /* ... same ... */
-    background-color: rgba(0, 0, 0, 0.6); /* Slightly less dark */
-}
-#loading-overlay p { font-size: 1.1em; }
-
-/* --- Page Structure & Headers --- */
-.page { display: none; animation: pageFadeIn 0.3s ease-out; }
-.page.active { display: block; }
-@keyframes pageFadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-
-.page-header {
-    display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: calc(var(--spacing-unit) * 2); /* Reduced bottom margin */
-    min-height: var(--header-height);
-    padding: 0 var(--spacing-unit); /* Add horizontal padding */
-}
-.page-header.main-header { /* Specific style for the main app header */
-     justify-content: center; /* Center title if no back button */
-     position: relative; /* For absolute positioning of refresh */
-     margin-bottom: var(--spacing-unit); /* Less margin for main header */
- }
-.page-header.main-header h1 {
-    font-size: 1.5em; /* Slightly smaller main title */
-    font-weight: 600;
- }
- .page-header.main-header #refresh-button {
-     position: absolute;
-     right: var(--spacing-unit);
-     top: 50%;
-     transform: translateY(-50%);
- }
-
-.page-header h1 {
-    font-size: 1.3em; /* Standard page title size */
-    font-weight: 600; color: var(--text-main);
-    margin: 0; text-align: center; flex-grow: 1;
-    padding: 0 45px;
-}
-.page-header .back-button, .page-header #refresh-button {
-    background: none; border: none; color: var(--primary-accent);
-    font-size: 1.8em; cursor: pointer; padding: 5px; line-height: 1;
-    width: 40px; text-align: center; flex-shrink: 0; /* Prevent shrinking */
-}
-.page-header #refresh-button { font-size: 1.4em; }
-
-.content-section { margin-bottom: calc(var(--spacing-unit) * 3); }
-.content-section h2 { /* Section titles */
-    font-size: 1em; font-weight: 600; color: var(--text-main); /* Darker */
-    margin-bottom: calc(var(--spacing-unit) * 1.5);
-     padding-left: var(--spacing-unit); /* Indent slightly */
-}
-
-/* --- Bottom Navigation --- */
-#bottom-nav { /* ... same structure, use new vars ... */
-    background-color: var(--card-background); /* White */
-    border-top: 1px solid var(--border-color);
-    height: var(--nav-height);
-    box-shadow: 0 -1px 4px rgba(0,0,0,0.04); /* Softer shadow */
-}
-.nav-button { /* ... same structure ... */ color: var(--text-secondary); }
-.nav-button.active { color: var(--primary-accent); }
-.nav-button span { font-size: 0.9em; /* Slightly larger text */ }
-
-/* --- Cards --- */
-.total-balance-card, .deposit-info-card, .asset-card, .swap-box {
-    background-color: var(--card-background);
-    padding: var(--content-padding);
-    border-radius: var(--border-radius);
-    margin-bottom: calc(var(--spacing-unit) * 2); /* Consistent margin */
-    box-shadow: 0 2px 8px rgba(0,0,0,0.06); /* Slightly stronger shadow */
-}
-
-/* --- Home Page: Total Balance & Assets --- */
-.total-balance-card { text-align: center; padding: calc(var(--spacing-unit) * 3); }
-.total-balance-card .balance-amount { font-size: 2.6em; font-weight: 700; color: var(--text-main); margin: 0 5px; }
-.total-balance-card .currency-symbol, .total-balance-card .currency-code { font-size: 1.1em; color: var(--text-secondary); font-weight: 400; }
-
-.asset-list-container .no-assets { color: var(--text-secondary); text-align: center; padding: var(--spacing-unit) * 3; font-style: italic; }
-.asset-card { /* ... same structure ... */ padding: calc(var(--spacing-unit) * 1.5) var(--content-padding); }
-.asset-logo { width: 40px; height: 40px; }
-.asset-name-symbol .name { font-weight: 600; font-size: 1.05em; }
-.asset-balance-value .balance { font-weight: 600; }
-
-/* --- Form Elements --- */
-.form-group { margin-bottom: calc(var(--spacing-unit) * 2.5); }
-label { /* ... same ... */ color: var(--text-main); font-weight: 500; }
-input[type="text"], input[type="number"], select {
-    /* ... base styles ... */
-    background-color: var(--background-main); /* Match page background */
-    border: 1px solid var(--border-color);
-     padding: calc(var(--spacing-unit) * 1.8); /* Increase padding */
-     font-size: 1em;
-}
-input[type="text"]:focus, input[type="number"]:focus, select:focus {
-    border-color: var(--primary-accent);
-    background-color: var(--card-background); /* Change bg on focus */
-}
-select { /* ... background arrow ... use new text color var */ }
-
-.input-with-button button { /* ... same ... */ background-color: var(--background-main); }
-
-.action-button.primary-button { /* ... same ... */ font-weight: 600; font-size: 1.05em; }
-.action-button.secondary-button {
-     background-color: var(--card-background);
-     color: var(--primary-accent);
-     border: 1px solid var(--primary-accent);
-     /* ... other shared styles from primary */
-}
-
-.status-message { /* ... same ... */ }
-.info-text { /* ... same ... */ color: var(--text-secondary); font-size: 0.95em; }
-.small-text { /* ... same ... */ font-size: 0.85em; color: var(--text-secondary); }
-.warning-text { /* ... same ... */ color: var(--warning-color); }
-
-
-/* --- Deposit Page --- */
-.user-identification-card { padding: var(--spacing-unit) * 2 var(--content-padding); }
-.user-identification-card h3 { margin-bottom: calc(var(--spacing-unit) * 2); font-size: 1.1em; }
-.identifier-item { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-unit) * 1.5; }
-.identifier-item strong { font-weight: 500; color: var(--text-secondary); }
-.identifier-value { display: flex; align-items: center; gap: var(--spacing-unit); font-family: monospace; font-size: 0.95em; }
-.identifier-value span { color: var(--text-main); }
-.copy-button { /* ... same ... */ }
-
-
-/* --- Withdraw Page --- */
-/* Styles inherited, specific tweaks if needed */
-#withdraw-recipient-id::placeholder { color: var(--text-secondary); opacity: 0.7;}
-
-/* --- Swap Page --- */
-.swap-box { padding: calc(var(--spacing-unit) * 2) var(--content-padding); }
-.swap-box label { font-size: 0.9em; }
-.swap-box input[type="number"] { font-size: 1.6em; padding: 10px 0; } /* No padding left/right */
-.token-selector-button { /* ... Pill shape style ... */ }
-.token-logo { width: 28px; height: 28px; } /* Slightly larger */
-.token-symbol { font-weight: 600; font-size: 1.05em; }
-.swap-box .balance-info { font-size: 0.85em; }
-
-.swap-icon-container { height: 45px; margin: 0; /* Reset margin */ position: relative; }
-#swap-switch-button { /* ... same style ... */ position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 5;}
-
-.swap-rate-info, .swap-fee-info {
-    font-size: 0.9em; color: var(--text-secondary); text-align: center;
-    margin: var(--spacing-unit) 0;
-    min-height: 1.4em;
-}
-.swap-fee-info { font-size: 0.85em; } /* Smaller fee display */
-
-/* --- Token Selector Modal --- */
-.modal { /* ... same ... */ }
-.modal-content { /* ... same ... */ background-color: var(--card-background); }
-.modal-header { background-color: var(--background-main); }
-/* ... other modal styles ... */
-/* ... (Keep most styles from the previous version) ... */
-
-/* Add/Modify Styles for Clarity */
-
-/* Swap Page Fee Info */
-.fee-info {
-    font-size: 0.8em;
-    color: var(--text-secondary);
-    text-align: center;
-    margin-top: calc(var(--spacing-unit) * -1); /* Pull it closer to the rate */
-    margin-bottom: calc(var(--spacing-unit) * 2);
-}
-
-/* Deposit/Withdraw Page Text */
-.info-text {
-    color: var(--text-secondary);
-    font-size: 0.9em;
-    margin-bottom: calc(var(--spacing-unit) * 2);
-    line-height: 1.5;
-}
-.small-text {
-    font-size: 0.8em;
-    color: var(--text-secondary);
-    margin-top: 4px;
-}
-/* Ensure warning color is distinct if reused */
-.warning-text { color: var(--warning-color) !important; } /* Use !important carefully if needed */
-
-/* Style the Chat ID display prominently */
-.chat-id-display span {
-    flex-grow: 1;
-    font-size: 1em; /* Make it slightly larger */
-    font-weight: 500;
-    color: var(--text-main);
-}
-
-/* Adjust withdraw input if needed */
-#withdraw-recipient-id[type="number"] {
-    /* Specific styles for number input if desired */
-}
-
-/* ... (Rest of the styles remain largely the same) ... */
