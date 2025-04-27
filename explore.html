@@ -3,234 +3,74 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pro Crypto Dashboard</title>
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <title>TradingView Style Chart</title>
+    <!-- TradingView Lightweight Charts Library -->
+    <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
     <!-- Firebase Libraries -->
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
     <style>
-        /* --- Global Styles & Variables --- */
-        :root {
-            --bg-color: #131722; /* Dark background */
-            --card-bg: #1e222d;  /* Slightly lighter card background */
-            --text-color: #d1d4dc; /* Light grey text */
-            --text-secondary: #8a8e97; /* Dimmer text */
-            --accent-color: #2962ff; /* Blue accent */
-            --green: #089981;     /* TradingView green */
-            --red: #f23645;       /* TradingView red */
-            --border-color: #363a45;
-            --font-main: 'Poppins', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* Modern Font */
-        }
-
-        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
-
-        * {
-            box-sizing: border-box;
+        html, body {
+            height: 100%;
             margin: 0;
             padding: 0;
+            background-color: #131722; /* TradingView dark background */
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
         }
-
-        body {
-            font-family: var(--font-main);
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            line-height: 1.6;
-            padding: 25px;
-            font-weight: 400; /* Default weight */
-        }
-
-        /* --- Main Container --- */
-        .container {
-            max-width: 1400px; /* Wider container */
-            margin: 0 auto;
-            padding: 20px; /* Slightly less padding */
-        }
-
-        h1 {
-            text-align: center;
-            margin-bottom: 40px;
-            color: #ffffff; /* White header */
-            font-weight: 600;
-            letter-spacing: 1px;
-        }
-
-        /* --- Loading Indicator --- */
-        #loading {
-            text-align: center;
-            font-size: 1.3em;
-            color: var(--text-secondary);
-            padding: 50px 0;
-            font-weight: 300;
-        }
-
-        /* --- Coin Grid --- */
-        #coin-list {
-            display: grid;
-            /* More columns on larger screens */
-            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-            gap: 25px; /* Slightly larger gap */
-        }
-
-        /* --- Coin Card --- */
-        .coin-card {
-            border: 1px solid var(--border-color);
-            border-radius: 10px; /* Smoother corners */
-            padding: 20px;
-            background-color: var(--card-bg);
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2); /* More pronounced shadow */
-            transition: transform 0.25s ease-in-out, box-shadow 0.25s ease-in-out;
-            display: flex;
-            flex-direction: column;
-            cursor: pointer; /* Indicate interactivity */
-        }
-
-        .coin-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 25px rgba(41, 98, 255, 0.15); /* Accent shadow on hover */
-            border-color: rgba(41, 98, 255, 0.5); /* Accent border on hover */
-        }
-
-        .coin-header {
-            display: flex;
-            align-items: center;
-            margin-bottom: 15px;
-        }
-
-        .coin-logo {
-            width: 45px;
-            height: 45px;
-            margin-right: 15px;
-            border-radius: 50%;
-            object-fit: contain;
-            background-color: #333; /* Darker placeholder bg */
-            border: 2px solid var(--border-color);
-        }
-
-        .coin-name-symbol {
-            flex-grow: 1; /* Take remaining space */
-        }
-
-        .coin-name {
-            font-size: 1.35em; /* Slightly larger name */
-            font-weight: 600;
-            color: #ffffff; /* White name */
-            display: block; /* Ensure it takes full width */
-        }
-
-        .coin-symbol {
-            font-size: 0.9em;
-            color: var(--text-secondary);
-            font-weight: 400;
-        }
-
-        .coin-details {
-           margin-bottom: 15px;
-        }
-
-        .coin-price-section {
-            display: flex;
-            justify-content: space-between; /* Push price and change apart */
-            align-items: baseline; /* Align text nicely */
-            margin-bottom: 10px;
-        }
-
-        .coin-price {
-            font-size: 1.7em; /* Larger price */
-            font-weight: 500;
-            color: var(--text-color); /* Use default text color, change below */
-            letter-spacing: 0.5px;
-        }
-
-        .price-change {
-            font-size: 1.0em; /* Adjusted size */
-            font-weight: 600;
-            padding: 4px 8px; /* More padding */
-            border-radius: 5px;
-            color: #ffffff; /* White text always */
-            text-align: right;
-        }
-
-        /* --- Dynamic Colors --- */
-        .price-up {
-            color: var(--green);
-        }
-        .price-down {
-            color: var(--red);
-        }
-        .change-up {
-            background-color: var(--green);
-        }
-        .change-down {
-            background-color: var(--red);
-        }
-        .change-neutral {
-            background-color: var(--text-secondary);
-        }
-        .arrow {
-            display: inline-block;
-            margin-right: 4px;
-            font-size: 0.9em; /* Slightly smaller arrow */
-        }
-
-        /* --- Chart Styling --- */
-        .chart-container {
+        #chart-container {
             width: 100%;
-            height: 180px; /* Taller chart */
-            margin-top: auto; /* Pushes chart to bottom */
-            opacity: 0.85; /* Slightly transparent chart */
-            transition: opacity 0.3s ease;
+            height: 100%; /* Make chart fill the screen */
+            position: relative;
         }
-        .coin-card:hover .chart-container {
-             opacity: 1; /* Full opacity on hover */
+        #loading-chart {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #d1d4dc;
+            font-size: 1.5em;
+            z-index: 10; /* Ensure it's above the chart initially */
         }
-
-         /* --- Footer/Info --- */
-         .info {
-            text-align: center;
-            margin-top: 40px;
-            font-size: 0.9em;
-            color: var(--text-secondary);
-            font-weight: 300;
+         .tv-lightweight-charts {
+             /* Ensures chart div takes space immediately */
+             display: block;
+             width: 100%;
+             height: 100%;
          }
-         .info a {
-            color: var(--accent-color);
-            text-decoration: none;
+         /* --- Firebase Status Indicator (Optional) --- */
+         #firebase-status {
+             position: fixed; /* Keep it fixed on screen */
+             bottom: 10px;
+             left: 10px;
+             padding: 5px 10px;
+             border-radius: 4px;
+             font-size: 0.8em;
+             z-index: 20;
+             opacity: 0.8;
          }
-         .info a:hover {
-            text-decoration: underline;
+         .status-connected {
+             background-color: #089981; /* Green */
+             color: white;
          }
-         .warning {
-            color: #ffa000; /* Orange warning */
-            font-weight: 500;
+         .status-disconnected {
+             background-color: #f23645; /* Red */
+             color: white;
          }
-
+         .status-updating {
+              background-color: #ff9800; /* Orange */
+              color: black;
+         }
     </style>
 </head>
 <body>
-
-    <div class="container">
-        <h1>Realtime Crypto Dashboard</h1>
-
-        <div id="loading">Initializing Dashboard...</div>
-
-        <div id="coin-list">
-            <!-- Coin cards dynamically inserted -->
-        </div>
-
-        <div class="info">
-             Real-time data stream via Firebase. Charts show session price movement.
-            <br>
-            <span class="warning">Security Alert:</span> Your Firebase rules appear public. Secure them in the Firebase Console to prevent unauthorized access.
-            <br>
-             Advanced charting & trading requires backend infrastructure and historical data.
-        </div>
-    </div>
+    <div id="loading-chart">Loading Chart Data...</div>
+    <div id="chart-container"></div>
+    <div id="firebase-status" class="status-disconnected">Connecting...</div>
 
     <script>
         // --- Firebase Configuration ---
-        // **CRITICAL**: SECURE YOUR FIREBASE RULES IN THE CONSOLE! PUBLIC RULES ARE DANGEROUS!
+        // **CRITICAL**: SECURE YOUR FIREBASE RULES IN THE CONSOLE!
         const firebaseConfig = {
             apiKey: "AIzaSyBW1WPXUN8DYhT6npZQYoQ3l4J-jFSbzfg", // Use securely!
             authDomain: "ab-studio-marketcap.firebaseapp.com",
@@ -241,298 +81,207 @@
             appId: "1:115268088088:web:65643a047f92bfaa66ee6d"
         };
 
-        // --- Constants and State ---
-        const MAX_CHART_POINTS = 45; // Show more points on the line chart
-        const coinDataStore = {}; // { symbol: { currentData: {}, previousPrice: null, chart: null, chartData: { labels: [], prices: [] } } }
-        const UI_ELEMENTS = {
-             coinList: document.getElementById('coin-list'),
-             loading: document.getElementById('loading'),
-        };
-        const CHART_COLORS = {
-             green: 'rgba(8, 153, 129, 0.7)', // Chart green with opacity
-             red: 'rgba(242, 54, 69, 0.7)',   // Chart red with opacity
-             neutral: 'rgba(138, 142, 151, 0.7)', // Chart neutral with opacity
-             border: 'rgba(209, 212, 220, 0.9)' // Lighter border for dark theme
-        };
+        // --- Chart Setup ---
+        const chartContainer = document.getElementById('chart-container');
+        const loadingIndicator = document.getElementById('loading-chart');
+        const firebaseStatusElement = document.getElementById('firebase-status');
+        let chart = null;
+        let candlestickSeries = null;
+        let currentChartData = []; // Holds the current OHLCV data displayed
 
-        // --- Initialize Firebase ---
-        try {
-            firebase.initializeApp(firebaseConfig);
-            const database = firebase.database();
-            const tokensRef = database.ref('tokens');
-
-             /**
-             * Format number as USD currency with dynamic precision.
-             */
-            function formatCurrency(number) {
-                if (typeof number !== 'number' || isNaN(number)) return '$--.--';
-                const options = {
-                    style: 'currency',
-                    currency: 'USD',
-                    minimumFractionDigits: number < 0.1 ? 4 : 2,
-                    maximumFractionDigits: number < 0.001 ? 8 : (number < 1 ? 4 : 2)
-                };
-                return number.toLocaleString('en-US', options);
-            }
-
-            /**
-             * Creates or updates a coin card in the DOM.
-             */
-            function renderCoinCard(symbol, coin) {
-                let card = document.getElementById(`coin-${symbol}`);
-                const storeEntry = coinDataStore[symbol] || {}; // Get existing or empty object
-                const previousPrice = storeEntry.previousPrice;
-                const currentPrice = coin.priceUSD;
-
-                let priceChangePercent = 0;
-                let priceClass = '';
-                let changeClass = 'change-neutral';
-                let arrow = '';
-                let priceChangeText = '0.00%'; // Default neutral text
-
-                if (typeof previousPrice === 'number' && typeof currentPrice === 'number' && previousPrice !== 0) {
-                    const priceChange = currentPrice - previousPrice;
-                    priceChangePercent = (priceChange / previousPrice) * 100;
-
-                    if (priceChangePercent > 0.001) { // Threshold to avoid tiny fluctuations showing color
-                        priceClass = 'price-up';
-                        changeClass = 'change-up';
-                        arrow = '<span class="arrow">▲</span>';
-                        priceChangeText = `${arrow}${priceChangePercent.toFixed(2)}%`;
-                    } else if (priceChangePercent < -0.001) {
-                        priceClass = 'price-down';
-                        changeClass = 'change-down';
-                        arrow = '<span class="arrow">▼</span>';
-                        priceChangeText = `${arrow}${Math.abs(priceChangePercent).toFixed(2)}%`;
-                    }
-                    // If between -0.001 and 0.001, it remains neutral
-                }
-
-                // Create card if it doesn't exist
-                if (!card) {
-                    card = document.createElement('div');
-                    card.className = 'coin-card';
-                    card.id = `coin-${symbol}`;
-                    card.innerHTML = `
-                        <div class="coin-header">
-                            <img src="${coin.logoUrl || '?'}" alt="${coin.name || 'N/A'}" class="coin-logo" onerror="this.style.visibility='hidden'">
-                            <div class="coin-name-symbol">
-                                <span class="coin-name">${coin.name || 'Unknown Token'}</span>
-                                <span class="coin-symbol">(${symbol})</span>
-                            </div>
-                        </div>
-                        <div class="coin-details">
-                            <div class="coin-price-section">
-                                <span class="coin-price price-value"></span>
-                                <span class="price-change change-value"></span>
-                            </div>
-                             <!-- Other details can go here -->
-                        </div>
-                        <div class="chart-container">
-                            <canvas id="chart-${symbol}"></canvas>
-                        </div>
-                    `;
-                    UI_ELEMENTS.coinList.appendChild(card);
-                    // Initialize data store entry if new
-                    coinDataStore[symbol] = {
-                        ...storeEntry,
-                        chartData: { labels: [], prices: [] }
-                    };
-                    initializeChart(symbol); // Create chart instance only once
-                }
-
-                // Update dynamic elements
-                const priceElement = card.querySelector('.price-value');
-                const changeElement = card.querySelector('.change-value');
-
-                priceElement.textContent = formatCurrency(currentPrice);
-                priceElement.className = `coin-price price-value ${priceClass}`; // Apply up/down class to price too
-
-                changeElement.innerHTML = priceChangeText;
-                changeElement.className = `price-change change-value ${changeClass}`;
-                changeElement.style.display = (typeof previousPrice === 'number') ? 'inline-block' : 'none'; // Show only after first update
+        // ** IMPORTANT: SAMPLE Historical Data (Replace with real data source if possible) **
+        // Format: { time: 'YYYY-MM-DD' or UnixTimestamp, open: number, high: number, low: number, close: number }
+        const sampleHistoricalData = [
+             // Add A LOT more data here for a realistic chart
+             { time: '2023-10-01', open: 0.0010, high: 0.0011, low: 0.0009, close: 0.00095 },
+             { time: '2023-10-02', open: 0.00095, high: 0.00105, low: 0.00092, close: 0.00102 },
+             { time: '2023-10-03', open: 0.00102, high: 0.00115, low: 0.00100, close: 0.0011 },
+             { time: '2023-10-04', open: 0.0011, high: 0.00112, low: 0.00105, close: 0.00108 },
+             { time: '2023-10-05', open: 0.00108, high: 0.00125, low: 0.00107, close: 0.0012 },
+             { time: '2023-10-06', open: 0.0012, high: 0.00122, low: 0.00115, close: 0.00118 },
+             { time: '2023-10-07', open: 0.00118, high: 0.00130, low: 0.00116, close: 0.00128 },
+             { time: '2023-10-08', open: 0.00128, high: 0.00135, low: 0.00125, close: 0.00133 },
+             { time: '2023-10-09', open: 0.00133, high: 0.00140, low: 0.00130, close: 0.00138 },
+             { time: '2023-10-10', open: 0.00138, high: 0.00145, low: 0.00135, close: 0.00142 },
+             // Add many more data points for a usable chart...
+             // Let's add a point for "today" based on the last static point
+             { time: '2023-10-11', open: 0.00142, high: 0.00142, low: 0.00142, close: 0.00142 } // Placeholder for today
+         ];
+        // Convert dates to Unix timestamps (seconds) for Lightweight Charts if needed, or use 'YYYY-MM-DD'
+        // sampleHistoricalData = sampleHistoricalData.map(d => ({ ...d, time: new Date(d.time).getTime() / 1000 }));
 
 
-                // Update store
-                coinDataStore[symbol] = {
-                    ...coinDataStore[symbol], // Keep existing chart instance and data
-                    currentData: coin,
-                    previousPrice: currentPrice // Update previous price for next calculation
-                };
-
-                // Update the chart with the new price
-                updateChart(symbol, currentPrice);
-            }
-
-            /**
-             * Initializes a Chart.js instance for a coin.
-             */
-            function initializeChart(symbol) {
-                const canvas = document.getElementById(`chart-${symbol}`);
-                if (!canvas || !coinDataStore[symbol]) return; // Guard clause
-
-                const chartConfig = {
-                    type: 'line',
-                    data: {
-                        labels: [],
-                        datasets: [{
-                            label: 'Price',
-                            data: [],
-                            borderColor: CHART_COLORS.neutral, // Start neutral
-                            borderWidth: 2,
-                            fill: { // Gradient fill
-                                target: 'origin',
-                                above: 'rgba(8, 153, 129, 0.1)',   // Light green fill above origin
-                                below: 'rgba(242, 54, 69, 0.1)'    // Light red fill below origin
-                             },
-                            tension: 0.3, // Smoother line
-                            pointRadius: 0,
-                            pointHoverRadius: 4, // Show point on hover
-                            pointBackgroundColor: CHART_COLORS.border,
-                        }]
+        // --- Initialize Chart ---
+        function initializeChart() {
+            try {
+                chart = LightweightCharts.createChart(chartContainer, {
+                    width: chartContainer.clientWidth,
+                    height: chartContainer.clientHeight,
+                    layout: {
+                        backgroundColor: '#131722',
+                        textColor: 'rgba(255, 255, 255, 0.9)',
                     },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        animation: { duration: 300, easing: 'linear' },
-                        scales: {
-                            x: { display: false },
-                            y: {
-                                display: false, // Hide Y-axis for cleaner look in card
-                                // Optionally configure ticks if you want to display it
-                                // ticks: { ... }
-                            }
-                        },
-                        plugins: {
-                            legend: { display: false },
-                            tooltip: {
-                                enabled: true,
-                                mode: 'index',
-                                intersect: false,
-                                position: 'nearest',
-                                displayColors: false, // Hide color box in tooltip
-                                backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                                titleFont: { weight: 'bold' },
-                                bodyFont: { size: 13 },
-                                padding: 10,
-                                callbacks: {
-                                     title: (tooltipItems) => `Time: ${tooltipItems[0].label}`, // Show time label
-                                     label: (context) => `Price: ${formatCurrency(context.parsed.y)}`
-                                 }
-                            }
-                        },
-                         interaction: { // Enhance hover effects
-                             mode: 'index',
-                             intersect: false,
+                    grid: {
+                        vertLines: { color: '#334158' },
+                        horzLines: { color: '#334158' },
+                    },
+                    crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+                    priceScale: {
+                        borderColor: '#485c7b',
+                        autoScale: true, // Automatically adjust price scale
+                         // More precise formatting for low-value tokens
+                         formatter: price => {
+                             if (price < 0.0001) return price.toFixed(8);
+                             if (price < 0.01) return price.toFixed(6);
+                             if (price < 1) return price.toFixed(4);
+                             return price.toFixed(2);
                          },
-                    }
-                };
+                    },
+                    timeScale: {
+                        borderColor: '#485c7b',
+                        timeVisible: true, // Show time on the bottom scale
+                        secondsVisible: false, // Hide seconds for daily/hourly data usually
+                    },
+                });
 
-                 try {
-                     // Destroy existing chart if somehow recreated
-                     if (coinDataStore[symbol]?.chart) {
-                          coinDataStore[symbol].chart.destroy();
-                     }
-                    coinDataStore[symbol].chart = new Chart(canvas.getContext('2d'), chartConfig);
-                } catch (error) {
-                     console.error(`Chart initialization error for ${symbol}:`, error);
-                     canvas.parentElement.innerHTML = `<p style="color: ${CHART_COLORS.red}; font-size: 0.8em; text-align: center; margin-top: 20px;">Chart Error</p>`;
-                }
+                candlestickSeries = chart.addCandlestickSeries({
+                    upColor: '#089981',   // TradingView Green
+                    downColor: '#f23645', // TradingView Red
+                    borderDownColor: '#f23645',
+                    borderUpColor: '#089981',
+                    wickDownColor: '#f23645',
+                    wickUpColor: '#089981',
+                });
+
+                // Sort data just in case it's not
+                 currentChartData = sampleHistoricalData.sort((a, b) => new Date(a.time) - new Date(b.time));
+                 // Make sure time is in 'YYYY-MM-DD' format as Lightweight Charts handles it well
+                 currentChartData = currentChartData.map(d => ({...d, time: d.time.split('T')[0]}));
+
+                candlestickSeries.setData(currentChartData);
+
+                loadingIndicator.style.display = 'none'; // Hide loading message
+
+                // Make chart responsive
+                window.addEventListener('resize', () => {
+                    chart.resize(chartContainer.clientWidth, chartContainer.clientHeight);
+                });
+
+            } catch (error) {
+                console.error("Chart initialization failed:", error);
+                loadingIndicator.textContent = "Error loading chart.";
+                loadingIndicator.style.color = "#f23645";
             }
+        }
 
-            /**
-             * Updates the chart data and redraws.
-             */
-            function updateChart(symbol, newPrice) {
-                const storeEntry = coinDataStore[symbol];
-                if (!storeEntry?.chart || typeof newPrice !== 'number' || isNaN(newPrice)) return;
+        // --- Firebase Integration ---
+        function connectFirebase() {
+            try {
+                firebase.initializeApp(firebaseConfig);
+                const database = firebase.database();
+                // ** SPECIFY WHICH TOKEN TO TRACK **
+                const tokenSymbol = 'ABS'; // Change this to the specific token you want to chart
+                const tokenRef = database.ref(`tokens/${tokenSymbol}`);
 
-                const chart = storeEntry.chart;
-                const chartData = storeEntry.chartData;
-                const currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                console.log(`Attempting to connect to Firebase for token: ${tokenSymbol}`);
+                setFirebaseStatus('Connecting...', 'status-disconnected'); // Initial connecting state
 
-                chartData.labels.push(currentTime);
-                chartData.prices.push(newPrice);
-
-                // Limit history
-                while (chartData.labels.length > MAX_CHART_POINTS) {
-                    chartData.labels.shift();
-                    chartData.prices.shift();
-                }
-
-                // Update chart data
-                chart.data.labels = chartData.labels;
-                chart.data.datasets[0].data = chartData.prices;
-
-                // Set dynamic border color based on start vs end price in current view
-                 let borderColor = CHART_COLORS.neutral;
-                 if (chartData.prices.length >= 2) {
-                     const firstPrice = chartData.prices[0];
-                     const lastPrice = chartData.prices[chartData.prices.length - 1];
-                     if (lastPrice > firstPrice) borderColor = CHART_COLORS.green;
-                     else if (lastPrice < firstPrice) borderColor = CHART_COLORS.red;
-                 }
-                 chart.data.datasets[0].borderColor = borderColor;
+                 // Monitor connection state
+                 const connectedRef = database.ref(".info/connected");
+                 connectedRef.on("value", (snap) => {
+                   if (snap.val() === true) {
+                     console.log("Firebase Connected.");
+                     setFirebaseStatus(`Connected (${tokenSymbol})`, 'status-connected');
+                   } else {
+                     console.log("Firebase Disconnected.");
+                     setFirebaseStatus('Disconnected', 'status-disconnected');
+                   }
+                 });
 
 
-                // Update chart smoothly
-                chart.update('none'); // 'none' for less jarring updates
-            }
+                tokenRef.on('value', (snapshot) => {
+                    const tokenData = snapshot.val();
 
-            // --- Firebase Listener ---
-            tokensRef.on('value', (snapshot) => {
-                UI_ELEMENTS.loading.style.display = 'none';
-                const tokensData = snapshot.val();
+                    if (chart && candlestickSeries && tokenData && typeof tokenData.priceUSD === 'number') {
+                        const newPrice = tokenData.priceUSD;
+                        console.log(`Received price update for ${tokenSymbol}: ${newPrice}`);
+                        setFirebaseStatus(`Updating ${tokenSymbol}: ${newPrice.toFixed(6)}`, 'status-updating'); // Show updating status
 
-                if (tokensData) {
-                    const currentSymbols = Object.keys(tokensData);
-                    const existingCardSymbols = Array.from(UI_ELEMENTS.coinList.children).map(card => card.id.replace('coin-', ''));
+                        // --- Update the LAST candle ---
+                        if (currentChartData.length > 0) {
+                            let lastCandle = { ...currentChartData[currentChartData.length - 1] }; // Get a copy
 
-                    // Update or add cards
-                    currentSymbols.forEach(symbol => {
-                        const coin = tokensData[symbol];
-                        if (coin && typeof coin.priceUSD === 'number' && coin.name) {
-                             renderCoinCard(symbol, coin);
-                         } else {
-                             console.warn(`Invalid data for token ${symbol}:`, coin);
-                              // Optionally remove/hide card with bad data
-                              const badCard = document.getElementById(`coin-${symbol}`);
-                              if(badCard) badCard.style.display = 'none';
-                         }
-                    });
+                             // For a REAL system, you'd check if the current time falls
+                             // into the *next* candle's interval. For this demo, we just
+                             // update the existing last candle.
 
-                    // Remove cards for tokens no longer in Firebase
-                    existingCardSymbols.forEach(symbol => {
-                        if (!currentSymbols.includes(symbol)) {
-                            const cardToRemove = document.getElementById(`coin-${symbol}`);
-                            if (cardToRemove) {
-                                if (coinDataStore[symbol]?.chart) {
-                                    coinDataStore[symbol].chart.destroy(); // Clean up chart
-                                }
-                                delete coinDataStore[symbol]; // Remove from store
-                                cardToRemove.remove();
-                                console.log(`Removed stale card: ${symbol}`);
+                            // Update close price
+                            lastCandle.close = newPrice;
+
+                            // Update high price if new price is higher
+                            if (newPrice > lastCandle.high) {
+                                lastCandle.high = newPrice;
                             }
+
+                            // Update low price if new price is lower
+                            if (newPrice < lastCandle.low) {
+                                lastCandle.low = newPrice;
+                            }
+
+                            // Update the series with the modified last candle
+                            candlestickSeries.update(lastCandle);
+
+                            // Update our local store too (optional but good practice)
+                            currentChartData[currentChartData.length - 1] = lastCandle;
+
+                            // Briefly change status back to connected after update
+                            setTimeout(() => setFirebaseStatus(`Connected (${tokenSymbol})`, 'status-connected'), 1000);
+
+
+                        } else {
+                             console.warn("Chart data is empty, cannot update last candle.");
                         }
-                    });
 
-                } else {
-                    UI_ELEMENTS.coinList.innerHTML = '<p style="text-align: center; color: var(--text-secondary);">No token data found. Ensure Firebase path `/tokens` has data.</p>';
-                    console.warn("No data received from Firebase path '/tokens'.");
-                }
-            }, (error) => {
-                UI_ELEMENTS.loading.style.display = 'none';
-                console.error("Firebase read failed:", error);
-                UI_ELEMENTS.coinList.innerHTML = `<p style="color: ${CHART_COLORS.red}; text-align: center;">Error connecting to data source: ${error.message}</p>`;
-            });
+                    } else if (tokenData === null) {
+                         console.warn(`Token ${tokenSymbol} not found in Firebase.`);
+                         setFirebaseStatus(`Error: ${tokenSymbol} not found`, 'status-disconnected');
+                    }
+                     else {
+                        console.warn("Skipping update: Chart not ready or invalid token data received.", tokenData);
+                     }
+                }, (error) => {
+                    console.error(`Firebase read failed for ${tokenSymbol}:`, error);
+                    setFirebaseStatus(`Firebase Error`, 'status-disconnected');
+                });
 
-        } catch (error) {
-            console.error("Initialization error:", error);
-            UI_ELEMENTS.loading.style.display = 'none';
-            UI_ELEMENTS.coinList.innerHTML = `<p style="color: ${CHART_COLORS.red}; text-align: center;">Critical script error: ${error.message}</p>`;
+            } catch (error) {
+                console.error("Firebase initialization failed:", error);
+                setFirebaseStatus('Firebase Init Error', 'status-disconnected');
+                 loadingIndicator.textContent = "Error connecting to data.";
+                 loadingIndicator.style.color = "#f23645";
+            }
+        }
+
+         // --- Helper Function for Status ---
+         function setFirebaseStatus(message, className) {
+             if (firebaseStatusElement) {
+                 firebaseStatusElement.textContent = message;
+                 firebaseStatusElement.className = ''; // Clear existing classes
+                 firebaseStatusElement.classList.add('firebase-status', className);
+             }
+         }
+
+
+        // --- Start ---
+        initializeChart();
+        // Connect to Firebase AFTER chart is initialized
+        if (chart) {
+             connectFirebase();
+        } else {
+             // Handle case where chart init failed before Firebase connection attempt
+             setFirebaseStatus('Chart Init Failed', 'status-disconnected');
         }
 
     </script>
-
 </body>
 </html>
