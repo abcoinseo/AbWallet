@@ -2,68 +2,177 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Firebase Realtime Data Viewer</title>
-    <style>
-        body {
-            font-family: sans-serif;
-            margin: 20px;
-            background-color: #f4f4f4;
-            color: #333;
-        }
-        h1 {
-            color: #0b5a7e;
-        }
-        #status-message {
-            font-weight: bold;
-            margin-bottom: 15px;
-            padding: 10px;
-            border-radius: 4px;
-            background-color: #e0e0e0;
-        }
-        #data-container {
-            white-space: pre-wrap; /* Allows text wrapping */
-            word-wrap: break-word; /* Breaks long words/strings */
-            background-color: #ffffff;
-            border: 1px solid #ccc;
-            padding: 15px;
-            border-radius: 5px;
-            min-height: 200px; /* Ensure it has some height even when empty */
-            font-family: monospace; /* Better for viewing code/JSON */
-            font-size: 0.9em;
-            overflow-x: auto; /* Add scrollbar if content is too wide */
-        }
-        .warning {
-            background-color: #fff3cd;
-            color: #856404;
-            padding: 10px;
-            border: 1px solid #ffeeba;
-            border-radius: 4px;
-            margin-bottom: 15px;
-        }
-    </style>
+    <!-- Make sure viewport settings prevent zooming and ensure proper scaling -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>AB Wallet Pro</title>
+
+    <!-- Link to CSS -->
+    <link rel="stylesheet" href="style.css">
+
+    <!-- Telegram WebApp JS -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+    <!-- Firebase Libraries (consider using modules later for better optimization) -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+    <!-- Your Firebase Logic (defer ensures HTML is parsed first) -->
+    <script defer src="firebase.js"></script>
 </head>
 <body>
 
-    <h1>Firebase Realtime Database Viewer</h1>
+    <div id="app-container">
+        <!-- Loading Overlay -->
+        <div id="loading-overlay" class="visible">
+            <div class="spinner"></div>
+            <p>Loading Wallet...</p>
+        </div>
 
-    <div class="warning">
-        <strong>Warning:</strong> This page displays ALL data from the database root. Ensure your Firebase Security Rules are configured correctly to prevent exposing sensitive information.
+        <!-- Main Content Area -->
+        <main id="main-content">
+            <!-- Home Page -->
+            <div id="home-page" class="page active">
+                <header class="page-header">
+                    <h1>Dashboard</h1>
+                </header>
+                <section class="content-section user-info-section">
+                    <h2>Welcome</h2>
+                    <div class="user-info-card" id="user-info-display">
+                        <p>Loading user data...</p>
+                    </div>
+                </section>
+                <section class="content-section balance-section">
+                    <h2>Your Balance</h2>
+                    <div class="balance-card">
+                        <span class="currency-symbol">$</span>
+                        <span class="balance-amount" id="balance-display">0.00</span>
+                        <span class="currency-code">USD</span>
+                    </div>
+                    <p class="last-updated" id="balance-last-updated">Syncing...</p>
+                </section>
+                 <section class="content-section quick-actions">
+                     <h2>Quick Actions</h2>
+                     <div class="action-buttons">
+                         <button class="action-btn" data-page="deposit-page">Deposit</button>
+                         <button class="action-btn" data-page="withdraw-page">Withdraw</button>
+                         <button class="action-btn" data-page="swap-page">Swap</button>
+                     </div>
+                 </section>
+            </div>
+
+            <!-- Swap Page -->
+            <div id="swap-page" class="page">
+                 <header class="page-header">
+                    <button class="back-button" data-target="home-page">←</button>
+                    <h1>Swap Assets</h1>
+                 </header>
+                 <section class="content-section">
+                     <p class="coming-soon">Swap functionality is under development.</p>
+                     <div class="swap-interface">
+                         <div class="form-group">
+                             <label for="swap-from">From:</label>
+                             <div class="input-with-select">
+                                 <input type="number" id="swap-from-amount" placeholder="0.0" disabled>
+                                 <select id="swap-from-currency" disabled><option>USD</option></select>
+                             </div>
+                         </div>
+                         <div class="swap-icon">⇅</div>
+                         <div class="form-group">
+                             <label for="swap-to">To:</label>
+                             <div class="input-with-select">
+                                <input type="number" id="swap-to-amount" placeholder="0.0" disabled>
+                                <select id="swap-to-currency" disabled><option>Select</option></select>
+                             </div>
+                         </div>
+                         <button class="action-button primary-button" disabled>Review Swap</button>
+                     </div>
+                 </section>
+            </div>
+
+            <!-- Deposit Page -->
+            <div id="deposit-page" class="page">
+                <header class="page-header">
+                     <button class="back-button" data-target="home-page">←</button>
+                     <h1>Deposit Funds</h1>
+                </header>
+                <section class="content-section">
+                    <p>To deposit funds, please send assets to your unique wallet address.</p>
+                    <div class="deposit-info-card">
+                        <h3>Your Deposit Address (Example Network)</h3>
+                        <div class="address-display" id="deposit-address">
+                           <span>Generating...</span>
+                           <button class="copy-button" title="Copy Address" data-clipboard-target="#deposit-address span">COPY</button>
+                        </div>
+                        <p class="warning-text">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M11 15h2v2h-2zM11 7h2v6h-2zM12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"></path></svg>
+                            <strong>Important:</strong> This is a demo address. Do NOT send real cryptocurrency. Only send assets compatible with the specified network (Network not implemented).
+                        </p>
+                    </div>
+                    <p style="margin-top: 15px;">Your balance will update automatically after network confirmation.</p>
+                </section>
+            </div>
+
+            <!-- Withdraw Page -->
+            <div id="withdraw-page" class="page">
+                <header class="page-header">
+                    <button class="back-button" data-target="home-page">←</button>
+                    <h1>Withdraw Funds</h1>
+                </header>
+                 <section class="content-section">
+                    <p class="current-balance-info">Available Balance: <strong id="withdraw-balance">$0.00</strong></p>
+                    <div class="form-group">
+                        <label for="withdraw-address">Recipient Address:</label>
+                        <input type="text" id="withdraw-address" placeholder="Enter destination wallet address">
+                    </div>
+                    <div class="form-group">
+                        <label for="withdraw-amount">Amount (USD):</label>
+                        <div class="input-with-button">
+                            <input type="number" id="withdraw-amount" placeholder="0.00" step="0.01" min="0">
+                            <button id="withdraw-max-button">Max</button>
+                        </div>
+                    </div>
+                    <button id="withdraw-button" class="action-button primary-button">Review Withdrawal</button>
+                    <p id="withdraw-status" class="status-message"></p>
+                 </section>
+            </div>
+        </main>
+
+        <!-- Bottom Navigation Bar -->
+        <nav id="bottom-nav">
+            <button data-page="home-page" class="nav-button active" aria-label="Home">
+                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"></path></svg>
+                <span>Home</span>
+            </button>
+            <button data-page="swap-page" class="nav-button" aria-label="Swap">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M6.99 11 3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z"></path></svg>
+                <span>Swap</span>
+            </button>
+            <button data-page="deposit-page" class="nav-button" aria-label="Deposit">
+                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M19 12v7H5v-7H3v9h18v-9h-2zm-6 .67l2.59-2.58L17 11.5l-5 5-5-5 1.41-1.41L11 12.67V3h2v9.67z"></path></svg>
+                <span>Deposit</span>
+            </button>
+            <button data-page="withdraw-page" class="nav-button" aria-label="Withdraw">
+                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M5 12V5h14v7h2V3H3v9H5zm6-.67L8.41 13.91 7 12.5l5-5 5 5-1.41 1.41L13 11.33V21h-2v-9.67z"></path></svg>
+                <span>Withdraw</span>
+            </button>
+        </nav>
     </div>
 
-    <p id="status-message">Initializing...</p>
-
-    <h2>Database Content:</h2>
-    <pre id="data-container">Loading data...</pre>
-
-    <!-- Firebase App (Core) - Make sure version is compatible -->
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <!-- Firebase Realtime Database -->
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-
-    <!-- Your custom Firebase logic -->
-    <!-- 'defer' makes sure the script runs after the HTML is parsed -->
-    <script defer src="firebase.js"></script>
+    <!-- Simple Clipboard JS (Optional, for copy button) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.11/clipboard.min.js"></script>
+    <script>
+        // Initialize ClipboardJS if the library is loaded
+        if (typeof ClipboardJS === 'function') {
+            new ClipboardJS('.copy-button');
+             document.querySelectorAll('.copy-button').forEach(button => {
+                 button.addEventListener('click', () => {
+                     const originalText = button.innerHTML;
+                     button.innerHTML = 'COPIED!';
+                     setTimeout(() => { button.innerHTML = originalText; }, 1500);
+                 });
+             });
+        }
+    </script>
 
 </body>
 </html>
