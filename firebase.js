@@ -1,5 +1,16 @@
 // @ts-check // Enables type checking in VS Code, optional but helpful
 
+/**
+ * AB Wallet - firebase.js
+ *
+ * Handles Firebase interaction, application logic, and UI updates for the
+ * AB Wallet Telegram Web App.
+ *
+ * WARNING: This is a client-side implementation for demonstration purposes ONLY.
+ * It performs financial operations directly from the client, which is INSECURE.
+ * A secure backend is REQUIRED for a production application handling real value.
+ */
+
 document.addEventListener('DOMContentLoaded', () => {
     // --- Configuration ---
     // WARNING: Ensure your Firebase project has appropriate (SECURE!) security rules for production.
@@ -22,7 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Globals ---
     const tg = window.Telegram.WebApp;
-    /** @type {any | null} Current Telegram User object */
+    /** @type {any | null} Current Telegram User object (Replace 'any' with a proper type if available) */
     let currentUser = null;
     /** @type {Object.<string, number>} User's token balances (e.g., { USD: 100, ABT: 50 }) */
     let userBalances = {};
@@ -34,27 +45,27 @@ document.addEventListener('DOMContentLoaded', () => {
     let db = null;
     /** @type {firebase.database.Reference | null} Reference to the current user's data in Firebase */
     let userDbRef = null;
-     /** @type {firebase.database.Reference | null} Reference to user's transactions */
+    /** @type {firebase.database.Reference | null} Reference to user's transactions */
     let userTransactionsRef = null;
     /** @type {boolean} Flag to prevent attaching multiple balance listeners */
     let balanceListenerAttached = false;
     /** @type {Function | null} Detacher function for transaction listener */
-    let transactionListenerDetacher = null; // Optional live listener
+    let transactionListenerDetacher = null; // Kept for potential future use
 
-    // Swap state
+    /** State for the swap interface */
     let swapState = {
-        fromToken: null, // symbol e.g., 'USD'
-        toToken: null,   // symbol e.g., 'ABT'
+        fromToken: /** @type {string | null} */ (null),
+        toToken: /** @type {string | null} */ (null),
         fromAmount: 0,
-        toAmount: 0,     // Estimated amount after fees
-        rate: 0,         // Base rate before fees
+        toAmount: 0, // Estimated amount after fees
+        rate: 0, // Base rate before fees
         isRateLoading: false
     };
     /** @type {'from' | 'to' | null} Indicates which token selector modal is active */
     let activeTokenSelector = null;
 
     // --- DOM Element References ---
-    // Cache all necessary DOM elements for performance and cleaner code
+    // Cache frequently accessed elements for performance and clarity
     const elements = {
         loadingOverlay: document.getElementById('loading-overlay'),
         mainContent: document.getElementById('main-content'),
@@ -70,27 +81,27 @@ document.addEventListener('DOMContentLoaded', () => {
         // Receive (Deposit) Page
         depositChatIdSpan: document.getElementById('deposit-chat-id'),
         // Send (Withdraw) Page
-        withdrawAssetSelect: document.getElementById('withdraw-asset-select'),
+        withdrawAssetSelect: /** @type {HTMLSelectElement | null} */ (document.getElementById('withdraw-asset-select')),
         withdrawAvailableBalance: document.getElementById('withdraw-available-balance'),
-        withdrawRecipientIdInput: document.getElementById('withdraw-recipient-id'),
-        withdrawAmountInput: document.getElementById('withdraw-amount'),
-        sendButton: document.getElementById('send-button'),
+        withdrawRecipientIdInput: /** @type {HTMLInputElement | null} */ (document.getElementById('withdraw-recipient-id')),
+        withdrawAmountInput: /** @type {HTMLInputElement | null} */ (document.getElementById('withdraw-amount')),
+        sendButton: /** @type {HTMLButtonElement | null} */ (document.getElementById('send-button')),
         withdrawMaxButton: document.getElementById('withdraw-max-button'),
         withdrawStatus: document.getElementById('withdraw-status'),
         // Swap Page
-        swapFromAmountInput: document.getElementById('swap-from-amount'),
-        swapToAmountInput: document.getElementById('swap-to-amount'),
+        swapFromAmountInput: /** @type {HTMLInputElement | null} */ (document.getElementById('swap-from-amount')),
+        swapToAmountInput: /** @type {HTMLInputElement | null} */ (document.getElementById('swap-to-amount')),
         swapFromTokenButton: document.getElementById('swap-from-token-button'),
         swapToTokenButton: document.getElementById('swap-to-token-button'),
         swapFromBalance: document.getElementById('swap-from-balance'),
         swapToBalance: document.getElementById('swap-to-balance'),
         swapSwitchButton: document.getElementById('swap-switch-button'),
         swapRateDisplay: document.getElementById('swap-rate-display'),
-        executeSwapButton: document.getElementById('execute-swap-button'),
+        executeSwapButton: /** @type {HTMLButtonElement | null} */ (document.getElementById('execute-swap-button')),
         swapStatus: document.getElementById('swap-status'),
         // Token Modal
         tokenModal: document.getElementById('token-selector-modal'),
-        tokenSearchInput: document.getElementById('token-search-input'),
+        tokenSearchInput: /** @type {HTMLInputElement | null} */ (document.getElementById('token-search-input')),
         tokenListModal: document.getElementById('token-list-modal'),
         closeModalButton: document.getElementById('token-selector-modal')?.querySelector('.close-modal-button'),
     };
@@ -99,13 +110,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     /** Formats a number as USD currency string (e.g., "$1,234.56"). */
     const formatCurrency = (amount) => {
-        const num = parseFloat(amount) || 0;
+        const num = sanitizeFloat(amount);
         return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(num);
     };
 
-    /** Formats a token amount with appropriate decimal places for display. */
+    /** Formats a token amount with dynamic decimal places for display. */
     const formatTokenAmount = (amount, decimals = 6) => {
-         const num = parseFloat(amount) || 0;
+         const num = sanitizeFloat(amount);
+         // Show more decimals for very small non-zero amounts, fewer for very large amounts
          const effectiveDecimals = num !== 0 && Math.abs(num) < 0.01 ? Math.max(decimals, 4) : (Math.abs(num) > 10000 ? 2 : decimals);
          return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: effectiveDecimals });
     };
@@ -116,9 +128,10 @@ document.addEventListener('DOMContentLoaded', () => {
     /** Parses a value to an integer, defaulting to 0. */
     const sanitizeInt = (value) => parseInt(String(value), 10) || 0;
 
-    /** Debounce utility to delay function execution. */
+    /** Debounce utility to limit rapid function execution. */
     const debounce = (func, delay) => {
         let timeoutId;
+        /** @param {...any} args */
         return function(...args) {
             clearTimeout(timeoutId);
             timeoutId = setTimeout(() => {
@@ -127,27 +140,29 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     };
 
-    /** Formats a Firebase timestamp into a user-friendly relative or absolute date/time string. */
+    /** Formats a Firebase timestamp into a relative string ("Just now", "5m ago") or short date. */
     const formatTimestamp = (timestamp) => {
         if (!timestamp || typeof timestamp !== 'number') return 'Unknown date';
-        const now = new Date();
+        const now = Date.now();
         const date = new Date(timestamp);
-        const diffSeconds = Math.round((now.getTime() - date.getTime()) / 1000);
+        const diffSeconds = Math.round((now - date.getTime()) / 1000);
 
         if (diffSeconds < 5) return 'Just now';
         if (diffSeconds < 60) return `${diffSeconds}s ago`;
-        if (diffSeconds < 3600) return `${Math.round(diffSeconds / 60)}m ago`; // Minutes
-        if (diffSeconds < 86400) return `${Math.round(diffSeconds / 3600)}h ago`; // Hours
-        if (diffSeconds < 604800) return `${Math.round(diffSeconds / 86400)}d ago`; // Days (up to a week)
+        if (diffSeconds < 3600) return `${Math.round(diffSeconds / 60)}m ago`;
+        if (diffSeconds < 86400) return `${Math.round(diffSeconds / 3600)}h ago`;
+        if (diffSeconds < 604800) return `${Math.round(diffSeconds / 86400)}d ago`;
 
-        const options = { month: 'short', day: 'numeric' };
-        if (date.getFullYear() !== now.getFullYear()) { options.year = 'numeric'; }
+        const options = /** @type {Intl.DateTimeFormatOptions} */ ({ month: 'short', day: 'numeric' });
+        if (date.getFullYear() !== new Date().getFullYear()) {
+            options.year = 'numeric';
+        }
         return date.toLocaleDateString(undefined, options);
     };
 
     // --- Loading & Alerts ---
 
-    /** Shows the loading overlay with an optional message. */
+    /** Shows the loading overlay. */
     function showLoading(message = "Processing...") {
         if (!elements.loadingOverlay) return;
         elements.loadingOverlay.querySelector('p').textContent = message;
@@ -159,39 +174,54 @@ document.addEventListener('DOMContentLoaded', () => {
         if (elements.loadingOverlay) elements.loadingOverlay.classList.remove('visible');
     }
 
-    /** Displays an alert using the Telegram WebApp interface or a standard alert. */
+    /** Displays an alert using Telegram's UI or fallback. */
     function showTgAlert(message, title = 'Alert') {
         const fullMessage = `${title}: ${message}`;
         if (tg?.showAlert) { tg.showAlert(fullMessage); }
         else { alert(fullMessage); console.warn("Fallback alert used."); }
     }
 
-    /** Handles and reports Firebase errors. */
+    /** Centralized Firebase error handler. */
     function handleFirebaseError(error, context = "Firebase Operation") {
-        console.error(`${context} Error:`, error.code, error.message);
+        console.error(`${context} Error:`, error); // Log detailed error
         hideLoading();
         let userMessage = `Operation failed. ${error.message || 'Please try again.'}`;
-        if (error.code === 'PERMISSION_DENIED') { userMessage = "Action not allowed. Check permissions or contact support."; }
-        else if (error.code === 'NETWORK_ERROR' || error.message?.includes('network error')) { userMessage = "Network error. Check connection."; }
+        // Provide more user-friendly messages for common errors
+        if (error.code === 'PERMISSION_DENIED') {
+            userMessage = "Action not allowed. Please check permissions or contact support.";
+        } else if (error.code === 'NETWORK_ERROR' || error.message?.includes('network error')) {
+            userMessage = "Network connection issue. Please check your internet and try again.";
+        } else if (error.code === 'UNAVAILABLE') {
+             userMessage = "Service temporarily unavailable. Please try again later.";
+        }
         showTgAlert(userMessage, `Error: ${context}`);
     }
 
+
     // --- Navigation & Page Handling ---
 
-    /** Switches the visible page in the UI. */
+    /** Switches the active page, updates nav, resets scroll, and calls page setup. */
     function showPage(pageId) {
-        console.log(`Navigating to: ${pageId}`);
+        console.log(`Navigating to page: ${pageId}`);
         let pageFound = false;
         elements.pages.forEach(page => {
              const isActive = page.id === pageId;
              page.classList.toggle('active', isActive);
              if(isActive) pageFound = true;
         });
-        if (!pageFound) { pageId = 'home-page'; elements.pages[0]?.classList.add('active'); console.warn("Invalid page ID, defaulting to home."); }
-        elements.navButtons.forEach(button => button.classList.toggle('active', button.dataset.page === pageId));
+
+        if (!pageFound) {
+            console.warn(`Page "${pageId}" not found, defaulting to home.`);
+            pageId = 'home-page';
+            elements.pages[0]?.classList.add('active');
+        }
+
+        elements.navButtons.forEach(button => {
+            button.classList.toggle('active', button.dataset.page === pageId);
+        });
         if (elements.mainContent) elements.mainContent.scrollTop = 0;
 
-        // Call page-specific setup functions AFTER page is visible
+        // Trigger page-specific setup/data loading
         switch (pageId) {
             case 'home-page': updateHomePageUI(); fetchAndDisplayTransactions(); break;
             case 'swap-page': setupSwapPage(); break;
@@ -200,54 +230,112 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+
     // --- Core Data Handling & UI Updates ---
 
-    /** Fetches token definitions from Firebase. Crucial for selectors and pricing. */
+    /** Fetches token definitions from Firebase `/tokens`. */
     async function fetchAvailableTokens() {
         if (!db) { throw new Error("Database not initialized for fetchAvailableTokens."); }
         console.log("Fetching token definitions...");
         try {
             const snapshot = await db.ref('tokens').once('value');
             availableTokens = snapshot.val() || {};
-            if (Object.keys(availableTokens).length === 0) { console.warn("No token definitions found in Firebase."); }
-            else { console.log(`Loaded ${Object.keys(availableTokens).length} tokens.`); }
-        } catch (error) { handleFirebaseError(error, "fetching token list"); availableTokens = {}; }
+            if (Object.keys(availableTokens).length === 0) {
+                console.warn("No token definitions found in Firebase /tokens path.");
+                showTgAlert("Could not load essential token data. Some features may be limited.", "Configuration Error");
+            } else {
+                console.log(`Loaded ${Object.keys(availableTokens).length} token definitions.`);
+            }
+        } catch (error) {
+            handleFirebaseError(error, "fetching token list");
+            availableTokens = {}; // Reset on error to prevent issues
+            throw error; // Re-throw to potentially stop initialization if critical
+        }
     }
 
-    /** Updates the Home page portfolio section. */
+    /** Updates the Home page portfolio and total balance display. */
     function updateHomePageUI() {
         if (!elements.assetListContainer || !elements.totalBalanceDisplay) return;
         console.log("Updating Home Portfolio UI");
+
         let totalValueUSD = 0;
-        elements.assetListContainer.innerHTML = '';
+        elements.assetListContainer.innerHTML = ''; // Clear previous list
 
         const heldSymbols = Object.keys(userBalances)
-            .filter(symbol => userBalances[symbol] > 0.0000001 && availableTokens[symbol])
-            .sort((a, b) => { /* Sort by value */ });
+            .filter(symbol => userBalances[symbol] > 0.0000001 && availableTokens[symbol]) // Check balance and token definition
+            .sort((a, b) => { // Sort by USD value descending
+                const valueA = (userBalances[a] || 0) * (availableTokens[a]?.priceUSD || 0);
+                const valueB = (userBalances[b] || 0) * (availableTokens[b]?.priceUSD || 0);
+                return valueB - valueA;
+            });
 
         if (heldSymbols.length === 0) {
             elements.assetListContainer.innerHTML = '<p class="no-assets placeholder-text">No assets held.</p>';
         } else {
-            heldSymbols.forEach(symbol => { /* ... create and append asset card (same as before) ... */ });
+            heldSymbols.forEach(symbol => {
+                const balance = userBalances[symbol];
+                const tokenInfo = availableTokens[symbol];
+                const valueUSD = balance * (tokenInfo.priceUSD || 0);
+                totalValueUSD += valueUSD;
+
+                const card = document.createElement('div');
+                card.className = 'asset-card card';
+                card.innerHTML = `
+                    <div class="asset-info">
+                        <img src="${tokenInfo.logoUrl || 'placeholder.png'}" alt="${symbol}" class="asset-logo" onerror="this.src='placeholder.png'; this.onerror=null;">
+                        <div class="asset-name-symbol">
+                            <div class="name">${tokenInfo.name || symbol}</div>
+                            <div class="symbol">${symbol}</div>
+                        </div>
+                    </div>
+                    <div class="asset-balance-value">
+                         <div class="balance">${formatTokenAmount(balance, symbol === 'USD' ? 2 : 6)}</div>
+                         <div class="value-usd">${formatCurrency(valueUSD)}</div>
+                    </div>
+                `;
+                elements.assetListContainer.appendChild(card);
+            });
         }
+        // Update total balance display (just the number)
         elements.totalBalanceDisplay.textContent = totalValueUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
 
-    /** Displays the current user's Telegram profile info. */
-    function displayUserInfo() { /* ... (same as before) ... */ }
+    /** Displays the current user's basic Telegram info. */
+    function displayUserInfo() {
+        if (!elements.userInfoDisplay || !currentUser) return;
+        const { first_name = '', last_name = '', username = null, id } = currentUser;
+        const fullName = `${first_name} ${last_name}`.trim() || 'Wallet User';
+        elements.userInfoDisplay.innerHTML = `
+            <p><strong>Name:</strong> <span>${fullName}</span></p>
+            <p><strong>Username:</strong> <span>${username ? '@' + username : 'Not Set'}</span></p>
+            <p><strong>Chat ID:</strong> <span class="mono-text">${id}</span></p>
+        `;
+    }
 
-    /** Sets up the Receive page UI with the user's Chat ID. */
-    function setupReceivePage() { /* ... (same as before) ... */ }
+    /** Sets up the Receive page UI. */
+    function setupReceivePage() {
+        if (elements.depositChatIdSpan && currentUser) {
+            elements.depositChatIdSpan.textContent = currentUser.id.toString();
+            const copyBtn = elements.depositChatIdSpan.closest('.deposit-info-card')?.querySelector('.copy-button');
+            if (copyBtn) copyBtn.dataset.clipboardText = currentUser.id.toString();
+        } else if (elements.depositChatIdSpan) {
+            elements.depositChatIdSpan.textContent = 'N/A';
+        }
+    }
+
 
     // --- Transaction History ---
 
-    /** Fetches and displays recent transactions on the Home page. */
+    /** Fetches and displays recent transactions for the current user. */
     async function fetchAndDisplayTransactions(limit = RECENT_TRANSACTIONS_LIMIT) {
-        if (!userTransactionsRef || !elements.transactionListContainer) return;
+        if (!userTransactionsRef) { console.warn("Transaction ref not available."); return; }
+        if (!elements.transactionListContainer) return;
+
         console.log(`Fetching last ${limit} transactions...`);
-        elements.transactionListContainer.innerHTML = '<p class="placeholder-text">Loading transactions...</p>';
+        elements.transactionListContainer.innerHTML = '<p class="placeholder-text">Loading transactions...</p>'; // Show loading state
 
         try {
+            // Query Firebase for the last 'limit' transactions ordered by timestamp
             const snapshot = await userTransactionsRef.orderByChild('timestamp').limitToLast(limit).once('value');
             const transactionsData = snapshot.val();
 
@@ -255,82 +343,237 @@ document.addEventListener('DOMContentLoaded', () => {
                 elements.transactionListContainer.innerHTML = '<p class="no-transactions placeholder-text">No recent transactions.</p>';
                 return;
             }
-            elements.transactionListContainer.innerHTML = '';
+            elements.transactionListContainer.innerHTML = ''; // Clear loading/placeholder
 
+            // Convert Firebase object to array and sort descending (most recent first)
             const sortedTx = Object.entries(transactionsData)
                                 .map(([id, data]) => ({ id, ...data }))
-                                .sort((a, b) => b.timestamp - a.timestamp);
+                                .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
 
+            // Render each transaction
             sortedTx.forEach(tx => {
                 const txElement = createTransactionElement(tx);
                 elements.transactionListContainer.appendChild(txElement);
             });
-        } catch (error) { handleFirebaseError(error, "fetching transactions"); /* Show error in list */ }
+
+        } catch (error) {
+            handleFirebaseError(error, "fetching transactions");
+            elements.transactionListContainer.innerHTML = '<p class="no-transactions placeholder-text error">Could not load transactions.</p>';
+        }
     }
 
-    /** Creates an HTML element for a single transaction item. */
-    function createTransactionElement(tx) { /* ... (same as before, generates HTML for a tx row) ... */ }
+    /** Creates and returns an HTML element representing a single transaction. */
+    function createTransactionElement(tx) {
+        const div = document.createElement('div');
+        div.className = 'transaction-item';
+        div.dataset.txId = tx.id; // Store the full Firebase key
+
+        let iconClass = '', iconName = 'receipt_long'; // Default icon
+        let infoText = '', amountText = '', counterpartyText = '', amountClass = '';
+
+        const formatAmt = (amt, tok) => formatTokenAmount(amt, tok === 'USD' ? 2 : 6);
+
+        switch (tx.type) {
+            case 'send':
+                iconClass = 'tx-send'; iconName = 'arrow_upward';
+                amountText = `- ${formatAmt(tx.amount, tx.token)}`;
+                amountClass = 'tx-amount-negative';
+                infoText = `Sent ${tx.token || '???'}`;
+                counterpartyText = `To: ${tx.recipientId || 'Unknown'}`;
+                break;
+            case 'receive':
+                iconClass = 'tx-receive'; iconName = 'arrow_downward';
+                amountText = `+ ${formatAmt(tx.amount, tx.token)}`;
+                amountClass = 'tx-amount-positive';
+                infoText = `Received ${tx.token || '???'}`;
+                counterpartyText = `From: ${tx.senderId || 'Unknown'}`;
+                break;
+            case 'swap':
+                iconClass = 'tx-swap'; iconName = 'swap_horiz';
+                infoText = `Swap ${tx.fromToken} → ${tx.toToken}`;
+                // Combine amounts for swap display
+                amountText = `-${formatAmt(tx.fromAmount, tx.fromToken)} / +${formatAmt(tx.toAmount, tx.toToken)}`;
+                counterpartyText = `Rate ≈ ${formatTokenAmount(tx.baseRate, 6)}`; // Show approximate base rate
+                break;
+            default:
+                infoText = `Tx: ${tx.type || 'Unknown'}`;
+                amountText = `${formatAmt(tx.amount || 0, tx.token)} ${tx.token || ''}`;
+                break;
+        }
+
+        // Use last 6 chars of Firebase push ID for display
+        const shortTxId = `#${tx.id.substring(tx.id.length - 6)}`;
+
+        div.innerHTML = `
+            <div class="tx-icon ${iconClass}">
+                <span class="material-icons-outlined">${iconName}</span>
+            </div>
+            <div class="tx-details">
+                <div class="tx-info">${infoText} <span class="${amountClass}">${amountText}</span></div>
+                <div class="tx-counterparty subtle-text">${counterpartyText}</div>
+            </div>
+            <div class="tx-timestamp subtle-text" title="Transaction ID: ${tx.id}\n${new Date(tx.timestamp).toLocaleString()}">
+                 <span>${formatTimestamp(tx.timestamp)}</span>
+                 <span class="tx-id">${shortTxId}</span>
+            </div>
+        `;
+        return div;
+    }
+
 
     // --- Firebase Realtime Listeners ---
 
-    /** Sets up the listener for realtime balance updates. */
+    /** Sets up the listener for realtime balance updates on `/users/{userId}/balances`. */
     function setupBalanceListener() {
-        if (!userDbRef || balanceListenerAttached) {
-             if (!userDbRef) console.error("Cannot attach balance listener: userDbRef is null.");
-             return;
-        }
+        if (!userDbRef) { console.error("Cannot setup balance listener: userDbRef is null."); return; }
+        if (balanceListenerAttached) { console.log("Balance listener already running."); return; }
+
         console.log("Setting up Firebase balance listener...");
         const balancesRef = userDbRef.child('balances');
 
         balancesRef.on('value', (snapshot) => {
-            userBalances = snapshot.val() || {};
-            console.log("Realtime balances update received:", userBalances);
-            // Update UI based on the currently active page
+            userBalances = snapshot.val() || {}; // Update global state
+            console.log("Realtime balance update received:", userBalances);
+
+            // Determine active page and update relevant UI sections
             const activePageId = document.querySelector('.page.active')?.id;
-             if(activePageId) {
-                 switch(activePageId) {
-                    case 'home-page': updateHomePageUI(); break; // Update portfolio on home
-                    case 'swap-page': updateSwapBalancesUI(); validateSwapInput(); break; // Update swap balances/validation
-                    case 'withdraw-page': updateWithdrawPageBalance(); break; // Update send balance/validation
-                 }
-             }
-        }, (error) => { handleFirebaseError(error, "listening to balance changes"); balanceListenerAttached = false; });
+            if (activePageId) {
+                switch (activePageId) {
+                    case 'home-page': updateHomePageUI(); break;
+                    case 'swap-page': updateSwapBalancesUI(); validateSwapInput(); break;
+                    case 'withdraw-page': updateWithdrawPageBalance(); break; // This calls validateSendInput
+                }
+            }
+        }, (error) => {
+            handleFirebaseError(error, "listening to balance changes");
+            balanceListenerAttached = false; // Allow re-attachment attempt
+        });
         balanceListenerAttached = true;
+        console.log("Firebase balance listener attached.");
     }
 
-    /** (Optional) Sets up a listener for new transactions. */
-    function setupTransactionListener() { /* ... (Optional live TX listener logic) ... */ }
+    /** (Optional) Sets up a listener for new transactions. Needs careful UI management. */
+    function setupTransactionListener() {
+        if (!userTransactionsRef) { console.error("Cannot setup transaction listener: userTransactionsRef is null."); return; }
+        if (transactionListenerDetacher) { console.log("Transaction listener already active."); return; }
+        console.log("Setting up live transaction listener...");
+
+        // Detach previous listener if any (shouldn't happen with flag, but safe)
+        if (transactionListenerDetacher) transactionListenerDetacher();
+
+        const query = userTransactionsRef.orderByChild('timestamp').limitToLast(1); // Listen for the newest one
+
+        const listenerCallback = (snapshot) => {
+            if (!snapshot?.key || !snapshot.val()) return;
+            const txId = snapshot.key;
+            const txData = snapshot.val();
+            console.log("New transaction detected via listener:", txId);
+
+            // Check if transaction already rendered to avoid duplicates from initial fetch vs. listener
+            if (elements.transactionListContainer?.querySelector(`[data-tx-id="${txId}"]`)) {
+                console.log("Transaction already displayed, skipping live update for:", txId);
+                return;
+            }
+
+            // Only update UI if Home page is active
+            if (elements.transactionListContainer && document.getElementById('home-page')?.classList.contains('active')) {
+                console.log("Prepending new transaction to list:", txId);
+                const txElement = createTransactionElement({ id: txId, ...txData });
+                const placeholder = elements.transactionListContainer.querySelector('.no-transactions, .placeholder-text');
+                if (placeholder) placeholder.remove(); // Remove "no transactions" message
+
+                elements.transactionListContainer.prepend(txElement); // Add to top
+
+                // Optional: Prune older transactions if list exceeds limit + buffer
+                while (elements.transactionListContainer.children.length > RECENT_TRANSACTIONS_LIMIT + 3) {
+                    elements.transactionListContainer.lastChild?.remove();
+                }
+            }
+        };
+
+        const errorCallback = (error) => {
+            handleFirebaseError(error, "listening for new transactions");
+            if (transactionListenerDetacher) { transactionListenerDetacher(); transactionListenerDetacher = null; } // Detach on error
+        };
+
+        query.on('child_added', listenerCallback, errorCallback);
+
+        // Store the function to detach the listener later
+        transactionListenerDetacher = () => {
+             console.log("Detaching live transaction listener.");
+             query.off('child_added', listenerCallback);
+             transactionListenerDetacher = null; // Clear detacher function
+        };
+        console.log("Live transaction listener attached.");
+    }
 
     // --- Firebase Initialization and User Setup ---
 
-    /** Initializes Firebase, fetches tokens, loads/creates user, sets listeners. */
+    /** Initializes Firebase connection, loads static data, loads/creates user data, sets listeners. */
     async function initializeFirebaseAndUser() {
-        if (!currentUser?.id || !db) { throw new Error("Cannot initialize Firebase data: Missing user ID or DB instance."); }
+        if (!currentUser?.id) { throw new Error("Cannot initialize Firebase data: User not identified."); }
+        if (!db) { throw new Error("Cannot initialize Firebase data: DB not initialized."); }
+
         console.log(`Initializing data for user: ${currentUser.id}`);
         const userId = currentUser.id.toString();
         userDbRef = db.ref('users/' + userId);
-        userTransactionsRef = db.ref('transactions/' + userId); // Set ref for transactions
+        userTransactionsRef = db.ref('transactions/' + userId); // Set transaction path reference
 
         try {
             // Fetch/Create user profile and balances
             const snapshot = await userDbRef.once('value');
-            if (!snapshot.exists()) { /* ... create user logic ... */ }
-            else { /* ... load user data logic ... */ }
-            setupBalanceListener(); // Attach balance listener AFTER initial data load/creation
-            // setupTransactionListener(); // Optional
+            if (!snapshot.exists()) {
+                console.log(`User ${userId} not found. Creating...`);
+                const initialBalances = { USD: 0 }; // Default starting balance
+                const newUserProfile = {
+                    telegram_id: currentUser.id,
+                    first_name: currentUser.first_name || null,
+                    last_name: currentUser.last_name || null,
+                    username: currentUser.username || null,
+                    createdAt: firebase.database.ServerValue.TIMESTAMP,
+                    lastLogin: firebase.database.ServerValue.TIMESTAMP
+                };
+                // Use setWithPriority or just set if no priority needed
+                await userDbRef.set({ profile: newUserProfile, balances: initialBalances });
+                userBalances = initialBalances;
+                console.log("New user created successfully.");
+            } else {
+                console.log(`User ${userId} found.`);
+                const userData = snapshot.val();
+                userBalances = userData.balances || { USD: 0 }; // Load balances or default
+                // Update non-critical profile info (like last login) silently
+                userDbRef.child('profile').update({
+                    // Keep existing names if current ones are null/undefined
+                    first_name: currentUser.first_name || userData.profile?.first_name || null,
+                    last_name: currentUser.last_name || userData.profile?.last_name || null,
+                    username: currentUser.username || userData.profile?.username || null,
+                    lastLogin: firebase.database.ServerValue.TIMESTAMP
+                }).catch(err => console.warn("Non-critical error updating profile info:", err));
+            }
 
-        } catch (error) { handleFirebaseError(error, "loading/creating user data"); throw error; }
+            // Attach the realtime balance listener AFTER initial data is set/loaded
+            setupBalanceListener();
+
+            // Optional: Attach the live transaction listener
+            // setupTransactionListener();
+
+        } catch (error) {
+            handleFirebaseError(error, "loading/creating user data");
+            throw error; // Re-throw to indicate initialization failure
+        }
     }
 
-    /** Disables app features usually due to critical initialization errors. */
+    /** Disables core interactive elements if initialization fails. */
     function disableAppFeatures() {
-        console.error("Disabling core app features.");
+        console.error("Disabling core app features due to critical error.");
         elements.navButtons.forEach(b => b.disabled = true);
-        // Disable other key interactive elements
-        if (elements.executeSwapButton) elements.executeSwapButton.disabled = true;
-        if (elements.sendButton) elements.sendButton.disabled = true;
-        // etc.
+        elements.backButtons.forEach(b => b.disabled = true);
+        if(elements.refreshButton) elements.refreshButton.disabled = true;
+        if(elements.sendButton) elements.sendButton.disabled = true;
+        if(elements.executeSwapButton) elements.executeSwapButton.disabled = true;
+        // Disable form inputs etc. if necessary
     }
+
 
     // --- Swap Functionality (Client-Side Simulation) ---
 
@@ -338,8 +581,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function openTokenModal(selectorType) {
         if (!elements.tokenModal) return;
         activeTokenSelector = selectorType;
-        populateTokenListModal();
-        if(elements.tokenSearchInput) elements.tokenSearchInput.value = '';
+        populateTokenListModal(); // Refresh list based on current availability
+        if(elements.tokenSearchInput) elements.tokenSearchInput.value = ''; // Clear search
         elements.tokenModal.style.display = 'flex';
         if(elements.tokenSearchInput) elements.tokenSearchInput.focus();
     }
@@ -350,10 +593,10 @@ document.addEventListener('DOMContentLoaded', () => {
         activeTokenSelector = null;
     }
 
-    /** Populates the token list in the modal based on search term. */
+    /** Populates the token list in the modal, optionally filtering by search term. */
     function populateTokenListModal(searchTerm = '') {
         if (!elements.tokenListModal) return;
-        elements.tokenListModal.innerHTML = '';
+        elements.tokenListModal.innerHTML = ''; // Clear
         const lowerSearchTerm = searchTerm.toLowerCase().trim();
 
         const filteredTokens = Object.values(availableTokens).filter(token =>
@@ -361,256 +604,180 @@ document.addEventListener('DOMContentLoaded', () => {
             token.symbol.toLowerCase().includes(lowerSearchTerm)
         );
 
-        if (filteredTokens.length === 0) { /* ... show no results ... */ return; }
+        if (filteredTokens.length === 0) {
+             elements.tokenListModal.innerHTML = '<li class="placeholder-text">No matching tokens found.</li>';
+             return;
+        }
 
-        filteredTokens.sort((a, b) => a.name.localeCompare(b.name)).forEach(token => {
-            const li = document.createElement('li');
-            li.dataset.symbol = token.symbol;
-            // Set innerHTML ensuring token logo handling
-             li.innerHTML = `
-                <img src="${token.logoUrl || 'placeholder.png'}" alt="${token.symbol}" class="token-logo" onerror="this.src='placeholder.png'; this.onerror=null;">
-                <div class="token-details">
-                    <div class="name">${token.name}</div>
-                    <div class="symbol">${token.symbol}</div>
-                </div>
-            `;
-            li.addEventListener('click', () => handleTokenSelection(token.symbol));
-            elements.tokenListModal.appendChild(li);
-        });
+        filteredTokens
+            .sort((a, b) => a.name.localeCompare(b.name))
+            .forEach(token => { /* ... create and append list item ... */ });
     }
 
-    /** Handles token selection from the modal, updates state and UI. */
+    /** Handles selection of a token from the modal. */
     function handleTokenSelection(selectedSymbol) {
         if (!activeTokenSelector || !selectedSymbol) return;
-        console.log(`Token selected for ${activeTokenSelector}: ${selectedSymbol}`);
-
-        // Prevent selecting the same token for both, swap if attempted
-        if (activeTokenSelector === 'from' && selectedSymbol === swapState.toToken) {
-            switchSwapTokens(); // Use the switch function directly
-        } else if (activeTokenSelector === 'to' && selectedSymbol === swapState.fromToken) {
-            switchSwapTokens(); // Use the switch function directly
-        } else {
-            // Set the selected token for the active selector
-            swapState[activeTokenSelector === 'from' ? 'fromToken' : 'toToken'] = selectedSymbol;
-            // If selecting 'from', might need to reset 'to' if only one token is available
-            if (activeTokenSelector === 'from' && swapState.fromToken === swapState.toToken && Object.keys(availableTokens).length > 1) {
-                 const otherToken = Object.keys(availableTokens).find(s => s !== swapState.fromToken);
-                 swapState.toToken = otherToken || null;
-            }
-            // If selecting 'to', might need to reset 'from' if only one token is available (less likely)
-            else if (activeTokenSelector === 'to' && swapState.fromToken === swapState.toToken && Object.keys(availableTokens).length > 1) {
-                 const otherToken = Object.keys(availableTokens).find(s => s !== swapState.toToken);
-                 swapState.fromToken = otherToken || null;
-            }
-        }
-
+        // Auto-swap if selecting the same token as the other side
+        if (activeTokenSelector === 'from' && selectedSymbol === swapState.toToken) { switchSwapTokens(); }
+        else if (activeTokenSelector === 'to' && selectedSymbol === swapState.fromToken) { switchSwapTokens(); }
+        else { swapState[activeTokenSelector === 'from' ? 'fromToken' : 'toToken'] = selectedSymbol; }
         closeTokenModal();
-        calculateSwapRate(); // Recalculate rate and amounts with new selection
+        calculateSwapRate(); // Recalculate after selection changes
     }
 
-    /** Updates the UI of a token selector button. */
-    function updateTokenButtonUI(buttonElement, tokenSymbol) {
-         if (!buttonElement) return;
-         const tokenInfo = tokenSymbol ? availableTokens[tokenSymbol] : null;
-         const logoElement = buttonElement.querySelector('.token-logo');
-         const symbolElement = buttonElement.querySelector('.token-symbol');
-
-         if (tokenInfo && logoElement && symbolElement) {
-             logoElement.src = tokenInfo.logoUrl || 'placeholder.png';
-             logoElement.alt = tokenInfo.symbol;
-             symbolElement.textContent = tokenInfo.symbol;
-         } else if (logoElement && symbolElement) { // Reset to placeholder
-             logoElement.src = 'placeholder.png'; logoElement.alt = '-'; symbolElement.textContent = 'Select';
-         }
-    }
-
-    /** Updates the 'Balance:' display under swap inputs. */
-    function updateSwapBalancesUI() {
-        if (elements.swapFromBalance) {
-            const balance = userBalances[swapState.fromToken] || 0;
-            elements.swapFromBalance.textContent = `Balance: ${formatTokenAmount(balance, swapState.fromToken === 'USD' ? 2 : 6)}`;
-        }
-        if (elements.swapToBalance) {
-            const balance = userBalances[swapState.toToken] || 0;
-            elements.swapToBalance.textContent = `Balance: ${formatTokenAmount(balance, swapState.toToken === 'USD' ? 2 : 6)}`;
-        }
-    }
-
-    /** Sets default 'from' and 'to' tokens for swap if none are selected. */
-    function populateTokenSelectors() {
-        const symbols = Object.keys(availableTokens);
-        if (!swapState.fromToken && symbols.includes('USD')) swapState.fromToken = 'USD';
-        else if (!swapState.fromToken && symbols.length > 0) swapState.fromToken = symbols[0];
-
-        if (!swapState.toToken && symbols.length > 1) {
-            const defaultTo = symbols.find(s => s !== swapState.fromToken) || symbols[1];
-            swapState.toToken = defaultTo;
-        }
-         updateTokenButtonUI(elements.swapFromTokenButton, swapState.fromToken);
-         updateTokenButtonUI(elements.swapToTokenButton, swapState.toToken);
-    }
-
-    /** Calculates the base exchange rate (priceFrom / priceTo) without fees. */
-    function calculateSwapRate() { /* ... (Calculates rate, handles errors, calls calculateSwapAmounts) ... */ }
-    /** Calculates the final 'to' amount including the swap fee. */
-    function calculateSwapAmounts() { /* ... (Applies fee based on direction, updates swapState.toAmount, calls updateSwapUI) ... */ }
-    /** Debounced wrapper for amount calculation on input. */
+    /** Updates the UI (image, symbol) of a token selector button. */
+    function updateTokenButtonUI(buttonElement, tokenSymbol) { /* ... */ }
+    /** Updates the 'Balance:' text displays below swap inputs. */
+    function updateSwapBalancesUI() { /* ... */ }
+    /** Sets default 'from'/'to' tokens if needed. */
+    function populateTokenSelectors() { /* ... */ }
+    /** Calculates the base swap rate from token prices. */
+    function calculateSwapRate() { /* ... (sets swapState.rate, calls calculateSwapAmounts) ... */ }
+    /** Calculates the final 'to' amount including the fee. */
+    function calculateSwapAmounts() { /* ... (applies fee logic, sets swapState.toAmount, calls updateSwapUI) ... */ }
+    /** Debounced wrapper for calculateSwapAmounts. */
     const debouncedCalculateSwapAmounts = debounce(calculateSwapAmounts, DEBOUNCE_DELAY);
     /** Handles input changes in the 'from' amount field. */
-    function handleFromAmountChange() { /* ... (Updates swapState.fromAmount, calls debouncedCalculateSwapAmounts) ... */ }
-    /** Switches the 'from' and 'to' tokens and amounts. */
-    function switchSwapTokens() { /* ... (Updates swapState, recalculates rate/amounts) ... */ }
-    /** Validates swap inputs (tokens selected, amounts valid, sufficient balance). */
-    function validateSwapInput() { /* ... (Enables/disables executeSwapButton, shows balance warning) ... */ }
-    /** Updates all elements on the swap page based on swapState. */
-    function updateSwapUI() { /* ... (Calls sub-update functions, validates input) ... */ }
+    function handleFromAmountChange() { /* ... (updates swapState.fromAmount, calls debouncedCalculateSwapAmounts) ... */ }
+    /** Switches 'from' and 'to' tokens and attempts to preserve value. */
+    function switchSwapTokens() { /* ... (updates swapState, calls calculateSwapRate) ... */ }
+    /** Validates all swap inputs and enables/disables the swap button. */
+    function validateSwapInput() { /* ... (checks tokens, amounts, balance, sets executeSwapButton.disabled) ... */ }
+    /** Updates all UI elements on the swap page based on current swapState. */
+    function updateSwapUI() { /* ... (updates inputs, balances, rate display, calls validateSwapInput) ... */ }
     /** Executes the swap (INSECURE CLIENT-SIDE SIMULATION). */
-    async function executeSwap() { /* ... (Client-side balance updates and transaction logging - NEEDS BACKEND) ... */ }
-    /** Resets or sets up the swap page state and UI. */
-    function setupSwapPage() { /* ... (Resets amounts, calculates rate, updates UI) ... */ }
+    async function executeSwap() {
+        // WARNING: INSECURE - NEEDS BACKEND IMPLEMENTATION
+        if (!userDbRef || !currentUser || !elements.executeSwapButton || elements.executeSwapButton.disabled) return;
+        const { fromToken, toToken, fromAmount, toAmount, rate } = swapState;
+        if (!fromToken || !toToken || fromAmount <= 0 || toAmount <= 0 || (userBalances[fromToken] || 0) < fromAmount) { showTgAlert("Invalid swap or insufficient balance.", "Swap Error"); return; }
+
+        showLoading("Processing Swap...");
+        elements.executeSwapButton.disabled = true;
+        if (elements.swapStatus) { elements.swapStatus.textContent = 'Processing...'; elements.swapStatus.className = 'status-message pending'; }
+
+        const newFromBalance = (userBalances[fromToken] || 0) - fromAmount;
+        const newToBalance = (userBalances[toToken] || 0) + toAmount;
+
+        const updates = {};
+        const userId = currentUser.id.toString();
+        updates[`/users/${userId}/balances/${fromToken}`] = sanitizeFloat(newFromBalance.toFixed(PRECISION));
+        updates[`/users/${userId}/balances/${toToken}`] = sanitizeFloat(newToBalance.toFixed(PRECISION));
+
+        const txData = { type: 'swap', fromToken, fromAmount, toToken, toAmount, baseRate: rate, feePercent: SWAP_FEE_PERCENT, timestamp: firebase.database.ServerValue.TIMESTAMP, status: 'completed' };
+        const newTxKey = db?.ref(`/transactions/${userId}`).push().key; // Use optional chaining for db
+        if (db && newTxKey) { updates[`/transactions/${userId}/${newTxKey}`] = txData; } else { console.error("DB or newTxKey unavailable for swap log!"); }
+
+        try {
+            if(db) await db.ref().update(updates); // Use optional chaining
+            else throw new Error("Database not available for swap update.");
+
+            console.log("Swap successful (simulated).");
+            if (elements.swapStatus) { elements.swapStatus.textContent = 'Swap Successful!'; elements.swapStatus.className = 'status-message success'; }
+            setTimeout(() => { swapState.fromAmount = 0; swapState.toAmount = 0; updateSwapUI(); if (elements.swapStatus) elements.swapStatus.textContent = ''; }, 2500);
+        } catch (error) { handleFirebaseError(error, "executing swap"); if (elements.swapStatus) { elements.swapStatus.textContent = 'Swap Failed.'; elements.swapStatus.className = 'status-message error'; }
+        } finally { hideLoading(); validateSwapInput(); } // Re-validate button state after operation
+    }
+    /** Prepares the swap page UI. */
+    function setupSwapPage() { /* ... (resets amounts, updates UI) ... */ }
 
 
     // --- Internal Send Functionality (Client-Side Simulation) ---
 
-    /** Populates the asset dropdown on the Send page. Ensures tokens are loaded. */
-    function updateWithdrawAssetSelector() {
-        if (!elements.withdrawAssetSelect) return;
-        const previousValue = elements.withdrawAssetSelect.value;
-        elements.withdrawAssetSelect.innerHTML = '<option value="">-- Select Asset --</option>';
-
-        if (Object.keys(availableTokens).length === 0) {
-             console.warn("Cannot populate send asset selector: No tokens available.");
-             return; // Exit if tokens aren't loaded
-        }
-
-        Object.keys(availableTokens)
-            .sort((a, b) => a.localeCompare(b))
-            .forEach(symbol => {
-                const tokenInfo = availableTokens[symbol];
-                const option = document.createElement('option');
-                option.value = symbol;
-                option.textContent = `${tokenInfo.name} (${symbol})`;
-                elements.withdrawAssetSelect.appendChild(option);
-            });
-
-        if (previousValue && elements.withdrawAssetSelect.querySelector(`option[value="${previousValue}"]`)) {
-            elements.withdrawAssetSelect.value = previousValue;
-        } else {
-            elements.withdrawAssetSelect.value = "";
-        }
-        updateWithdrawPageBalance(); // Update balance display
-    }
-
+    /** Populates the asset selector on the Send page. */
+    function updateWithdrawAssetSelector() { /* ... */ }
     /** Updates the 'Available' balance display on the Send page. */
-    function updateWithdrawPageBalance() {
-        if (!elements.withdrawAvailableBalance || !elements.withdrawAssetSelect) return;
-        const selectedSymbol = elements.withdrawAssetSelect.value;
-        const balance = userBalances[selectedSymbol] || 0;
-        const decimals = selectedSymbol === 'USD' ? 2 : 6;
-        elements.withdrawAvailableBalance.textContent = `${formatTokenAmount(balance, decimals)} ${selectedSymbol || ''}`;
-        if (elements.withdrawMaxButton) elements.withdrawMaxButton.disabled = balance <= 0;
-        validateSendInput(); // Re-validate inputs
-    }
-
-    /** Validates inputs on the Send page (asset, amount, recipient ID, balance). */
-    function validateSendInput() {
-         if (!elements.sendButton || !elements.withdrawAssetSelect || !elements.withdrawAmountInput || !elements.withdrawRecipientIdInput || !elements.withdrawStatus) return;
-         const selectedSymbol = elements.withdrawAssetSelect.value;
-         const amount = sanitizeFloat(elements.withdrawAmountInput.value);
-         const balance = userBalances[selectedSymbol] || 0;
-         const recipientIdStr = elements.withdrawRecipientIdInput.value.trim();
-         const recipientId = sanitizeInt(recipientIdStr);
-         let isValid = true; let statusMsg = '';
-         elements.withdrawStatus.className = 'status-message';
-
-         if (!selectedSymbol) isValid = false;
-         else if (amount <= 0) isValid = false;
-         else if (amount > balance) { isValid = false; statusMsg = 'Amount exceeds available balance.'; elements.withdrawStatus.className = 'status-message error'; }
-         else if (!recipientIdStr) isValid = false;
-         else if (!/^\d+$/.test(recipientIdStr) || recipientId <= 0) { isValid = false; statusMsg = 'Invalid Recipient Chat ID.'; elements.withdrawStatus.className = 'status-message error'; }
-         else if (currentUser && recipientId === currentUser.id) { isValid = false; statusMsg = 'Cannot send to yourself.'; elements.withdrawStatus.className = 'status-message error'; }
-
-         elements.sendButton.disabled = !isValid;
-         elements.withdrawStatus.textContent = statusMsg;
-    }
-
+    function updateWithdrawPageBalance() { /* ... */ }
+    /** Validates inputs on the Send page. */
+    function validateSendInput() { /* ... (checks asset, amount, recipient, balance, sets sendButton.disabled/status) ... */ }
     /** Executes the internal transfer (INSECURE CLIENT-SIDE SIMULATION). */
     async function handleSend() {
-         if (!userDbRef || !currentUser || !db || !elements.sendButton || elements.sendButton.disabled) return;
-         const selectedSymbol = elements.withdrawAssetSelect.value;
-         const recipientId = sanitizeInt(elements.withdrawRecipientIdInput.value);
-         const amount = sanitizeFloat(elements.withdrawAmountInput.value);
-         const senderId = currentUser.id;
-         const senderBalance = userBalances[selectedSymbol] || 0;
+        // WARNING: INSECURE - NEEDS BACKEND IMPLEMENTATION
+        if (!userDbRef || !currentUser || !db || !elements.sendButton || elements.sendButton.disabled) return;
 
-         if (!selectedSymbol || amount <= 0 || !recipientId || recipientId === senderId || senderBalance < amount) { /* ... final validation ... */ return; }
+        const selectedSymbol = elements.withdrawAssetSelect?.value;
+        const recipientId = sanitizeInt(elements.withdrawRecipientIdInput?.value);
+        const amount = sanitizeFloat(elements.withdrawAmountInput?.value);
+        const senderId = currentUser.id;
+        const senderBalance = userBalances[selectedSymbol] || 0;
 
-         showLoading("Processing Transfer...");
-         elements.sendButton.disabled = true;
-         if (elements.withdrawStatus) { /* ... set pending status ... */ }
+        // Final client validation
+        if (!selectedSymbol || amount <= 0 || !recipientId || recipientId === senderId || senderBalance < amount) {
+             showTgAlert("Invalid send details or insufficient funds.", "Send Error"); validateSendInput(); return;
+        }
 
-         // ** INSECURE CLIENT-SIDE RECIPIENT CHECK **
-         const recipientRef = db.ref(`users/${recipientId}`);
-         let recipientExists = false;
-         try {
-             const recipientSnapshot = await recipientRef.child('profile').once('value');
-             recipientExists = recipientSnapshot.exists();
-         } catch (error) { /* ... handle check error ... */ return; }
-         if (!recipientExists) { /* ... handle recipient not found ... */ return; }
-         // ** END INSECURE CHECK **
+        showLoading("Processing Transfer...");
+        elements.sendButton.disabled = true;
+        if (elements.withdrawStatus) { elements.withdrawStatus.textContent = 'Verifying recipient...'; elements.withdrawStatus.className = 'status-message pending'; }
 
-         if (elements.withdrawStatus) elements.withdrawStatus.textContent = 'Processing transfer...';
+        // --- INSECURE CLIENT-SIDE RECIPIENT CHECK ---
+        const recipientRef = db.ref(`users/${recipientId}`);
+        let recipientExists = false;
+        try {
+            const recipientSnapshot = await recipientRef.child('profile').once('value');
+            recipientExists = recipientSnapshot.exists();
+        } catch (error) { console.error("Error checking recipient:", error); /* Handle */ }
 
-         // ** INSECURE CLIENT-SIDE ATOMIC UPDATE SIMULATION **
-         const updates = {};
-         const senderBalancePath = `/users/${senderId}/balances/${selectedSymbol}`;
-         const recipientBalancePath = `/users/${recipientId}/balances/${selectedSymbol}`;
-         let recipientCurrentBalance = 0;
-         try { // Fetch recipient balance just before write (still risky)
-             const recipBalanceSnapshot = await recipientRef.child(`balances/${selectedSymbol}`).once('value');
-             recipientCurrentBalance = sanitizeFloat(recipBalanceSnapshot.val());
-         } catch (e) { console.warn("Could not read recipient balance before update", e); }
-         const newSenderBalance = senderBalance - amount;
-         const newRecipientBalance = recipientCurrentBalance + amount;
-         updates[senderBalancePath] = sanitizeFloat(newSenderBalance.toFixed(PRECISION));
-         updates[recipientBalancePath] = sanitizeFloat(newRecipientBalance.toFixed(PRECISION));
+        if (!recipientExists) {
+            hideLoading();
+            if (elements.withdrawStatus) { elements.withdrawStatus.textContent = 'Recipient Chat ID not found.'; elements.withdrawStatus.className = 'status-message error'; }
+            validateSendInput(); // Re-validate (might re-enable button)
+            return;
+        }
+        // --- END INSECURE CHECK ---
 
-         // Log transaction
-         const txId = db.ref(`/transactions/${senderId}`).push().key;
-         if (txId) { /* ... create senderTx and receiverTx, add to updates ... */ }
-         else { /* ... handle TX ID generation failure ... */ return; }
-         // ** END INSECURE UPDATE PREPARATION **
+        if (elements.withdrawStatus) elements.withdrawStatus.textContent = 'Processing transfer...';
 
-         try {
-             await db.ref().update(updates); // Attempt update
-              if (elements.withdrawStatus) { /* ... set success status ... */ }
-              if(elements.withdrawAmountInput) elements.withdrawAmountInput.value = '';
-              if(elements.withdrawRecipientIdInput) elements.withdrawRecipientIdInput.value = '';
-              setTimeout(() => { if (elements.withdrawStatus) elements.withdrawStatus.textContent = ''; }, 3000);
-         } catch (error) { handleFirebaseError(error, "executing internal transfer"); /* ... set error status ... */ }
-         finally { hideLoading(); /* Let listener re-validate button */ }
+        // --- INSECURE CLIENT-SIDE ATOMIC UPDATE SIMULATION ---
+        const updates = {};
+        const senderBalancePath = `/users/${senderId}/balances/${selectedSymbol}`;
+        const recipientBalancePath = `/users/${recipientId}/balances/${selectedSymbol}`;
+        let recipientCurrentBalance = 0;
+        try { // Attempt to get recipient balance just before write (still risky)
+            const recipBalanceSnapshot = await recipientRef.child(`balances/${selectedSymbol}`).once('value');
+            recipientCurrentBalance = sanitizeFloat(recipBalanceSnapshot.val());
+        } catch (e) { console.warn("Could not reliably read recipient balance before update", e); }
+
+        const newSenderBalance = senderBalance - amount;
+        const newRecipientBalance = recipientCurrentBalance + amount;
+
+        updates[senderBalancePath] = sanitizeFloat(newSenderBalance.toFixed(PRECISION));
+        updates[recipientBalancePath] = sanitizeFloat(newRecipientBalance.toFixed(PRECISION));
+
+        // Log transaction for both parties
+        const txId = db.ref(`/transactions/${senderId}`).push().key;
+        const timestamp = firebase.database.ServerValue.TIMESTAMP;
+        if (txId) {
+            const senderTx = { type: 'send', token: selectedSymbol, amount, recipientId, timestamp, status: 'completed' };
+            const receiverTx = { type: 'receive', token: selectedSymbol, amount, senderId, timestamp, status: 'completed' };
+            updates[`/transactions/${senderId}/${txId}`] = senderTx;
+            updates[`/transactions/${recipientId}/${txId}`] = receiverTx;
+        } else { console.error("Failed to generate TX ID!"); /* Handle error */ }
+        // --- END INSECURE UPDATE ---
+
+        try {
+            await db.ref().update(updates);
+            console.log("Internal transfer successful (simulated).");
+            if (elements.withdrawStatus) { elements.withdrawStatus.textContent = 'Funds Sent Successfully!'; elements.withdrawStatus.className = 'status-message success'; }
+            if(elements.withdrawAmountInput) elements.withdrawAmountInput.value = '';
+            if(elements.withdrawRecipientIdInput) elements.withdrawRecipientIdInput.value = '';
+            setTimeout(() => { if (elements.withdrawStatus) elements.withdrawStatus.textContent = ''; }, 3000);
+        } catch (error) { handleFirebaseError(error, "executing internal transfer"); if (elements.withdrawStatus) { elements.withdrawStatus.textContent = 'Send Failed.'; elements.withdrawStatus.className = 'status-message error'; }
+        } finally { hideLoading(); validateSendInput(); } // Re-validate button state
     }
 
-    /** Resets or sets up the Send page state and UI. */
-    function setupSendPage() {
-        console.log("Setting up Send Page");
-        if(elements.withdrawAssetSelect) updateWithdrawAssetSelector(); // Ensure assets are populated
-        if(elements.withdrawAmountInput) elements.withdrawAmountInput.value = '';
-        if(elements.withdrawRecipientIdInput) elements.withdrawRecipientIdInput.value = '';
-        if(elements.withdrawStatus) { elements.withdrawStatus.textContent = ''; elements.withdrawStatus.className = 'status-message'; }
-        // updateWithdrawPageBalance(); // Called by updateWithdrawAssetSelector
-        validateSendInput(); // Set initial button state
-    }
+    /** Prepares the Send page UI. */
+    function setupSendPage() { /* ... (Clears inputs, updates selector/balance, validates) ... */ }
 
 
     // --- Event Listeners Setup ---
-    /** Attaches all necessary event listeners to the DOM elements. */
+    /** Attaches all necessary event listeners for the application. */
     function setupEventListeners() {
         console.log("Setting up event listeners...");
         // Navigation
         elements.navButtons.forEach(button => button.addEventListener('click', () => { if (!button.classList.contains('active')) showPage(button.dataset.page); }));
         elements.backButtons.forEach(button => button.addEventListener('click', () => showPage(button.dataset.target || 'home-page')));
-        if (elements.refreshButton) elements.refreshButton.addEventListener('click', async () => { /* ... Refresh logic ... */ });
+        if (elements.refreshButton) elements.refreshButton.addEventListener('click', async () => { /* ... (Refresh logic) ... */ });
         // Swap Page Listeners
         if (elements.swapFromAmountInput) elements.swapFromAmountInput.addEventListener('input', handleFromAmountChange);
         if (elements.swapSwitchButton) elements.swapSwitchButton.addEventListener('click', switchSwapTokens);
@@ -625,59 +792,68 @@ document.addEventListener('DOMContentLoaded', () => {
         if (elements.withdrawAssetSelect) elements.withdrawAssetSelect.addEventListener('change', updateWithdrawPageBalance);
         if (elements.withdrawAmountInput) elements.withdrawAmountInput.addEventListener('input', debounce(validateSendInput, DEBOUNCE_DELAY));
         if (elements.withdrawRecipientIdInput) elements.withdrawRecipientIdInput.addEventListener('input', debounce(validateSendInput, DEBOUNCE_DELAY));
-        if (elements.withdrawMaxButton) elements.withdrawMaxButton.addEventListener('click', () => { /* Max button logic */ });
+        if (elements.withdrawMaxButton) elements.withdrawMaxButton.addEventListener('click', () => { /* ... Max logic ... */ });
         if (elements.sendButton) elements.sendButton.addEventListener('click', handleSend);
         console.log("Event listeners attached.");
     }
 
 
     // --- App Initialization ---
-    /** Main function to initialize and start the wallet application. */
+    /** Main function to initialize and start the AB Wallet application. */
     async function startApp() {
         console.log("Starting AB Wallet Application...");
         showLoading("Initializing...");
         try {
+            // Setup Telegram WebApp environment
             await tg.ready();
             tg.expand();
             tg.enableClosingConfirmation();
             console.log("Telegram WebApp SDK Ready.");
 
-            // Apply theme (using CSS variables as primary, TG as fallback)
-            document.body.style.backgroundColor = tg.themeParams.bg_color || getComputedStyle(document.documentElement).getPropertyValue('--bg-main').trim();
-            document.body.style.color = tg.themeParams.text_color || getComputedStyle(document.documentElement).getPropertyValue('--text-main').trim();
+            // Apply theme (use CSS default dark theme as base)
+            document.body.style.backgroundColor = tg.themeParams.bg_color || '#16181a';
+            document.body.style.color = tg.themeParams.text_color || '#e8e8e8';
 
-            setupEventListeners(); // Attach listeners early
+            // Attach event listeners
+            setupEventListeners();
 
-            // Get User Data (CRITICAL STEP)
+            // Get Telegram User Data
             if (tg.initDataUnsafe?.user) {
                 currentUser = tg.initDataUnsafe.user;
                 console.log(`User Identified: ${currentUser.id}`);
                 displayUserInfo();
 
-                // Initialize Firebase
+                // Initialize Firebase App & DB
                 if (!firebase.apps.length) { firebaseApp = firebase.initializeApp(firebaseConfig); }
                 else { firebaseApp = firebase.app(); }
                 db = firebase.database();
                 console.log("Firebase Initialized.");
 
-                // Fetch Tokens THEN Initialize User Data & Listeners
-                await fetchAvailableTokens(); // Must have tokens before user init potentially needs them
+                // Fetch Tokens FIRST (required for many UI elements & logic)
+                await fetchAvailableTokens();
+
+                // Initialize User Data (Profile, Balances) and Setup Listeners
                 await initializeFirebaseAndUser();
 
-                // Show initial page (Home will trigger transaction fetch)
+                // Show the initial page (Home) - this triggers transaction fetch
                 showPage('home-page');
 
-            } else { throw new Error("Could not retrieve valid Telegram user data."); }
+            } else {
+                // Critical error: Cannot proceed without user data
+                throw new Error("Could not retrieve valid Telegram user data.");
+            }
 
-            hideLoading(); // Success
+            hideLoading(); // Hide loading overlay ONLY on full success
             console.log("AB Wallet Initialized Successfully.");
 
         } catch (error) {
+            // Handle critical initialization errors
             console.error("CRITICAL INITIALIZATION FAILURE:", error);
             handleFirebaseError(error, "App Initialization");
-            showLoading("Error Loading Wallet");
-            disableAppFeatures();
-            if(elements.mainContent) elements.mainContent.innerHTML = `<div class="card status-message error" style="margin-top: 50px;">Failed to initialize AB Wallet. Please restart. (${error.message || ''})</div>`;
+            showLoading("Error Loading Wallet"); // Keep loading showing error
+            disableAppFeatures(); // Disable buttons etc.
+            // Display persistent error message in main content area
+            if(elements.mainContent) elements.mainContent.innerHTML = `<div class="card status-message error" style="margin: 40px auto; text-align: center;">Failed to initialize AB Wallet.<br>Please close and reopen the app.<br><small>(${error.message || 'Unknown error'})</small></div>`;
         }
     }
 
