@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Token Explorer - AB Wallet</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <!-- Optional: Include tinycolor for advanced theme consistency -->
+    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/tinycolor/1.6.0/tinycolor.min.js"></script> -->
+
+    <style>
+        /* --- Inherit Base Theme Variables --- */
+        :root {
+            --bg-color: #121212;
+            --primary-text: #ffffff;
+            --secondary-text: #b3b3b3;
+            --card-bg: #1e1e1e;
+            --accent-color: #1DB954; /* Typically button color */
+            --button-bg: #1DB954;
+            --button-text: #ffffff;
+            --input-bg: #282828;
+            --border-color: #333333;
+            --error-color: #f44336;   /* Red for down moves */
+            --success-color: #4caf50; /* Green for up moves */
+            --hover-bg: rgba(255, 255, 255, 0.05);
+            --modal-bg: #2a2a2a;
+            --modal-overlay-bg: rgba(0, 0, 0, 0.7);
+            --positive-change-color: var(--success-color);
+            --negative-change-color: var(--error-color);
+        }
+
+        /* --- Base Styles (Adapted) --- */
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+        html, body { height: 100%; }
+        body { background-color: var(--bg-color); color: var(--primary-text); overscroll-behavior: none; display: flex; flex-direction: column; transition: background-color 0.3s, color 0.3s; }
+        .app-container { flex-grow: 1; padding: 20px 15px 20px 15px; overflow-y: auto; -webkit-overflow-scrolling: touch; } /* Removed bottom padding for full scroll */
+
+        /* --- Page Title --- */
+        h1 { font-size: 24px; font-weight: 600; text-align: center; margin-bottom: 25px; color: var(--primary-text); }
+
+        /* --- Loading Indicator --- */
+        .loading-indicator { text-align: center; padding: 40px 20px; color: var(--secondary-text); display: block; font-size: 16px; }
+        .loading-indicator.hidden { display: none; }
+        .loading-indicator::before { content: ''; display: inline-block; width: 24px; height: 24px; border: 4px solid rgba(255,255,255,0.2); border-radius: 50%; border-top-color: var(--primary-text); animation: spin 1s ease-in-out infinite; margin-right: 12px; vertical-align: middle; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* --- Token List Styles --- */
+        #tokenListContainer {
+             background-color: var(--card-bg);
+             border-radius: 12px;
+             padding: 5px 0; /* Reduced padding */
+             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+             margin-bottom: 20px; /* Add some margin */
+             min-height: 100px; /* Ensure it has some height when loading */
+        }
+        .token-list-item-explorer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 20px; /* More padding inside items */
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: background-color 0.15s ease;
+        }
+        .token-list-item-explorer:last-child { border-bottom: none; }
+        .token-list-item-explorer:hover { background-color: var(--hover-bg); }
+
+        .token-info-explorer { display: flex; align-items: center; gap: 15px; }
+        .token-info-explorer img { width: 36px; height: 36px; border-radius: 50%; background-color: #333; border: 1px solid var(--border-color); flex-shrink: 0; }
+        .token-name-symbol-explorer { line-height: 1.3; }
+        .token-name-explorer { font-weight: 600; color: var(--primary-text); font-size: 15px; }
+        .token-symbol-explorer { font-size: 13px; color: var(--secondary-text); text-transform: uppercase; }
+
+        .token-pricing-explorer { text-align: right; }
+        .token-price-explorer { font-weight: 600; color: var(--primary-text); font-size: 15px; margin-bottom: 3px; }
+        .token-change-explorer {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--secondary-text); /* Default/Neutral color */
+            transition: color 0.3s ease; /* Smooth color transition */
+            padding: 2px 5px;
+            border-radius: 4px;
+        }
+        .token-change-explorer.positive { color: var(--positive-change-color); /* background-color: rgba(76, 175, 80, 0.1); */ }
+        .token-change-explorer.negative { color: var(--negative-change-color); /* background-color: rgba(244, 67, 54, 0.1); */ }
+
+         /* For subtle flash effect on price change */
+         @keyframes price-up-flash { 0% { background-color: rgba(76, 175, 80, 0.2); } 100% { background-color: transparent; } }
+         @keyframes price-down-flash { 0% { background-color: rgba(244, 67, 54, 0.2); } 100% { background-color: transparent; } }
+         .price-flash-up { animation: price-up-flash 0.6s ease-out; }
+         .price-flash-down { animation: price-down-flash 0.6s ease-out; }
+
+        /* --- Token Detail Modal Styles --- */
+        .modal-overlay { /* Reusing overlay class */
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: var(--modal-overlay-bg); display: flex;
+            justify-content: center; align-items: center; /* Center the modal */
+            z-index: 1100; opacity: 0; visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0s linear 0.3s;
+        }
+        .modal-overlay.active { opacity: 1; visibility: visible; transition: opacity 0.3s ease; }
+
+        .token-detail-modal { /* Specific modal class */
+            background-color: var(--modal-bg);
+            width: 90%; max-width: 450px; /* Max width for details */
+            border-radius: 12px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            display: flex; flex-direction: column;
+            transform: scale(0.95); /* Start slightly smaller */
+            transition: transform 0.3s ease;
+            max-height: 85vh; /* Limit modal height */
+            overflow: hidden; /* Prevent content spill before scroll */
+        }
+        .modal-overlay.active .token-detail-modal { transform: scale(1); }
+
+        .modal-header { padding: 15px 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;}
+        .modal-header h3 { margin: 0; font-size: 18px; font-weight: 600; display: flex; align-items: center; gap: 10px; }
+        .modal-header img { width: 24px; height: 24px; border-radius: 50%;}
+        .modal-close-button { background: none; border: none; color: var(--secondary-text); font-size: 28px; cursor: pointer; line-height: 1; padding: 0 5px;}
+        .modal-close-button:hover { color: var(--primary-text); }
+
+        .modal-content { padding: 20px; overflow-y: auto; flex-grow: 1; }
+        .modal-content h4 { font-size: 16px; color: var(--secondary-text); margin-bottom: 15px; border-bottom: 1px dashed var(--border-color); padding-bottom: 8px; }
+        .token-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px; }
+        .stat-item { }
+        .stat-label { font-size: 13px; color: var(--secondary-text); margin-bottom: 4px; display: block; }
+        .stat-value { font-size: 18px; font-weight: 600; color: var(--primary-text); }
+        .stat-value.positive { color: var(--positive-change-color); }
+        .stat-value.negative { color: var(--negative-change-color); }
+
+        /* --- Simplified Candlestick Chart SVG Styles --- */
+        #candlestickChart {
+            width: 100%;
+            min-height: 150px; /* Adjust height as needed */
+            background-color: rgba(0,0,0,0.1); /* Slight background */
+            border-radius: 8px;
+            padding: 10px;
+            display: flex; justify-content: center; align-items: center;
+            overflow: hidden; /* Hide overflow if needed */
+        }
+         #candlestickChart svg {
+            width: 80%; /* Control overall chart width */
+             max-width: 100px; /* Max width for the single candle */
+             height: 130px; /* SVG internal height */
+         }
+
+        .candle-body { stroke-width: 1; stroke: none; /* Body usually has no border */ }
+        .wick { stroke-width: 2; stroke-linecap: round; } /* Thicker wicks */
+
+        .candle-body.positive, .wick.positive { fill: var(--positive-change-color); stroke: var(--positive-change-color); }
+        .candle-body.negative, .wick.negative { fill: var(--negative-change-color); stroke: var(--negative-change-color); }
+        .chart-no-data { font-size: 14px; color: var(--secondary-text); text-align: center; }
+
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+
+        <h1>Token Explorer</h1>
+
+        <!-- Loading Indicator -->
+        <div id="loadingIndicator" class="loading-indicator">Loading Tokens...</div>
+
+        <!-- Token List Container -->
+        <div id="tokenListContainer">
+            <!-- Token items will be populated by JS -->
+        </div>
+
+        <!-- Global Message Area (Optional for errors specific to this page) -->
+        <div id="explorerMessage" style="padding: 15px; margin: 20px 0; border-radius: 8px; text-align: center; font-size: 14px; display: none;"></div>
+
+    </div>
+
+    <!-- Token Detail Modal -->
+    <div id="tokenDetailModalOverlay" class="modal-overlay">
+        <div id="tokenDetailModal" class="token-detail-modal">
+            <div class="modal-header">
+                <h3 id="modalTokenName"><img id="modalTokenLogo" src="" alt=""> <span>Token Details</span></h3>
+                <button id="modalCloseBtn" class="modal-close-button" aria-label="Close">×</button>
+            </div>
+            <div class="modal-content">
+                <div class="token-stats">
+                    <div class="stat-item">
+                        <span class="stat-label">Price</span>
+                        <span class="stat-value" id="modalTokenPrice">$0.00</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Change (Approx)</span>
+                        <span class="stat-value" id="modalTokenChange">0.00%</span>
+                    </div>
+                     <!-- Add more stats here if data available (e.g., Market Cap) -->
+                     <!-- <div class="stat-item">
+                         <span class="stat-label">Market Cap</span>
+                         <span class="stat-value" id="modalTokenMarketCap">$---</span>
+                     </div> -->
+                 </div>
+
+                <h4>Simplified Price Movement</h4>
+                <div id="candlestickChart">
+                    <!-- SVG will be populated by JS -->
+                     <span class="chart-no-data">Price history needed for chart.</span>
+                 </div>
+                 <p style="font-size: 11px; text-align: center; color: var(--secondary-text); margin-top: 10px;">Note: Chart shows a simplified view based on recent price change.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Firebase Config (REPLACE WITH YOURS!) ---
+        const firebaseConfig = {
+  apiKey: "AIzaSyBW1WPXUN8DYhT6npZQYoQ3l4J-jFSbzfg",
+  authDomain: "ab-studio-marketcap.firebaseapp.com",
+  databaseURL: "https://ab-studio-marketcap-default-rtdb.firebaseio.com",
+  projectId: "ab-studio-marketcap",
+  storageBucket: "ab-studio-marketcap.firebasestorage.app",
+  messagingSenderId: "115268088088",
+  appId: "1:115268088088:web:65643a047f92bfaa66ee6d"
+};
+
+        // --- Global State ---
+        let db = null;
+        let tokenData = {};         // Current token data { symbol: { name, priceUSD, logoUrl, ... } }
+        let previousTokenData = {}; // Stores the data from the *last* firebase update
+        let firebaseInitialized = false;
+        let listenersAttached = false;
+        let tg = null;
+
+        // --- DOM Elements ---
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const tokenListContainer = document.getElementById('tokenListContainer');
+        const explorerMessage = document.getElementById('explorerMessage'); // Optional message display
+        // Modal elements
+        const modalOverlay = document.getElementById('tokenDetailModalOverlay');
+        const modal = document.getElementById('tokenDetailModal');
+        const modalCloseBtn = document.getElementById('modalCloseBtn');
+        const modalTokenName = document.getElementById('modalTokenName'); // The H3 tag
+        const modalTokenLogo = document.getElementById('modalTokenLogo'); // The img tag inside H3
+        const modalTokenPrice = document.getElementById('modalTokenPrice');
+        const modalTokenChange = document.getElementById('modalTokenChange');
+        // const modalTokenMarketCap = document.getElementById('modalTokenMarketCap'); // If using Market Cap
+        const candlestickChartContainer = document.getElementById('candlestickChart');
+
+        // --- Utility Functions (Copied/Adapted from Wallet) ---
+        function showLoading(show, text = 'Loading...') { loadingIndicator.textContent = text; loadingIndicator.classList.toggle('hidden', !show); }
+        function formatCurrency(amount, decimals = 2) { const num = parseFloat(amount); if (isNaN(num)) return '0.00'; /* Show more decimals for smaller prices */ const effectiveDecimals = (num > 0 && num < 0.01) ? 6 : (num > 0 && num < 1) ? 4 : decimals; return num.toLocaleString(undefined, { minimumFractionDigits: effectiveDecimals, maximumFractionDigits: effectiveDecimals }); }
+        function formatPercentage(change) { const num = parseFloat(change); return isNaN(num) ? '0.00%' : `${num >= 0 ? '+' : ''}${num.toFixed(2)}%`; }
+        // Basic Theme application (copy from wallet or simplify)
+        const tinycolor = window.tinycolor || function(color) { /* Add basic fallback if needed */ return { darken: () => color, lighten: () => color, setAlpha: (a) => `rgba(0, 0, 0, ${a})`, toString: () => color }; };
+         function applyTheme(params) { if (!params) return; const root = document.documentElement; const setProp = (prop, value) => root.style.setProperty(prop, value); /* Copy relevant theme props from main wallet CSS */ try {const bgColor=params.bg_color||'#121212';const textColor=params.text_color||'#ffffff';const hintColor=params.hint_color||'#b3b3b3';const buttonColor=params.button_color||'#1DB954';const secondaryBgColor=params.secondary_bg_color||'#1e1e1e';const t_bgColor=tinycolor(bgColor);const t_textColor=tinycolor(textColor);const t_secondaryBgColor=tinycolor(secondaryBgColor);setProp('--bg-color',bgColor);setProp('--primary-text',textColor);setProp('--secondary-text',hintColor);setProp('--accent-color',buttonColor);setProp('--button-bg',buttonColor);setProp('--card-bg',secondaryBgColor);setProp('--border-color',t_secondaryBgColor.lighten(10).toString());setProp('--hover-bg',t_textColor.setAlpha(0.05).toString());setProp('--error-color','#f44336');setProp('--success-color','#4caf50');setProp('--positive-change-color',t_bgColor.isDark()?'#4caf50':'#2e7d32');setProp('--negative-change-color',t_bgColor.isDark()?'#f44336':'#c62828');setProp('--modal-bg',t_secondaryBgColor.lighten(3).toString());setProp('--modal-overlay-bg',t_bgColor.setAlpha(0.7).toString());document.body.style.backgroundColor=bgColor;document.body.style.color=textColor;if(tg&&tg.setHeaderColor)try{tg.setHeaderColor(secondaryBgColor);}catch(e){console.warn("Failed Hdr",e)}if(tg&&tg.setBackgroundColor)try{tg.setBackgroundColor(bgColor);}catch(e){console.warn("Failed Bg",e)}}catch(e){console.error("Theme apply error",e)} }
+
+        // --- Firebase Functions ---
+        function initializeFirebase() { /* Identical to wallet's function */ return new Promise((resolve, reject) => { if (firebaseInitialized) { resolve(); return; } try { if (typeof firebase === 'undefined') { throw new Error("Firebase SDK not loaded"); } if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); console.log("Firebase Initialized"); } else { firebase.app(); console.log("Firebase Re-using existing app instance."); } db = firebase.database(); firebaseInitialized = true; resolve(); } catch (error) { console.error("Firebase Init Error:", error); showLoading(false); // showMessage... reject(error); } }); }
+
+        // --- Real-time Listener for Token Data ---
+        function listenForTokenData() {
+            if (!db) { console.error("Database not initialized for token listener."); return; }
+            const tokensRef = db.ref('tokens');
+            console.log("Setting up real-time listener for /tokens on Explorer page");
+
+            tokensRef.on('value', (snapshot) => {
+                const newTokensRaw = snapshot.val() || {};
+                 console.log(`Real-time token data received (${Object.keys(newTokensRaw).length} tokens)`);
+
+                 const newTokensProcessed = {};
+                // Validate and process data immediately
+                for (const symbol in newTokensRaw) {
+                     if (typeof newTokensRaw[symbol] === 'object' && newTokensRaw[symbol] !== null && newTokensRaw[symbol].priceUSD != null) { // Ensure price exists
+                         const price = parseFloat(newTokensRaw[symbol].priceUSD);
+                        // Add basic structure if needed (can expand in DB later)
+                         newTokensProcessed[symbol] = {
+                             name: newTokensRaw[symbol].name || symbol,
+                             priceUSD: (!isNaN(price) && price >= 0) ? price : 0,
+                             logoUrl: newTokensRaw[symbol].logoUrl || `https://via.placeholder.com/36/333333/ffffff?text=${symbol.substring(0,1)}`,
+                             // You MIGHT get change % directly from Firebase if another process calculates it
+                             change24hPercent: parseFloat(newTokensRaw[symbol].change24h_percent) || null
+                         };
+                     } else {
+                         console.warn(`Skipping invalid/incomplete data for token ${symbol}:`, newTokensRaw[symbol]);
+                     }
+                 }
+                  if (newTokensProcessed.USDT) newTokensProcessed.USDT.priceUSD = 1.00; // Ensure USDT = 1
+
+
+                // Update global state, keeping the *previous* state
+                 previousTokenData = { ...tokenData }; // Store a copy of the OLD data
+                 tokenData = newTokensProcessed;         // Assign the NEW processed data
+
+                 // Trigger UI update, passing the previous data for comparison
+                updateTokenExplorerList(previousTokenData);
+
+            }, (error) => {
+                console.error("Firebase Token Listener Error:", error);
+                 // Handle error - maybe show message, stop loading
+                 showLoading(false);
+                 tokenListContainer.innerHTML = `<p style="color: var(--error-color); text-align: center; padding: 20px;">Error loading token data. Please check connection.</p>`;
+            });
+
+             // No need for initial '.once' here, the 'on' listener fires immediately anyway.
+        }
+
+        // --- UI Update Functions ---
+        function updateTokenExplorerList(prevData) {
+            if (!tokenListContainer) return;
+            // console.log("Updating Explorer List. Current:", Object.keys(tokenData).length, "Previous:", Object.keys(prevData).length); // Debug
+
+            tokenListContainer.innerHTML = ''; // Clear current list
+
+            // Convert current data to array and sort (e.g., alphabetically, add sorting later)
+            const sortedTokens = Object.entries(tokenData)
+                 .map(([symbol, data]) => ({ symbol, ...data }))
+                .sort((a, b) => (a.name || a.symbol).localeCompare(b.name || b.symbol));
+
+            if (sortedTokens.length === 0) {
+                 tokenListContainer.innerHTML = '<p style="color: var(--secondary-text); text-align: center; padding: 20px;">No token data available.</p>';
+                 showLoading(false);
+                 return;
+             }
+
+             sortedTokens.forEach(token => {
+                 const currentPrice = token.priceUSD;
+                 const prevInfo = prevData[token.symbol]; // Get previous info for this specific token
+                 const prevPrice = prevInfo ? prevInfo.priceUSD : null;
+
+                 let priceChange = 0;
+                 let priceChangePercent = 0;
+                 let changeClass = ''; // 'positive', 'negative', '' (neutral)
+                 let priceFlashClass = ''; // For flash effect
+
+                // Calculate change based on PREVIOUS snapshot data from the listener
+                 if (prevPrice !== null && currentPrice !== null && prevPrice > 0) {
+                    priceChange = currentPrice - prevPrice;
+                    priceChangePercent = (priceChange / prevPrice) * 100;
+
+                    if (priceChange > 0.0000001) { // Use epsilon for float comparison
+                        changeClass = 'positive';
+                        priceFlashClass = 'price-flash-up'; // Trigger up flash
+                    } else if (priceChange < -0.0000001) {
+                         changeClass = 'negative';
+                         priceFlashClass = 'price-flash-down'; // Trigger down flash
+                     }
+                 } else if (token.change24hPercent !== null) {
+                     // --- OPTIONAL: Use pre-calculated 24h change if available ---
+                     priceChangePercent = token.change24hPercent;
+                     if (priceChangePercent > 0) changeClass = 'positive';
+                     else if (priceChangePercent < 0) changeClass = 'negative';
+                 } // Else: No change info available
+
+                 const li = document.createElement('div');
+                 li.className = 'token-list-item-explorer';
+                 li.dataset.symbol = token.symbol; // Set symbol for click listener
+
+                 li.innerHTML = `
+                     <div class="token-info-explorer">
+                        <img src="${token.logoUrl}" alt="${token.symbol}" onerror="this.src='https://via.placeholder.com/36/333333/ffffff?text=${token.symbol.substring(0,1)}'; this.onerror=null;">
+                        <div class="token-name-symbol-explorer">
+                            <div class="token-name-explorer">${token.name}</div>
+                            <div class="token-symbol-explorer">${token.symbol}</div>
+                        </div>
+                    </div>
+                    <div class="token-pricing-explorer">
+                        <div class="token-price-explorer ${priceFlashClass}">$${formatCurrency(currentPrice)}</div>
+                        <div class="token-change-explorer ${changeClass}">
+                            ${formatPercentage(priceChangePercent)}
+                        </div>
+                    </div>
+                `;
+                tokenListContainer.appendChild(li);
+            });
+
+             showLoading(false); // Hide loading indicator once list is populated
+
+             // Add click listeners after population (using delegation)
+             attachListClickListeners();
+        }
+
+        // --- Modal Functions ---
+        function showTokenDetailModal(symbol) {
+            const currentInfo = tokenData[symbol];
+             const previousInfo = previousTokenData[symbol]; // Get previous state for this token
+
+            if (!currentInfo) { console.error(`No data found for symbol ${symbol}`); return; }
+
+            console.log(`Showing details for ${symbol}`);
+
+            // Populate Header
+            modalTokenName.querySelector('span').textContent = `${currentInfo.name} (${symbol})`;
+            modalTokenLogo.src = currentInfo.logoUrl;
+            modalTokenLogo.alt = symbol;
+            modalTokenLogo.onerror= function() { this.src=`https://via.placeholder.com/24/333333/ffffff?text=${symbol.substring(0,1)}` };
+
+            // Populate Stats
+            modalTokenPrice.textContent = `$${formatCurrency(currentInfo.priceUSD)}`;
+
+             let changePercent = 0;
+             let changeClass = '';
+             if (previousInfo && previousInfo.priceUSD > 0 && currentInfo.priceUSD !== null) {
+                 const change = currentInfo.priceUSD - previousInfo.priceUSD;
+                 changePercent = (change / previousInfo.priceUSD) * 100;
+                 if (change > 0.0000001) changeClass = 'positive';
+                 else if (change < -0.0000001) changeClass = 'negative';
+            } else if (currentInfo.change24hPercent !== null) {
+                // Fallback to using 24h data if direct comparison fails
+                changePercent = currentInfo.change24hPercent;
+                 if (changePercent > 0) changeClass = 'positive';
+                 else if (changePercent < 0) changeClass = 'negative';
+            }
+            modalTokenChange.textContent = formatPercentage(changePercent);
+            modalTokenChange.className = `stat-value ${changeClass}`; // Apply class to value span
+
+            // Optional: Market Cap (if available in your Firebase data)
+            // modalTokenMarketCap.textContent = currentInfo.marketCap ? `$${formatCurrency(currentInfo.marketCap, 0)}` : '$---';
+
+             // Draw the simplified chart
+             drawSimpleCandlestick(currentInfo, previousInfo); // Pass both current and previous
+
+            // Show Modal
+            modalOverlay.classList.add('active');
+             document.body.style.overflow = 'hidden'; // Prevent background scroll
+        }
+
+        function closeTokenDetailModal() {
+            modalOverlay.classList.remove('active');
+             document.body.style.overflow = ''; // Restore background scroll
+        }
+
+        // --- Simplified Candlestick Drawing ---
+        function drawSimpleCandlestick(current, previous) {
+            candlestickChartContainer.innerHTML = ''; // Clear previous chart
+
+            const currentPrice = current.priceUSD;
+            const prevPrice = previous ? previous.priceUSD : null;
+
+            if (prevPrice === null || currentPrice === null || currentPrice <= 0 || prevPrice <= 0) {
+                 candlestickChartContainer.innerHTML = '<span class="chart-no-data">Not enough data for simple chart.</span>'; return;
+             }
+
+            // Determine Candle Properties (Simplified)
+            const openPrice = prevPrice; // Assume previous price is open
+            const closePrice = currentPrice;
+            const highPrice = Math.max(openPrice, closePrice) * 1.02; // Simulate wick: 2% above higher price
+            const lowPrice = Math.min(openPrice, closePrice) * 0.98;  // Simulate wick: 2% below lower price
+
+             const isPositive = closePrice >= openPrice;
+             const candleClass = isPositive ? 'positive' : 'negative';
+
+            // --- SVG Setup ---
+             const svgNS = "http://www.w3.org/2000/svg";
+             const svg = document.createElementNS(svgNS, "svg");
+             // ViewBox defines the coordinate system. Make range large enough for prices.
+             const priceRange = highPrice - lowPrice;
+            const minY = lowPrice - (priceRange * 0.1); // Add padding
+             const maxY = highPrice + (priceRange * 0.1);
+             const viewHeight = maxY - minY;
+
+            // Adjust viewBox for better rendering (wider horizontally, use calculated vertical range)
+            svg.setAttribute("viewBox", `0 ${minY} 100 ${viewHeight}`); // x=0, y=minY, width=100, height=viewHeight
+            svg.setAttribute("preserveAspectRatio", "xMidYMid meet"); // Center the content
+
+            // --- Draw Elements ---
+            // High-Low Wick (Single line)
+             const wick = document.createElementNS(svgNS, "line");
+             wick.setAttribute("x1", "50"); // Center wick horizontally (x=50 in a 100-wide viewBox)
+             wick.setAttribute("y1", lowPrice);
+             wick.setAttribute("x2", "50");
+             wick.setAttribute("y2", highPrice);
+            wick.setAttribute("class", `wick ${candleClass}`);
+             svg.appendChild(wick);
+
+             // Candle Body (Rectangle)
+             const body = document.createElementNS(svgNS, "rect");
+             body.setAttribute("x", "30"); // Body position and width (relative to viewBox width 100)
+             body.setAttribute("width", "40");
+             body.setAttribute("y", Math.min(openPrice, closePrice)); // Body starts at lower of Open/Close
+             body.setAttribute("height", Math.abs(openPrice - closePrice) || 0.1); // Body height, minimum height if O=C
+            body.setAttribute("class", `candle-body ${candleClass}`);
+             svg.appendChild(body);
+
+
+             candlestickChartContainer.appendChild(svg);
+         }
+
+
+        // --- Event Listener Setup ---
+        function attachListClickListeners() {
+             // Use event delegation on the container
+             if (!listenersAttached) { // Attach delegate listener only once
+                tokenListContainer.addEventListener('click', function(event) {
+                    const listItem = event.target.closest('.token-list-item-explorer');
+                     if (listItem && listItem.dataset.symbol) {
+                        showTokenDetailModal(listItem.dataset.symbol);
+                    }
+                });
+
+                // Modal close listener
+                modalCloseBtn.addEventListener('click', closeTokenDetailModal);
+                 modalOverlay.addEventListener('click', (event) => { if (event.target === modalOverlay) closeTokenDetailModal(); }); // Close on overlay click
+
+                // Optional: Add listeners for sorting/filtering later
+
+                 listenersAttached = true;
+                console.log("Explorer event listeners attached.");
+             }
+         }
+
+        // --- INITIALIZATION ---
+        async function initializeApp() {
+            console.log("--- Initializing Token Explorer ---");
+            showLoading(true, 'Initializing...');
+
+             // Check Placeholders
+             if (firebaseConfig.apiKey === "YOUR_API_KEY") { console.error("CRITICAL: Firebase config needed!"); showLoading(false); return; }
+
+            // 1. Check Telegram Environment
+             if (typeof window.Telegram === 'undefined' || !window.Telegram.WebApp) { console.error("Telegram SDK missing"); showLoading(false); return; }
+            tg = window.Telegram.WebApp;
+
+             try {
+                // 2. Telegram Ready & Theme
+                await new Promise(resolve => tg.ready(resolve));
+                 console.log("Telegram SDK Ready.");
+                 tg.expand();
+                 applyTheme(tg.themeParams); // Apply theme based on Telegram settings
+
+                // 3. Initialize Firebase
+                 await initializeFirebase();
+                if (!db) throw new Error("Database connection failed.");
+
+                // 4. Start Real-time Data Listener
+                 listenForTokenData(); // This will handle loading & initial UI update
+
+                // Event listeners will be attached *after* the first data load within updateTokenExplorerList
+
+                console.log("--- Explorer Initialization Sequence Started ---");
+                 // No need to hide loading here, listenForTokenData -> updateTokenExplorerList handles it
+
+             } catch (error) {
+                console.error("Explorer Initialization Failed:", error);
+                showLoading(false);
+                // Show persistent error message
+                 tokenListContainer.innerHTML = `<p style="color: var(--error-color); text-align: center; padding: 20px;">Initialization failed: ${error.message}. Please reload.</p>`;
+            }
+        }
+
+        // --- Start the app ---
+         document.addEventListener('DOMContentLoaded', initializeApp);
+
+    </script>
+
+</body>
+</html>
