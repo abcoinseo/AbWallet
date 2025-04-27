@@ -7,8 +7,8 @@
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-    <!-- Optional: Include tinycolor for advanced theme consistency -->
-    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/tinycolor/1.6.0/tinycolor.min.js"></script> -->
+    <!-- Using tinycolor for better theme adaptation is recommended but optional -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tinycolor/1.6.0/tinycolor.min.js"></script>
 
     <style>
         :root {
@@ -16,118 +16,135 @@
             --primary-text: #ffffff;
             --secondary-text: #b3b3b3;
             --card-bg: #1e1e1e;
-            --accent-color: #1DB954; /* Typically button color */
-            --button-bg: #1DB954;
+            --accent-color: #1DB954;
+            --button-bg: #1DB954; /* Match accent or specific button color */
             --button-text: #ffffff;
             --input-bg: #282828;
             --border-color: #333333;
-            --error-color: #f44336;   /* Red for down moves */
-            --success-color: #4caf50; /* Green for up moves */
+            --error-color: #f44336;
+            --success-color: #4caf50;
             --hover-bg: rgba(255, 255, 255, 0.05);
             --modal-bg: #2a2a2a;
             --modal-overlay-bg: rgba(0, 0, 0, 0.7);
-            --positive-change-color: var(--success-color);
-            --negative-change-color: var(--error-color);
+            --positive-change-color: var(--success-color); /* Default Green */
+            --negative-change-color: var(--error-color);   /* Default Red */
         }
 
-        /* --- Base Styles (Adapted) --- */
+        /* --- Base Styles --- */
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
-        html, body { height: 100%; }
-        body { background-color: var(--bg-color); color: var(--primary-text); overscroll-behavior: none; display: flex; flex-direction: column; transition: background-color 0.3s, color 0.3s; }
-        .app-container { flex-grow: 1; padding: 20px 15px; /* Consistent padding */ display: flex; flex-direction: column; overflow: hidden; /* Prevent body scroll */ }
+        html, body { height: 100%; overflow: hidden; /* Prevent double scrollbars */}
+        body { background-color: var(--bg-color); color: var(--primary-text); display: flex; flex-direction: column; }
+        .app-container { flex-grow: 1; padding: 20px 15px; display: flex; flex-direction: column; overflow: hidden; /* Contain child scrolling */}
 
-        /* --- Header Area (Title, Search, Sort) --- */
-        .explorer-header { margin-bottom: 15px; flex-shrink: 0; }
-        h1 { font-size: 24px; font-weight: 600; text-align: center; margin-bottom: 20px; color: var(--primary-text); }
-        .controls-container { display: flex; gap: 10px; margin-bottom: 15px; }
+        /* --- Header Area --- */
+        .explorer-header { padding-bottom: 15px; flex-shrink: 0; border-bottom: 1px solid var(--border-color); margin-bottom: 15px;}
+        h1 { font-size: 24px; font-weight: 600; text-align: center; margin-bottom: 15px; color: var(--primary-text); }
+        .controls-container { display: flex; gap: 12px; align-items: center;}
         .search-box {
-            flex-grow: 1;
-            padding: 10px 15px;
-            background-color: var(--input-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            color: var(--primary-text);
-            font-size: 15px;
-            outline: none;
+            flex-grow: 1; padding: 11px 15px; /* Consistent padding */
+            background-color: var(--input-bg); border: 1px solid var(--border-color);
+            border-radius: 20px; /* Pill shape */ color: var(--primary-text); font-size: 15px; outline: none; transition: border-color 0.2s, box-shadow 0.2s;
         }
-        .search-box:focus { border-color: var(--accent-color); box-shadow: 0 0 0 2px rgba(29, 185, 84, 0.2); }
-        .sort-select { /* Use a button that triggers a sort menu/cycle? Or select */
-            padding: 10px 15px;
-            background-color: var(--input-bg);
-            border: 1px solid var(--border-color);
-            color: var(--primary-text);
-            border-radius: 8px;
-            cursor: pointer;
-            appearance: none; /* Remove default arrow */
-             background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23b3b3b3' viewBox='0 0 16 16'%3E%3Cpath fill-rule='evenodd' d='M8 4a.5.5 0 0 1 .5.5v5.793l2.146-2.147a.5.5 0 0 1 .708.708l-3 3a.5.5 0 0 1-.708 0l-3-3a.5.5 0 1 1 .708-.708L7.5 10.293V4.5A.5.5 0 0 1 8 4z'/%3E%3C/svg%3E");
-            background-repeat: no-repeat;
-             background-position: right 10px center;
-            padding-right: 35px; /* Space for arrow */
-            outline: none;
-             min-width: 110px; /* Prevent squishing */
-             text-align: center;
-        }
+        .search-box::placeholder { color: var(--secondary-text); opacity: 0.8; }
+        .search-box:focus { border-color: var(--accent-color); box-shadow: 0 0 0 3px rgba(29, 185, 84, 0.15); }
+        .sort-select {
+             padding: 11px 15px; background-color: var(--input-bg); border: 1px solid var(--border-color); color: var(--primary-text);
+             border-radius: 20px; /* Pill shape */ cursor: pointer; appearance: none;
+             background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' fill='%23b3b3b3' viewBox='0 0 16 16'%3E%3Cpath fill-rule='evenodd' d='M8 4a.5.5 0 0 1 .5.5v5.793l2.146-2.147a.5.5 0 0 1 .708.708l-3 3a.5.5 0 0 1-.708 0l-3-3a.5.5 0 1 1 .708-.708L7.5 10.293V4.5A.5.5 0 0 1 8 4z'/%3E%3C/svg%3E");
+             background-repeat: no-repeat; background-position: right 12px center; padding-right: 38px; outline: none; transition: border-color 0.2s, box-shadow 0.2s; font-size: 14px; min-width: 100px; text-align: left; /* Align text left */
+         }
+        .sort-select:focus { border-color: var(--accent-color); box-shadow: 0 0 0 3px rgba(29, 185, 84, 0.15); }
 
-        /* --- Loading/Error States --- */
-        .status-indicator { text-align: center; padding: 40px 20px; color: var(--secondary-text); display: flex; justify-content: center; align-items: center; min-height: 150px; font-size: 16px;}
+
+        /* --- Status Indicator --- */
+        .status-indicator { text-align: center; padding: 40px 20px; color: var(--secondary-text); display: flex; justify-content: center; align-items: center; flex-direction: column; min-height: 150px; font-size: 16px; }
         .status-indicator.hidden { display: none; }
-        .status-indicator svg { width: 24px; height: 24px; border: 4px solid rgba(255,255,255,0.2); border-radius: 50%; border-top-color: var(--primary-text); animation: spin 1s ease-in-out infinite; margin-right: 12px; }
+        .status-indicator svg { width: 28px; height: 28px; border: 4px solid rgba(255,255,255,0.15); border-radius: 50%; border-top-color: var(--accent-color); animation: spin 1s linear infinite; margin-bottom: 15px; }
         @keyframes spin { to { transform: rotate(360deg); } }
-        .error-message { color: var(--error-color); font-weight: 500; }
+        .error-message { color: var(--error-color); font-weight: 500; font-size: 15px; }
 
-        /* --- Token List Styles --- */
+        /* --- Token List --- */
         .list-scroll-container {
-             flex-grow: 1; /* Take remaining vertical space */
-             overflow-y: auto; /* Enable vertical scrolling ONLY here */
-            -webkit-overflow-scrolling: touch; /* Smooth scroll on iOS */
-            background-color: var(--card-bg);
-            border-radius: 12px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-        }
-        #tokenListContainer { /* This is now INSIDE scroll container */
-             padding: 5px 0;
-        }
+             flex-grow: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;
+             /* Optional: subtle gradient fade at top/bottom */
+              /* mask-image: linear-gradient(to bottom, transparent 0%, black 10px, black calc(100% - 10px), transparent 100%); */
+         }
+        #tokenListContainer { /* Inner container */ }
         .token-list-item-explorer {
             display: flex; align-items: center; justify-content: space-between;
-            padding: 12px 20px; border-bottom: 1px solid var(--border-color);
-            cursor: pointer; transition: background-color 0.15s ease;
+            padding: 10px 15px; /* Slightly less padding */ border-bottom: 1px solid var(--border-color);
+            cursor: pointer; transition: background-color 0.15s ease, transform 0.1s ease;
         }
         .token-list-item-explorer:last-child { border-bottom: none; }
         .token-list-item-explorer:hover { background-color: var(--hover-bg); }
+        .token-list-item-explorer:active { transform: scale(0.99); /* Subtle press effect */}
         .token-list-item-explorer.hidden { display: none; } /* For filtering */
 
-        .token-info-explorer { display: flex; align-items: center; gap: 15px; flex-shrink: 0; overflow: hidden; /* Prevent long names pushing content */ }
-        .token-info-explorer img { width: 36px; height: 36px; border-radius: 50%; background-color: #333; border: 1px solid var(--border-color); flex-shrink: 0; }
-        .token-name-symbol-explorer { line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .token-name-explorer { font-weight: 600; color: var(--primary-text); font-size: 15px; text-overflow: ellipsis; white-space: nowrap; overflow: hidden;}
-        .token-symbol-explorer { font-size: 13px; color: var(--secondary-text); text-transform: uppercase; }
+        .token-info-explorer { display: flex; align-items: center; gap: 12px; flex-shrink: 1; min-width: 0; /* Allow shrinking */ }
+        .token-info-explorer img { width: 34px; height: 34px; border-radius: 50%; background-color: var(--input-bg); border: 1px solid var(--border-color); flex-shrink: 0; object-fit: contain; }
+        .token-name-symbol-explorer { line-height: 1.35; overflow: hidden; }
+        .token-name-explorer { font-weight: 500; color: var(--primary-text); font-size: 15px; text-overflow: ellipsis; white-space: nowrap; overflow: hidden;}
+        .token-symbol-explorer { font-size: 12px; color: var(--secondary-text); text-transform: uppercase; }
 
-        .token-pricing-explorer { text-align: right; flex-shrink: 0; min-width: 90px; /* Prevent wrapping */}
-        .token-price-explorer { font-weight: 600; color: var(--primary-text); font-size: 15px; margin-bottom: 3px; transition: color 0.3s ease; }
+        .token-pricing-explorer { text-align: right; flex-shrink: 0; min-width: 85px; padding-left: 10px;}
+        .token-price-explorer { font-weight: 500; color: var(--primary-text); font-size: 14px; margin-bottom: 3px; transition: color 0.3s ease, transform 0.2s ease; }
         .token-change-explorer {
-            font-size: 13px; font-weight: 500;
-            color: var(--secondary-text); /* Default/Neutral color */
-            transition: color 0.3s ease; padding: 2px 5px; border-radius: 4px;
+            font-size: 12px; font-weight: 500;
+            color: var(--secondary-text); display: inline-block; /* Prevents jump on color change */
+            transition: color 0.3s ease, background-color 0.3s ease; padding: 1px 5px; border-radius: 4px;
         }
-        .token-change-explorer.positive { color: var(--positive-change-color); }
-        .token-change-explorer.negative { color: var(--negative-change-color); }
+        .token-change-explorer.positive { color: var(--positive-change-color); background-color: rgba(76, 175, 80, 0.1); }
+        .token-change-explorer.negative { color: var(--negative-change-color); background-color: rgba(244, 67, 54, 0.1); }
 
-         /* Flash effect (can be less intrusive) */
-         @keyframes price-change-flash { 0% { opacity: 0.5; } 100% { opacity: 1; } }
-         .price-flash { animation: price-change-flash 0.5s ease-out; }
+        /* Price flash effect - use transform for smoother visual */
+         @keyframes price-up-effect { 0% { transform: translateY(2px); color: var(--positive-change-color); } 50% { transform: translateY(-1px); } 100% { transform: translateY(0); color: var(--primary-text);} }
+         @keyframes price-down-effect { 0% { transform: translateY(2px); color: var(--negative-change-color); } 50% { transform: translateY(-1px); } 100% { transform: translateY(0); color: var(--primary-text);} }
+         .price-flash-up { animation: price-up-effect 0.6s ease-out; }
+         .price-flash-down { animation: price-down-effect 0.6s ease-out; }
 
+        /* --- Token Detail Modal --- */
+         .modal-overlay {
+             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+             background-color: var(--modal-overlay-bg); display: flex;
+             justify-content: center; align-items: center; /* Center vertically and horizontally */
+             z-index: 1100; opacity: 0; visibility: hidden; backdrop-filter: blur(3px);
+             transition: opacity 0.25s ease, visibility 0s linear 0.25s;
+         }
+         .modal-overlay.active { opacity: 1; visibility: visible; transition: opacity 0.25s ease; }
 
-        /* --- Token Detail Modal Styles (Mostly Unchanged) --- */
-        .modal-overlay { /* ... keep existing styles ... */ }
-        .token-detail-modal { /* ... keep existing styles ... */ }
-        .modal-header { /* ... keep existing styles ... */ }
-        .modal-content { /* ... keep existing styles ... */ }
-        .token-stats { /* ... keep existing styles ... */ }
-        .stat-item { /* ... keep existing styles ... */ }
-        .stat-label { /* ... keep existing styles ... */ }
-        .stat-value { /* ... keep existing styles ... */ }
-        #candlestickChart { /* ... keep existing styles ... */ }
-        .candle-body, .wick, .chart-no-data { /* ... keep existing styles ... */ }
+         .token-detail-modal {
+             background-color: var(--modal-bg); width: 92%; max-width: 420px; border-radius: 14px;
+             box-shadow: 0 8px 25px rgba(0,0,0,0.4); display: flex; flex-direction: column;
+             transform: translateY(15px) scale(0.98); /* Start slightly offset */ transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.2s ease-out;
+             max-height: 80vh; overflow: hidden; opacity: 0;
+         }
+        .modal-overlay.active .token-detail-modal { transform: translateY(0) scale(1); opacity: 1; }
+
+        .modal-header { padding: 15px 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;}
+        .modal-header h3 { margin: 0; font-size: 17px; font-weight: 600; display: flex; align-items: center; gap: 10px; }
+        .modal-header img { width: 26px; height: 26px; border-radius: 50%; background-color: var(--input-bg); }
+        .modal-close-button { background: none; border: none; color: var(--secondary-text); font-size: 26px; cursor: pointer; line-height: 1; padding: 0 5px; transition: color 0.2s;}
+        .modal-close-button:hover { color: var(--primary-text); }
+
+         .modal-content { padding: 20px; overflow-y: auto; flex-grow: 1; }
+        .token-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 18px; margin-bottom: 25px; } /* Responsive columns */
+         .stat-item { }
+         .stat-label { font-size: 12px; color: var(--secondary-text); margin-bottom: 4px; display: block; text-transform: uppercase; opacity: 0.9;}
+         .stat-value { font-size: 16px; font-weight: 600; color: var(--primary-text); word-break: break-word; } /* Allow long numbers to break */
+         .stat-value.positive { color: var(--positive-change-color); }
+         .stat-value.negative { color: var(--negative-change-color); }
+
+         #candlestickChart {
+             width: 100%; min-height: 130px; /* Slightly smaller */
+             background-color: rgba(0,0,0,0.1); border-radius: 8px;
+             padding: 10px 5px; /* Reduced padding */ display: flex; justify-content: center; align-items: center;
+         }
+         #candlestickChart svg { width: 60%; max-width: 80px; height: 110px; /* Adjusted size */ }
+         .candle-body { stroke: none; }
+         .wick { stroke-linecap: round; }
+         .candle-body.positive, .wick.positive { fill: var(--positive-change-color); stroke: var(--positive-change-color); }
+         .candle-body.negative, .wick.negative { fill: var(--negative-change-color); stroke: var(--negative-change-color); }
+         .chart-no-data { font-size: 13px; color: var(--secondary-text); text-align: center; }
 
 
     </style>
@@ -139,37 +156,37 @@
         <div class="explorer-header">
             <h1>Token Explorer</h1>
             <div class="controls-container">
-                <input type="search" id="searchBox" class="search-box" placeholder="Search name or symbol...">
-                <select id="sortSelect" class="sort-select">
+                <input type="search" id="searchBox" class="search-box" placeholder="Search name or symbol..." autocomplete="off">
+                <select id="sortSelect" class="sort-select" aria-label="Sort Tokens">
                     <option value="name_asc">Name A-Z</option>
                     <option value="name_desc">Name Z-A</option>
                     <option value="price_desc">Price High-Low</option>
                     <option value="price_asc">Price Low-High</option>
                     <option value="change_desc">Change High-Low</option>
                     <option value="change_asc">Change Low-High</option>
-                </select>
+                    <!-- Could add Sort by Added Time if data available -->
+                     <!-- <option value="added_desc">Newest</option> -->
+                 </select>
             </div>
         </div>
 
-        <!-- Status Indicator (Loading/Error) -->
+        <!-- Status Indicator -->
         <div id="statusIndicator" class="status-indicator">
-             <svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid"><circle cx="50" cy="50" r="32" stroke-width="8" stroke="var(--accent-color)" stroke-dasharray="50.26548245743669 50.26548245743669" fill="none" stroke-linecap="round"><animateTransform attributeName="transform" type="rotate" repeatCount="indefinite" dur="1s" keyTimes="0;1" values="0 50 50;360 50 50"></animateTransform></circle></svg>
-            <span>Loading Tokens...</span>
+             <svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="32" stroke-width="8" stroke="currentColor" stroke-dasharray="50.26548245743669 50.26548245743669" fill="none" stroke-linecap="round"><animateTransform attributeName="transform" type="rotate" repeatCount="indefinite" dur="1s" keyTimes="0;1" values="0 50 50;360 50 50"></animateTransform></circle></svg>
+             <span>Initializing...</span>
         </div>
 
-        <!-- Token List Scroll Container -->
-        <div class="list-scroll-container" id="listScrollContainer">
+        <!-- Token List Scrollable Area -->
+        <div class="list-scroll-container" id="listScrollContainer" style="display: none;"> <!-- Initially hidden -->
              <div id="tokenListContainer">
-                <!-- Token items populated by JS -->
-            </div>
+                 <!-- Token items generated here -->
+             </div>
          </div>
-
 
     </div>
 
-    <!-- Token Detail Modal (HTML unchanged) -->
+    <!-- Token Detail Modal (HTML structure is okay) -->
     <div id="tokenDetailModalOverlay" class="modal-overlay">
-         <!-- ... modal HTML structure ... -->
         <div id="tokenDetailModal" class="token-detail-modal">
             <div class="modal-header">
                 <h3 id="modalTokenName"><img id="modalTokenLogo" src="" alt=""> <span>Token Details</span></h3>
@@ -185,38 +202,40 @@
                         <span class="stat-label">Change (Recent)</span>
                         <span class="stat-value" id="modalTokenChange">0.00%</span>
                     </div>
-                     <!-- Optional: <div class="stat-item"><span class="stat-label">Market Cap</span><span class="stat-value" id="modalTokenMarketCap">$---</span></div> -->
                  </div>
-                 <h4>Simplified Price Movement</h4>
+                 <h4 style="font-size: 14px; color: var(--secondary-text); margin: 20px 0 10px 0; font-weight: 500;">Recent Movement</h4>
                 <div id="candlestickChart">
                      <span class="chart-no-data">Price history needed for chart.</span>
                  </div>
-                 <p style="font-size: 11px; text-align: center; color: var(--secondary-text); margin-top: 10px;">Note: Chart shows a simplified view based on recent price change.</p>
+                 <p style="font-size: 10px; text-align: center; color: var(--secondary-text); margin-top: 8px; opacity: 0.7;">Note: Chart shows a simplified view of the last price change.</p>
             </div>
         </div>
     </div>
 
     <script>
-        // --- Firebase Config (REPLACE WITH YOURS!) ---
-       const firebaseConfig = {
-  apiKey: "AIzaSyBW1WPXUN8DYhT6npZQYoQ3l4J-jFSbzfg",
-  authDomain: "ab-studio-marketcap.firebaseapp.com",
-  databaseURL: "https://ab-studio-marketcap-default-rtdb.firebaseio.com",
-  projectId: "ab-studio-marketcap",
-  storageBucket: "ab-studio-marketcap.firebasestorage.app",
-  messagingSenderId: "115268088088",
-  appId: "1:115268088088:web:65643a047f92bfaa66ee6d"
-};
+        // --- Firebase Config (Using YOUR Provided Config) ---
+        const firebaseConfig = {
+             apiKey: "AIzaSyBW1WPXUN8DYhT6npZQYoQ3l4J-jFSbzfg",
+             authDomain: "ab-studio-marketcap.firebaseapp.com",
+             databaseURL: "https://ab-studio-marketcap-default-rtdb.firebaseio.com",
+             projectId: "ab-studio-marketcap",
+              // Corrected storageBucket URL format
+             storageBucket: "ab-studio-marketcap.appspot.com",
+             messagingSenderId: "115268088088",
+             appId: "1:115268088088:web:65643a047f92bfaa66ee6d"
+        };
+
         // --- Global State ---
         let db = null;
-        let tokenData = {};         // Current token data { symbol: { name, priceUSD, logoUrl, ..., _change?: number, _isPositive?: boolean } } - adding derived state
-        let previousTokenData = {}; // Stores the data from the *last* firebase update for comparison
+        let tokenData = {};         // Current processed token data + derived state
+        let previousTokenData = {}; // Store previous state for comparisons
         let firebaseInitialized = false;
         let listenersAttached = false;
         let tg = null;
-        let currentSort = 'name_asc';    // Default sort
-        let currentSearchTerm = '';      // Default search
-        let tokenListItemsCache = {};    // Cache DOM elements for faster updates: { symbol: element }
+        let currentSort = 'name_asc';
+        let currentSearchTerm = '';
+        let tokenListItemsCache = {}; // { symbol: { element: DOMNode, currentPrice: number, currentChange: number, currentSign: boolean|null } }
+        let searchDebounceTimeout = null; // For debouncing search input
 
         // --- DOM Elements ---
         const statusIndicator = document.getElementById('statusIndicator');
@@ -224,7 +243,6 @@
         const tokenListContainer = document.getElementById('tokenListContainer');
         const searchBox = document.getElementById('searchBox');
         const sortSelect = document.getElementById('sortSelect');
-        // Modal elements (assuming IDs are correct)
         const modalOverlay = document.getElementById('tokenDetailModalOverlay');
         const modal = document.getElementById('tokenDetailModal');
         const modalCloseBtn = document.getElementById('modalCloseBtn');
@@ -234,303 +252,306 @@
         const modalTokenChange = document.getElementById('modalTokenChange');
         const candlestickChartContainer = document.getElementById('candlestickChart');
 
+        // --- Tinycolor Instance ---
+        // Ensure tinycolor is available or provide a robust fallback if the script fails
+        const tc = window.tinycolor || function(color){ return { isDark:()=>true, lighten:()=>color, darken:()=>color, setAlpha:()=>color, toString:()=>color} };
+
         // --- Utility Functions ---
-        function setStatus(type, message) { // 'loading', 'error', 'hidden'
-            if (!statusIndicator) return;
-            const svgIcon = statusIndicator.querySelector('svg');
-            const spanText = statusIndicator.querySelector('span');
+        function setStatus(type, message) {
+             if (!statusIndicator) return;
+             const svgIcon = statusIndicator.querySelector('svg');
+             const spanText = statusIndicator.querySelector('span');
 
             if (type === 'hidden') {
                  statusIndicator.classList.add('hidden');
-                 listScrollContainer.style.display = 'block'; // Show list when hidden
+                 if(listScrollContainer) listScrollContainer.style.display = 'block'; // Show list when indicator is hidden
                  return;
              }
 
             statusIndicator.classList.remove('hidden');
-             listScrollContainer.style.display = 'none'; // Hide list container when showing status
-             spanText.textContent = message;
-             spanText.classList.remove('error-message');
-             svgIcon.style.display = 'none';
+             if(listScrollContainer) listScrollContainer.style.display = 'none'; // Hide list container when showing status
+             if(spanText) spanText.textContent = message;
+             if(spanText) spanText.classList.remove('error-message');
+             if(svgIcon) svgIcon.style.display = 'none';
 
             if (type === 'loading') {
-                 svgIcon.style.display = 'inline-block';
+                if(svgIcon) svgIcon.style.display = 'block';
              } else if (type === 'error') {
-                 spanText.classList.add('error-message');
+                 if(spanText) spanText.classList.add('error-message');
              }
          }
-         function formatCurrency(amount, decimals = 2) { /* ... keep existing improved version ... */ const num = parseFloat(amount); if (isNaN(num)) return '0.00'; const effectiveDecimals = (num > 0 && num < 0.01) ? 6 : (num > 0 && num < 1) ? 4 : decimals; return num.toLocaleString(undefined, { minimumFractionDigits: effectiveDecimals, maximumFractionDigits: effectiveDecimals }); }
-        function formatPercentage(change) { /* ... keep existing ... */ const num = parseFloat(change); return isNaN(num) ? '0.00%' : `${num >= 0 ? '+' : ''}${num.toFixed(2)}%`; }
-         const applyTheme = (params) => { /* ... keep existing comprehensive version ... */ if (!params) return; const root = document.documentElement; const setProp = (prop, value) => root.style.setProperty(prop, value); try {const bgColor=params.bg_color||'#121212';const textColor=params.text_color||'#ffffff';const hintColor=params.hint_color||'#b3b3b3';const buttonColor=params.button_color||'#1DB954';const secondaryBgColor=params.secondary_bg_color||'#1e1e1e'; /* Assume tinycolor exists or use fallback */ const t_bgColor=tinycolor(bgColor);const t_textColor=tinycolor(textColor);const t_secondaryBgColor=tinycolor(secondaryBgColor); setProp('--bg-color',bgColor);setProp('--primary-text',textColor);setProp('--secondary-text',hintColor);setProp('--accent-color',buttonColor);setProp('--button-bg',buttonColor);setProp('--card-bg',secondaryBgColor);setProp('--input-bg',t_secondaryBgColor.darken(5).toString()); setProp('--border-color',t_secondaryBgColor.lighten(10).toString());setProp('--hover-bg',t_textColor.setAlpha(0.05).toString());setProp('--error-color','#f44336');setProp('--success-color','#4caf50');setProp('--positive-change-color',t_bgColor.isDark()?'#4caf50':'#2e7d32');setProp('--negative-change-color',t_bgColor.isDark()?'#f44336':'#c62828');setProp('--modal-bg',t_secondaryBgColor.lighten(3).toString());setProp('--modal-overlay-bg',t_bgColor.setAlpha(0.7).toString());document.body.style.backgroundColor=bgColor;document.body.style.color=textColor;if(tg&&tg.setHeaderColor)try{tg.setHeaderColor(secondaryBgColor);}catch(e){} if(tg&&tg.setBackgroundColor)try{tg.setBackgroundColor(bgColor);}catch(e){}}catch(e){console.error("Theme err",e)} };
+        function formatCurrency(amount, decimals = 2) { const num = parseFloat(amount); if (isNaN(num)) return 'N/A'; const effectiveDecimals = (num > 0 && num < 0.0001) ? 8 : (num > 0 && num < 0.01) ? 6 : (num > 0 && num < 1) ? 4 : decimals; return num.toLocaleString(undefined, { minimumFractionDigits: effectiveDecimals, maximumFractionDigits: effectiveDecimals }); }
+        function formatPercentage(change) { const num = parseFloat(change); return isNaN(num) ? '--' : `${num > 1e-6 ? '+' : ''}${num.toFixed(2)}%`; } /* Handle tiny positive changes */
+         function applyTheme(params) { if (!params) return; const root=document.documentElement; const setProp=(prop, value) => root.style.setProperty(prop, value); try { const bgColor = params.bg_color || '#121212'; const textColor = params.text_color || '#ffffff'; const hintColor = params.hint_color || '#b3b3b3'; const buttonColor = params.button_color || '#1DB954'; const secondaryBgColor = params.secondary_bg_color || '#1e1e1e'; const t_bgColor=tc(bgColor); const t_textColor=tc(textColor); const t_secondaryBgColor=tc(secondaryBgColor); setProp('--bg-color',bgColor);setProp('--primary-text',textColor);setProp('--secondary-text',hintColor);setProp('--accent-color',buttonColor);setProp('--button-bg',buttonColor);setProp('--card-bg',secondaryBgColor);setProp('--input-bg',t_secondaryBgColor.darken(5).toString()); setProp('--border-color',t_bgColor.isDark() ? t_secondaryBgColor.lighten(5).toString() : t_secondaryBgColor.darken(5).toString()); setProp('--hover-bg',t_textColor.setAlpha(0.05).toString());setProp('--error-color','#f44336');setProp('--success-color','#4caf50');setProp('--positive-change-color',t_bgColor.isDark()?'#4caf50':'#2e7d32');setProp('--negative-change-color',t_bgColor.isDark()?'#f44336':'#c62828');setProp('--modal-bg',t_secondaryBgColor.lighten(t_bgColor.isDark()?3:-3).toString()); setProp('--modal-overlay-bg',t_bgColor.setAlpha(0.6).toString());document.body.style.backgroundColor=bgColor; document.body.style.color=textColor; if(tg&&tg.setHeaderColor)try{tg.setHeaderColor(secondaryBgColor);}catch(e){} if(tg&&tg.setBackgroundColor)try{tg.setBackgroundColor(bgColor);}catch(e){}}catch(e){console.error("Theme apply error", e)}}
 
 
         // --- Firebase Functions ---
-        function initializeFirebase() { /* ... keep existing identical version ... */ return new Promise((resolve, reject) => { if (firebaseInitialized) { resolve(); return; } try { if (typeof firebase === 'undefined') { throw new Error("Firebase SDK not loaded"); } if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); console.log("Firebase Initialized"); } else { firebase.app(); console.log("Firebase Re-using existing app instance."); } db = firebase.database(); firebaseInitialized = true; resolve(); } catch (error) { console.error("Firebase Init Error:", error); setStatus('error', `DB Init failed: ${error.message}`); reject(error); } }); }
+        function initializeFirebase() { return new Promise((resolve, reject) => { if(firebaseInitialized){resolve(); return;} try { if (typeof firebase === 'undefined') throw new Error("Firebase SDK not loaded"); if(!firebase.apps.length) {firebase.initializeApp(firebaseConfig);} else {firebase.app();} db = firebase.database(); firebaseInitialized = true; console.log("Firebase Initialized Successfully."); resolve(); } catch (error) { console.error("Firebase Init Error:", error); setStatus('error', `Database connection failed. Please check console.`); reject(error); } }); }
 
-        // --- Real-time Listener for Token Data ---
+        // --- Real-time Listener & Data Processing ---
         function listenForTokenData() {
-            if (!db) { setStatus('error', "Database not initialized."); return; }
+            if (!db) { setStatus('error', "Database not ready."); return; }
             const tokensRef = db.ref('tokens');
-             console.log("Setting up Firebase listener: /tokens");
+            console.log("Attaching Firebase listener: /tokens");
+            let isFirstLoad = true; // Flag to handle initial status better
 
             tokensRef.on('value', (snapshot) => {
                 const newTokensRaw = snapshot.val() || {};
-                 // console.log(`Received raw data: ${Object.keys(newTokensRaw).length} tokens`);
+                 const currentTokenData = {}; // Build the new state for this cycle
 
-                 const newTokensProcessed = {};
-                // Pre-process data and calculate change vs previous state
+                 // Process Raw Data & Calculate Change
                 for (const symbol in newTokensRaw) {
-                     if (typeof newTokensRaw[symbol] === 'object' && newTokensRaw[symbol] !== null && newTokensRaw[symbol].priceUSD != null) {
-                         const currentPrice = parseFloat(newTokensRaw[symbol].priceUSD);
-                         if (isNaN(currentPrice) || currentPrice < 0) continue; // Skip invalid prices
+                    try {
+                         const rawData = newTokensRaw[symbol];
+                         if (typeof rawData !== 'object' || rawData === null || rawData.priceUSD == null) {
+                              // console.warn(`Skipping incomplete data for ${symbol}`);
+                              continue;
+                         }
+                         const currentPrice = parseFloat(rawData.priceUSD);
+                          if (isNaN(currentPrice) || currentPrice < 0) {
+                              // console.warn(`Skipping invalid price for ${symbol}: ${rawData.priceUSD}`);
+                             continue;
+                          }
 
-                         const prevInfo = tokenData[symbol]; // Use current global state as previous for comparison
+                         const prevInfo = tokenData[symbol]; // Compare against the *global state* from the previous cycle
                          const prevPrice = prevInfo ? prevInfo.priceUSD : null;
                          let changePercent = 0;
-                         let isPositive = null; // null = neutral/no change
+                         let isPositive = null;
+                         let priceChanged = false;
 
-                         if (prevPrice !== null && prevPrice > 0 && currentPrice !== null) {
-                             const priceChange = currentPrice - prevPrice;
-                             if (Math.abs(priceChange) > 1e-9) { // Avoid division by zero and check significant change
-                                 changePercent = (priceChange / prevPrice) * 100;
-                                if (priceChange > 1e-9) isPositive = true;
-                                 else if (priceChange < -1e-9) isPositive = false;
-                             }
-                         }
+                          if (prevPrice !== null && prevPrice > 0 && Math.abs(currentPrice - prevPrice) > 1e-9) {
+                              priceChanged = true;
+                              const priceDiff = currentPrice - prevPrice;
+                             changePercent = (priceDiff / prevPrice) * 100;
+                             isPositive = priceDiff > 1e-9; // true=positive, false=negative
+                          }
 
-                        newTokensProcessed[symbol] = {
-                            name: newTokensRaw[symbol].name || symbol,
-                            priceUSD: currentPrice,
-                            logoUrl: newTokensRaw[symbol].logoUrl || `https://via.placeholder.com/36/333333/ffffff?text=${symbol.substring(0,1)}`,
-                             addedAt: newTokensRaw[symbol].addedAt, // Include addedAt if available
-                             // Store calculated change *in* the token data object for easy access during sorting/rendering
-                            _changePercent: changePercent, // Derived state
-                            _isPositive: isPositive      // Derived state
-                        };
-                    }
-                }
-                 if (newTokensProcessed.USDT) newTokensProcessed.USDT.priceUSD = 1.00; // Force USDT
+                         currentTokenData[symbol] = {
+                            name: rawData.name || symbol,
+                             priceUSD: currentPrice,
+                             logoUrl: rawData.logoUrl || `https://via.placeholder.com/36/333333/ffffff?text=${symbol.substring(0,1)}`,
+                            addedAt: rawData.addedAt,
+                             // Derived state for UI
+                             _changePercent: changePercent,
+                            _isPositive: isPositive,
+                            _priceChanged: priceChanged // Flag if price specifically changed in this update
+                         };
+                    } catch (e) {
+                        console.error(`Error processing token ${symbol}:`, e, newTokensRaw[symbol]);
+                     }
+                 }
 
-                 // Update global state
-                 previousTokenData = { ...tokenData }; // Keep previous raw prices if needed elsewhere, though derived state is now in tokenData
-                 tokenData = newTokensProcessed;
+                 // Force USDT Price (essential)
+                 if (currentTokenData.USDT) currentTokenData.USDT.priceUSD = 1.00;
 
-                // Update UI (sort, filter, render)
-                updateTokenExplorerList();
+                 // Update Global State AFTER processing is complete
+                 // Store the state that was just processed (which is now the "previous" for the *next* run)
+                 previousTokenData = { ...tokenData }; // Store the state that was *previously* global
+                 tokenData = currentTokenData;          // Set the *newly processed* data as the current global state
+
+                // Handle Initial Load Status
+                 if (isFirstLoad) {
+                     console.log(`Initial token data load complete (${Object.keys(tokenData).length} tokens).`);
+                     if (Object.keys(tokenData).length === 0) {
+                         setStatus('error', 'No token data found in database.');
+                     } else {
+                         setStatus('hidden'); // Hide status only after successful first load with data
+                         listScrollContainer.style.display = 'block'; // Explicitly show list container
+                     }
+                     isFirstLoad = false;
+                 }
+
+                // Update UI - Render the list based on the new global `tokenData`
+                 updateTokenExplorerList();
 
              }, (error) => {
-                console.error("Firebase Listener Error:", error);
-                setStatus('error', `DB connection error: ${error.message}`);
-                // Potentially clear list or show stale data message
+                 console.error("Firebase Listener Error:", error);
+                 setStatus('error', `Real-time connection failed: ${error.message}`);
+                 isFirstLoad = false; // Don't stay stuck in loading if listener fails
              });
-        }
+         }
 
-
-        // --- Core UI Update/Render Function ---
+        // --- Core UI Update/Render Function (Optimized) ---
         function updateTokenExplorerList() {
-             if (!tokenListContainer || typeof tokenData !== 'object') return;
-             // console.log(`Updating list. Sort: ${currentSort}, Filter: '${currentSearchTerm}'`); // Debug
-
-             setStatus('hidden'); // Hide loading/error when updating list
+            if (!tokenListContainer || !listScrollContainer || typeof tokenData !== 'object') {
+                console.warn("List update skipped - container or data not ready.");
+                return;
+             }
 
              const searchTermLower = currentSearchTerm.toLowerCase();
 
-             // 1. Filter Data
-             const filteredTokens = Object.entries(tokenData)
-                 .map(([symbol, data]) => ({ symbol, ...data })) // Convert to array
-                 .filter(token => {
-                     if (!token.name || token.priceUSD == null) return false; // Ensure basic data exists
-                     if (!searchTermLower) return true; // No filter applied
-                     return token.symbol.toLowerCase().includes(searchTermLower) ||
-                            token.name.toLowerCase().includes(searchTermLower);
+            // 1. Filter Data
+            const filteredTokens = Object.entries(tokenData)
+                .map(([symbol, data]) => ({ symbol, ...data }))
+                .filter(token => {
+                    if (!token.name || token.priceUSD == null) return false;
+                    if (!searchTermLower) return true;
+                    return token.symbol.toLowerCase().includes(searchTermLower) || token.name.toLowerCase().includes(searchTermLower);
                  });
 
              // 2. Sort Data
-            filteredTokens.sort((a, b) => {
-                switch (currentSort) {
-                     case 'name_asc': return (a.name || a.symbol).localeCompare(b.name || b.symbol);
-                    case 'name_desc': return (b.name || b.symbol).localeCompare(a.name || a.symbol);
-                     case 'price_asc': return (a.priceUSD || 0) - (b.priceUSD || 0);
-                    case 'price_desc': return (b.priceUSD || 0) - (a.priceUSD || 0);
-                     case 'change_asc': return (a._changePercent || 0) - (b._changePercent || 0);
-                    case 'change_desc': return (b._changePercent || 0) - (a._changePercent || 0);
-                    default: return 0;
-                 }
-            });
+             filteredTokens.sort((a, b) => { /* ... Keep existing sort logic ... */ switch (currentSort) { case 'name_asc': return (a.name || a.symbol).localeCompare(b.name || b.symbol); case 'name_desc': return (b.name || b.symbol).localeCompare(a.name || a.symbol); case 'price_asc': return (a.priceUSD || 0) - (b.priceUSD || 0); case 'price_desc': return (b.priceUSD || 0) - (a.priceUSD || 0); case 'change_asc': return (a._changePercent || 0) - (b._changePercent || 0); case 'change_desc': return (b._changePercent || 0) - (a._changePercent || 0); default: return 0; } });
 
-             // 3. Efficiently Render/Update DOM
-             const fragment = document.createDocumentFragment();
-             const existingSymbols = new Set(Object.keys(tokenListItemsCache));
-             const currentSymbols = new Set();
+            // 3. Efficient DOM Rendering
+            const fragment = document.createDocumentFragment();
+            const currentlyDisplayedSymbols = new Set(); // Track symbols that should be visible *now*
+             let listIsEmpty = true;
 
-             if (filteredTokens.length === 0) {
-                 tokenListContainer.innerHTML = `<p style='color: var(--secondary-text); text-align: center; padding: 30px;'>No tokens match your criteria.</p>`;
-                tokenListItemsCache = {}; // Clear cache if list is empty
-                 return;
-             }
+            if (filteredTokens.length > 0) {
+                listIsEmpty = false;
+                 filteredTokens.forEach(token => {
+                     const symbol = token.symbol;
+                     currentlyDisplayedSymbols.add(symbol);
+                     const changePercent = token._changePercent;
+                     const isPositive = token._isPositive;
+                     const priceChanged = token._priceChanged; // Did price change *this cycle*?
 
-            filteredTokens.forEach(token => {
-                const symbol = token.symbol;
-                 currentSymbols.add(symbol);
-                 const currentPrice = token.priceUSD;
-                 const changePercent = token._changePercent;
-                 const isPositive = token._isPositive;
+                    let cacheEntry = tokenListItemsCache[symbol];
+                     let listItemElement;
 
-                 let listItem = tokenListItemsCache[symbol];
-                 let priceFlashClass = '';
-
-                // Check if price actually changed compared to previous *rendered* state if element exists
-                if(listItem) {
-                    const oldPriceText = listItem.querySelector('.token-price-explorer')?.textContent;
-                     if (oldPriceText && oldPriceText !== `$${formatCurrency(currentPrice)}`) {
-                        priceFlashClass = 'price-flash'; // Trigger flash if text content changed
-                    }
-                }
-
-
-                 if (!listItem) {
-                     // --- Create New List Item ---
-                     listItem = document.createElement('div');
-                     listItem.className = 'token-list-item-explorer';
-                     listItem.dataset.symbol = symbol;
-
-                    listItem.innerHTML = `
-                        <div class="token-info-explorer">
-                            <img src="${token.logoUrl}" alt="${symbol}" class="token-logo" onerror="this.src='https://via.placeholder.com/36/333333/ffffff?text=${symbol.substring(0,1)}'; this.onerror=null;">
-                            <div class="token-name-symbol-explorer">
-                                <div class="token-name-explorer">${token.name}</div>
-                                <div class="token-symbol-explorer">${symbol}</div>
+                    if (!cacheEntry) {
+                         // --- Create Element ---
+                         listItemElement = document.createElement('div');
+                         listItemElement.className = 'token-list-item-explorer';
+                         listItemElement.dataset.symbol = symbol;
+                         listItemElement.innerHTML = `
+                            <div class="token-info-explorer">
+                                <img src="${token.logoUrl}" alt="${symbol}" class="token-logo" onerror="this.src='https://via.placeholder.com/36/333333/ffffff?text=${symbol.substring(0,1)}'; this.onerror=null;">
+                                <div class="token-name-symbol-explorer">
+                                    <div class="token-name-explorer">${token.name}</div>
+                                    <div class="token-symbol-explorer">${symbol}</div>
+                                </div>
                             </div>
-                        </div>
-                        <div class="token-pricing-explorer">
-                             <div class="token-price-explorer">${formatCurrency(currentPrice)}</div>
-                             <div class="token-change-explorer">${formatPercentage(changePercent)}</div>
-                        </div>
-                    `;
-                    listItem.addEventListener('click', () => showTokenDetailModal(symbol));
-                    tokenListItemsCache[symbol] = listItem;
+                            <div class="token-pricing-explorer">
+                                <div class="token-price-explorer">${'$' + formatCurrency(token.priceUSD)}</div>
+                                <div class="token-change-explorer ${isPositive === true ? 'positive' : isPositive === false ? 'negative' : ''}">${formatPercentage(changePercent)}</div>
+                            </div>`;
+                        listItemElement.addEventListener('click', () => showTokenDetailModal(symbol)); // Add listener on creation
+                        tokenListItemsCache[symbol] = { element: listItemElement, data: token }; // Store ref and initial data
+                     } else {
+                         // --- Update Existing Element ---
+                         listItemElement = cacheEntry.element;
+                         const cachedData = cacheEntry.data;
 
-                 } else {
-                      // --- Update Existing List Item (More Efficient) ---
-                     // Update Price
-                      const priceEl = listItem.querySelector('.token-price-explorer');
-                      if (priceEl) priceEl.textContent = `$${formatCurrency(currentPrice)}`;
+                        // Update elements only if data *actually* changed
+                         if (cachedData.priceUSD !== token.priceUSD) {
+                            listItemElement.querySelector('.token-price-explorer').textContent = '$' + formatCurrency(token.priceUSD);
+                             // Apply flash effect only if price changed THIS cycle
+                             const priceEl = listItemElement.querySelector('.token-price-explorer');
+                             if (priceEl && priceChanged) {
+                                 priceEl.classList.remove('price-flash-up', 'price-flash-down'); // Clear previous
+                                 void priceEl.offsetWidth; // Trigger reflow (needed for re-applying animation)
+                                 priceEl.classList.add(isPositive === true ? 'price-flash-up' : isPositive === false ? 'price-flash-down' : '');
+                             }
+                         }
+                        if (cachedData._changePercent !== changePercent || cachedData._isPositive !== isPositive) {
+                             const changeEl = listItemElement.querySelector('.token-change-explorer');
+                            changeEl.textContent = formatPercentage(changePercent);
+                             changeEl.className = `token-change-explorer ${isPositive === true ? 'positive' : isPositive === false ? 'negative' : ''}`;
+                         }
+                         if (cachedData.name !== token.name) listItemElement.querySelector('.token-name-explorer').textContent = token.name;
+                        if (cachedData.logoUrl !== token.logoUrl) listItemElement.querySelector('.token-logo').src = token.logoUrl;
 
-                     // Update Change %
-                     const changeEl = listItem.querySelector('.token-change-explorer');
-                      if (changeEl) {
-                          changeEl.textContent = formatPercentage(changePercent);
-                          changeEl.className = `token-change-explorer ${isPositive === true ? 'positive' : isPositive === false ? 'negative' : ''}`;
-                      }
+                        // Update the cached data for the next comparison
+                        cacheEntry.data = token;
+                    }
+                     fragment.appendChild(listItemElement);
+                 });
+            }
 
-                      // Update Logo/Name only if necessary (less frequent changes)
-                      const logoEl = listItem.querySelector('.token-logo');
-                      if(logoEl && logoEl.src !== token.logoUrl) logoEl.src = token.logoUrl;
-                      const nameEl = listItem.querySelector('.token-name-explorer');
-                       if(nameEl && nameEl.textContent !== token.name) nameEl.textContent = token.name;
-
-                 }
-
-                 // Apply flash class if needed (do this *after* potentially updating text content)
-                 const priceElForFlash = listItem.querySelector('.token-price-explorer');
-                 if (priceElForFlash) {
-                      priceElForFlash.classList.remove('price-flash'); // Remove old flash
-                     if (priceFlashClass) {
-                          // Trigger reflow before adding class again if needed
-                          // void priceElForFlash.offsetWidth;
-                         priceElForFlash.classList.add(priceFlashClass);
-                      }
-                  }
-
-                 fragment.appendChild(listItem); // Add updated/new item to fragment
-             });
-
-            // Remove items that are no longer in the filtered/sorted list
-             existingSymbols.forEach(symbol => {
-                 if (!currentSymbols.has(symbol)) {
-                    if (tokenListItemsCache[symbol]) {
-                         // tokenListItemsCache[symbol].remove(); // Direct remove ok, or hide first?
-                        delete tokenListItemsCache[symbol];
-                     }
+             // Remove elements not in the current filtered/sorted set
+             Object.keys(tokenListItemsCache).forEach(symbol => {
+                if (!currentlyDisplayedSymbols.has(symbol)) {
+                    tokenListItemsCache[symbol]?.element?.remove(); // Remove from DOM
+                    delete tokenListItemsCache[symbol]; // Remove from cache
                  }
              });
 
-             tokenListContainer.innerHTML = ''; // Clear container only once
-             tokenListContainer.appendChild(fragment); // Append all changes at once
+            // Append updates or show empty message
+            tokenListContainer.innerHTML = ''; // Clear efficiently *once*
+            if (listIsEmpty) {
+                tokenListContainer.innerHTML = `<p style='color: var(--secondary-text); text-align: center; padding: 30px; font-size: 15px;'>No tokens match your search.</p>`;
+            } else {
+                tokenListContainer.appendChild(fragment);
+            }
+        }
 
-         }
 
-
-        // --- Modal Functions (Simplified Chart Draw) ---
-        function showTokenDetailModal(symbol) { /* ... keep existing, uses derived state now ... */ const currentInfo = tokenData[symbol]; const previousInfo = previousTokenData[symbol]; /* needed for simple candle */ if (!currentInfo) return; modalTokenName.querySelector('span').textContent=`${currentInfo.name} (${symbol})`; modalTokenLogo.src = currentInfo.logoUrl; modalTokenLogo.alt=symbol; modalTokenLogo.onerror=function(){this.src=`https://via.placeholder.com/24/333333/ffffff?text=${symbol.substring(0,1)}`}; modalTokenPrice.textContent=`$${formatCurrency(currentInfo.priceUSD)}`; const changePercent=currentInfo._changePercent; const isPositive=currentInfo._isPositive; modalTokenChange.textContent=formatPercentage(changePercent); modalTokenChange.className=`stat-value ${isPositive===true?'positive':isPositive===false?'negative':''}`; /* Optional: Market Cap: modalTokenMarketCap.textContent = currentInfo.marketCap ? `$${formatCurrency(currentInfo.marketCap, 0)}` : '$---'; */ drawSimpleCandlestick(currentInfo, previousInfo); modalOverlay.classList.add('active'); document.body.style.overflow='hidden'; }
-         function closeTokenDetailModal() { /* ... keep existing ... */ modalOverlay.classList.remove('active'); document.body.style.overflow = ''; }
-         function drawSimpleCandlestick(current, previous) { /* ... keep existing - It remains simplified ... */ candlestickChartContainer.innerHTML=''; const currentPrice=current.priceUSD; const prevPrice=previous?previous.priceUSD:null; if(prevPrice===null||currentPrice===null||currentPrice<=0||prevPrice<=0){candlestickChartContainer.innerHTML='<span class="chart-no-data">Recent price data unavailable for chart.</span>'; return;} const openPrice=prevPrice; const closePrice=currentPrice; const highPrice=Math.max(openPrice,closePrice)*1.01; const lowPrice=Math.min(openPrice,closePrice)*0.99; const isPositive=closePrice>=openPrice; const candleClass=isPositive?'positive':'negative'; const svgNS="http://www.w3.org/2000/svg"; const svg=document.createElementNS(svgNS,"svg"); const priceRange=highPrice-lowPrice; const minY=lowPrice-(priceRange*0.1); const maxY=highPrice+(priceRange*0.1); const viewHeight=Math.max(1, maxY-minY); /* Ensure height > 0 */ svg.setAttribute("viewBox",`0 ${minY} 100 ${viewHeight}`); svg.setAttribute("preserveAspectRatio","xMidYMid meet"); const wick=document.createElementNS(svgNS,"line"); wick.setAttribute("x1","50"); wick.setAttribute("y1",lowPrice); wick.setAttribute("x2","50"); wick.setAttribute("y2",highPrice); wick.setAttribute("class",`wick ${candleClass}`); wick.setAttribute("stroke-width", Math.max(0.5, viewHeight * 0.015)); /* Dynamic stroke width */ svg.appendChild(wick); const body=document.createElementNS(svgNS,"rect"); body.setAttribute("x","30"); body.setAttribute("width","40"); body.setAttribute("y",Math.min(openPrice,closePrice)); body.setAttribute("height",Math.max(0.1, Math.abs(openPrice-closePrice))); body.setAttribute("class",`candle-body ${candleClass}`); body.setAttribute("stroke","none"); svg.appendChild(body); candlestickChartContainer.appendChild(svg); }
+        // --- Modal Functions (Simplified Chart Draw remains) ---
+        function showTokenDetailModal(symbol) { /* ... Keep existing show logic (uses derived state) ... */ const currentInfo=tokenData[symbol]; const previousInfo=previousTokenData[symbol]; if(!currentInfo){console.error("No current data for modal:", symbol); return;} /* Safely handle if prev data missing for chart */ const hasPrevPrice = previousInfo && previousInfo.priceUSD != null && previousInfo.priceUSD > 0; modalTokenName.querySelector('span').textContent=`${currentInfo.name} (${symbol})`; modalTokenLogo.src=currentInfo.logoUrl; modalTokenLogo.alt=symbol; modalTokenLogo.onerror=function(){this.src=`https://via.placeholder.com/26/333333/ffffff?text=${symbol.substring(0,1)}`}; modalTokenPrice.textContent=`$${formatCurrency(currentInfo.priceUSD)}`; const changePercent=currentInfo._changePercent; const isPositive=currentInfo._isPositive; modalTokenChange.textContent=formatPercentage(changePercent); modalTokenChange.className=`stat-value ${isPositive===true?'positive':isPositive===false?'negative':''}`; drawSimpleCandlestick(currentInfo.priceUSD, hasPrevPrice ? previousInfo.priceUSD : null); /* Pass only prices now */ modalOverlay.classList.add('active'); document.body.style.overflow='hidden';}
+         function closeTokenDetailModal() { /* ... keep existing close logic ... */ modalOverlay.classList.remove('active'); document.body.style.overflow = ''; }
+         function drawSimpleCandlestick(currentPrice, prevPrice) { /* Adjusted to take prices */ candlestickChartContainer.innerHTML=''; if(prevPrice===null||currentPrice===null||currentPrice<=0||prevPrice<=0){candlestickChartContainer.innerHTML='<span class="chart-no-data">Recent price data missing.</span>'; return;} const openPrice=prevPrice; const closePrice=currentPrice; const highPrice=Math.max(openPrice,closePrice)*1.005; /* Reduce simulated wick size */ const lowPrice=Math.min(openPrice,closePrice)*0.995; const isPositive=closePrice>=openPrice; const candleClass=isPositive?'positive':'negative'; const svgNS="http://www.w3.org/2000/svg"; const svg=document.createElementNS(svgNS,"svg"); const priceRange=highPrice-lowPrice; const minY=lowPrice-(priceRange*0.05); const maxY=highPrice+(priceRange*0.05); const viewHeight=Math.max(1, maxY-minY); svg.setAttribute("viewBox",`0 ${minY} 100 ${viewHeight}`); svg.setAttribute("preserveAspectRatio","xMidYMid meet"); const wick=document.createElementNS(svgNS,"line"); wick.setAttribute("x1","50"); wick.setAttribute("y1",lowPrice); wick.setAttribute("x2","50"); wick.setAttribute("y2",highPrice); wick.setAttribute("class",`wick ${candleClass}`); wick.setAttribute("stroke-width", Math.max(0.8, viewHeight*0.01)); svg.appendChild(wick); const body=document.createElementNS(svgNS,"rect"); body.setAttribute("x","35"); body.setAttribute("width","30"); /* Thinner body */ body.setAttribute("y",Math.min(openPrice,closePrice)); body.setAttribute("height",Math.max(viewHeight * 0.01, Math.abs(openPrice-closePrice))); /* Min height relative to view */ body.setAttribute("class",`candle-body ${candleClass}`); body.setAttribute("stroke","none"); svg.appendChild(body); candlestickChartContainer.appendChild(svg); }
 
 
         // --- Event Listener Setup ---
         function setupEventListeners() {
              if (listenersAttached) return;
-            console.log("Setting up Explorer listeners...");
+             console.log("Setting up Explorer UI listeners...");
 
-             // Search Input
+             // Debounced Search Input
              searchBox.addEventListener('input', () => {
-                 currentSearchTerm = searchBox.value;
-                 updateTokenExplorerList(); // Re-render list with search filter
+                 clearTimeout(searchDebounceTimeout);
+                 searchDebounceTimeout = setTimeout(() => {
+                     currentSearchTerm = searchBox.value;
+                     // Reset scroll when searching/filtering
+                     if (listScrollContainer) listScrollContainer.scrollTop = 0;
+                     updateTokenExplorerList();
+                 }, 250); // Debounce time in ms (e.g., 250ms)
              });
 
              // Sort Select
              sortSelect.addEventListener('change', () => {
                  currentSort = sortSelect.value;
-                 updateTokenExplorerList(); // Re-render list with new sort order
+                 if (listScrollContainer) listScrollContainer.scrollTop = 0; // Scroll to top on sort change
+                 updateTokenExplorerList();
              });
 
-             // Modal Close listeners (delegation happens inside update function for list items)
+             // Modal Close
             modalCloseBtn.addEventListener('click', closeTokenDetailModal);
             modalOverlay.addEventListener('click', (event) => { if (event.target === modalOverlay) closeTokenDetailModal(); });
+            // List item clicks are handled by listeners added during item creation/update in `updateTokenExplorerList`
 
              listenersAttached = true;
+             console.log("Explorer listeners attached.");
          }
 
-        // --- INITIALIZATION ---
+        // --- App Initialization ---
         async function initializeApp() {
-            console.log("--- Initializing Token Explorer ---");
-             setStatus('loading', 'Initializing...'); // Show loading state
+            console.log("--- Initializing Token Explorer App ---");
+             setStatus('loading', 'Initializing...');
 
-             // Check Placeholders
-             if (firebaseConfig.apiKey === "AIzaSyBW1WPXUN8DYhT6npZQYoQ3l4J-jFSbzfg") { setStatus('error', "CRITICAL: Firebase config missing!"); return; }
-
-             // 1. Check Telegram Env
-             if (typeof window.Telegram === 'undefined' || !window.Telegram.WebApp) { setStatus('error', "Telegram environment not detected."); return; }
-            tg = window.Telegram.WebApp;
+            // 1. Check Telegram Env
+             if (typeof window.Telegram === 'undefined' || !window.Telegram.WebApp) { setStatus('error', "Telegram App context required."); return; }
+             tg = window.Telegram.WebApp;
 
              try {
                 // 2. Telegram Ready & Theme
                  await new Promise(resolve => tg.ready(resolve));
                  console.log("Telegram SDK Ready.");
-                 tg.expand();
-                 applyTheme(tg.themeParams);
-                 if (tg.MainButton) tg.MainButton.hide();
+                 tg.expand(); // Maximize view
+                 applyTheme(tg.themeParams || {}); // Apply theme (use empty obj if params missing)
+                 if (tg.MainButton) tg.MainButton.hide(); // Hide default TG button
 
                  // 3. Initialize Firebase
-                 await initializeFirebase();
-                 if (!db) throw new Error("Database connection failed.");
+                 await initializeFirebase(); // Will set status on error
 
-                // 4. Start Real-time Listener
-                 setStatus('loading', 'Connecting to price feed...');
-                 listenForTokenData(); // This now handles setting initial status too
+                 // 4. Setup Listeners for Interactions FIRST
+                 setupEventListeners(); // Setup search/sort/modal listeners
 
-                 // 5. Setup Interaction Listeners (Search, Sort, Modal)
-                 setupEventListeners(); // Setup after core structure exists
+                 // 5. Start Real-time Data Listener
+                 // Loading status will be updated by the listener itself
+                 listenForTokenData();
 
-                 console.log("--- Explorer Initialization Sequence Started ---");
-                // Loading status handled by listener/update function
+                 console.log("--- Explorer Initialization Sequence Complete ---");
 
              } catch (error) {
-                console.error("Explorer Initialization Failed:", error);
-                 setStatus('error', `Initialization failed: ${error.message}`);
+                console.error("Critical Initialization Error:", error);
+                // InitializeFirebase already sets status on error
+                 // Make sure error is clearly displayed
              }
-        }
+         }
 
-        // --- Start the app ---
+        // --- Start ---
          document.addEventListener('DOMContentLoaded', initializeApp);
 
      </script>
