@@ -485,3 +485,45 @@ select { /* ... background arrow ... use new text color var */ }
 .modal-content { /* ... same ... */ background-color: var(--card-background); }
 .modal-header { background-color: var(--background-main); }
 /* ... other modal styles ... */
+/* ... (Keep most styles from the previous version) ... */
+
+/* Add/Modify Styles for Clarity */
+
+/* Swap Page Fee Info */
+.fee-info {
+    font-size: 0.8em;
+    color: var(--text-secondary);
+    text-align: center;
+    margin-top: calc(var(--spacing-unit) * -1); /* Pull it closer to the rate */
+    margin-bottom: calc(var(--spacing-unit) * 2);
+}
+
+/* Deposit/Withdraw Page Text */
+.info-text {
+    color: var(--text-secondary);
+    font-size: 0.9em;
+    margin-bottom: calc(var(--spacing-unit) * 2);
+    line-height: 1.5;
+}
+.small-text {
+    font-size: 0.8em;
+    color: var(--text-secondary);
+    margin-top: 4px;
+}
+/* Ensure warning color is distinct if reused */
+.warning-text { color: var(--warning-color) !important; } /* Use !important carefully if needed */
+
+/* Style the Chat ID display prominently */
+.chat-id-display span {
+    flex-grow: 1;
+    font-size: 1em; /* Make it slightly larger */
+    font-weight: 500;
+    color: var(--text-main);
+}
+
+/* Adjust withdraw input if needed */
+#withdraw-recipient-id[type="number"] {
+    /* Specific styles for number input if desired */
+}
+
+/* ... (Rest of the styles remain largely the same) ... */
