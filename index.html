@@ -2,6 +2,93 @@
 <html lang="en">
 <head>
    <script src="script.js"></script>
+   <script>
+    // --- Global Variables ---
+    let db = null; // Your Firebase database object (initialize properly before use)
+    let firebaseInitialized = false; // Set true when Firebase setup done
+    let isInitialTokenLoad = true; // Prevent reload on first token fetch
+    let tokenChangeListenerAttached = false; // Prevent multiple listener attachment
+
+    // --- Utility Functions ---
+    function showGlobalMessage(message, type = "info", duration = 3000) {
+        console.log(`[${type.toUpperCase()}] ${message}`);
+        // Optional: Implement real UI message popup
+    }
+
+    function triggerHapticFeedback(type = "light") {
+        console.log(`Haptic feedback: ${type}`);
+        // Optional: Integrate device vibration if needed
+    }
+
+    // --- Token Change Listener ---
+    function attachTokenChangeListener() {
+        if (!db || tokenChangeListenerAttached) {
+            if (!db) console.error("Database not ready when trying to attach token listener.");
+            return;
+        }
+
+        const tokensRef = db.ref('tokens');
+        console.log("Attaching listener to /tokens for auto-reload...");
+        tokenChangeListenerAttached = true;
+
+        tokensRef.on('value', (snapshot) => {
+            if (isInitialTokenLoad) {
+                console.log("Token listener: Initial data received. Auto-reload disabled for this event.");
+                isInitialTokenLoad = false;
+            } else {
+                console.log("Token listener: Detected change in /tokens data. Reloading page...");
+                showGlobalMessage("Prices updated. Reloading...", "info", 2000);
+                triggerHapticFeedback('light');
+                setTimeout(() => {
+                    window.location.reload();
+                }, 500);
+            }
+        }, (error) => {
+            console.error("Error listening to /tokens changes for auto-reload:", error);
+            showGlobalMessage("Could not monitor real-time price updates. Data might be stale.", "warning", 10000);
+            tokenChangeListenerAttached = false;
+            isInitialTokenLoad = true;
+        });
+    }
+
+    // --- Initialize App ---
+    async function initializeApp() {
+        try {
+            console.log("Initializing app...");
+
+            // --- Initialize Firebase Here ---
+            // Example:
+            // const firebaseConfig = { ... };
+            // firebase.initializeApp(firebaseConfig);
+            // db = firebase.database();
+            // firebaseInitialized = true;
+
+            // --- Your other app initialization steps here ---
+
+            // --- Attach Token Listener ---
+            if (firebaseInitialized && db) {
+                attachTokenChangeListener();
+            } else {
+                console.warn("Firebase DB not ready at the expected time for token listener attachment.");
+                // Optionally retry or handle failure
+            }
+
+            // --- Final Steps ---
+            showGlobalMessage("App Ready", "success", 2000);
+            console.log("App Initialization Complete.");
+
+        } catch (error) {
+            console.error("Error during app initialization:", error);
+            showGlobalMessage("App failed to initialize.", "error", 5000);
+        }
+    }
+
+    // --- Start Initialization When Page Ready ---
+    document.addEventListener("DOMContentLoaded", () => {
+        initializeApp();
+    });
+</script>
+
 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
