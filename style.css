@@ -290,3 +290,198 @@ select { appearance: none; /* For custom arrow */ background-image: url("data:im
 #token-list-modal .token-logo { width: 32px; height: 32px; margin-right: var(--spacing-unit) * 1.5; }
 #token-list-modal .token-details .name { font-weight: 500; }
 #token-list-modal .token-details .symbol { font-size: 0.85em; color: var(--text-secondary); }
+/* --- Base & Variables --- */
+:root {
+    /* ... (TG Variables remain the same) ... */
+    --primary-accent: var(--tg-theme-link-color, #007aff);
+    --primary-button: var(--tg-theme-button-color, #007aff);
+    --primary-button-text: var(--tg-theme-button-text-color, #ffffff);
+    --background-main: var(--tg-bg-color, #f7f8fa); /* Slightly off-white default */
+    --text-main: var(--tg-theme-text-color, #1c1c1e); /* Darker text */
+    --text-secondary: var(--tg-hint-color, #8a8a8e); /* Hint color */
+    --card-background: var(--tg-secondary-bg-color, #ffffff); /* Cards are white */
+    --border-color: #e5e5ea; /* Lighter border */
+    --success-color: #34c759;
+    --error-color: #ff3b30;
+    --warning-color: #ff9500;
+
+    --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    --border-radius: 14px; /* More pronounced radius */
+    --spacing-unit: 8px;
+    --header-height: 55px;
+    --nav-height: 65px;
+    --content-padding: calc(var(--spacing-unit) * 2.5); /* 20px */
+}
+
+/* ... (Basic reset *, html, body - remain mostly the same, use new variables) ... */
+body {
+     background-color: var(--background-main);
+     color: var(--text-main);
+     /* ... rest */
+}
+
+/* --- App Layout --- */
+#app-container { /* ... same ... */ }
+main#main-content {
+    flex-grow: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: var(--content-padding);
+    padding-top: var(--spacing-unit); /* Reduce top padding slightly */
+    padding-bottom: calc(var(--nav-height) + var(--content-padding));
+}
+
+/* --- Loading Overlay --- */
+#loading-overlay { /* ... same ... */
+    background-color: rgba(0, 0, 0, 0.6); /* Slightly less dark */
+}
+#loading-overlay p { font-size: 1.1em; }
+
+/* --- Page Structure & Headers --- */
+.page { display: none; animation: pageFadeIn 0.3s ease-out; }
+.page.active { display: block; }
+@keyframes pageFadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+.page-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: calc(var(--spacing-unit) * 2); /* Reduced bottom margin */
+    min-height: var(--header-height);
+    padding: 0 var(--spacing-unit); /* Add horizontal padding */
+}
+.page-header.main-header { /* Specific style for the main app header */
+     justify-content: center; /* Center title if no back button */
+     position: relative; /* For absolute positioning of refresh */
+     margin-bottom: var(--spacing-unit); /* Less margin for main header */
+ }
+.page-header.main-header h1 {
+    font-size: 1.5em; /* Slightly smaller main title */
+    font-weight: 600;
+ }
+ .page-header.main-header #refresh-button {
+     position: absolute;
+     right: var(--spacing-unit);
+     top: 50%;
+     transform: translateY(-50%);
+ }
+
+.page-header h1 {
+    font-size: 1.3em; /* Standard page title size */
+    font-weight: 600; color: var(--text-main);
+    margin: 0; text-align: center; flex-grow: 1;
+    padding: 0 45px;
+}
+.page-header .back-button, .page-header #refresh-button {
+    background: none; border: none; color: var(--primary-accent);
+    font-size: 1.8em; cursor: pointer; padding: 5px; line-height: 1;
+    width: 40px; text-align: center; flex-shrink: 0; /* Prevent shrinking */
+}
+.page-header #refresh-button { font-size: 1.4em; }
+
+.content-section { margin-bottom: calc(var(--spacing-unit) * 3); }
+.content-section h2 { /* Section titles */
+    font-size: 1em; font-weight: 600; color: var(--text-main); /* Darker */
+    margin-bottom: calc(var(--spacing-unit) * 1.5);
+     padding-left: var(--spacing-unit); /* Indent slightly */
+}
+
+/* --- Bottom Navigation --- */
+#bottom-nav { /* ... same structure, use new vars ... */
+    background-color: var(--card-background); /* White */
+    border-top: 1px solid var(--border-color);
+    height: var(--nav-height);
+    box-shadow: 0 -1px 4px rgba(0,0,0,0.04); /* Softer shadow */
+}
+.nav-button { /* ... same structure ... */ color: var(--text-secondary); }
+.nav-button.active { color: var(--primary-accent); }
+.nav-button span { font-size: 0.9em; /* Slightly larger text */ }
+
+/* --- Cards --- */
+.total-balance-card, .deposit-info-card, .asset-card, .swap-box {
+    background-color: var(--card-background);
+    padding: var(--content-padding);
+    border-radius: var(--border-radius);
+    margin-bottom: calc(var(--spacing-unit) * 2); /* Consistent margin */
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06); /* Slightly stronger shadow */
+}
+
+/* --- Home Page: Total Balance & Assets --- */
+.total-balance-card { text-align: center; padding: calc(var(--spacing-unit) * 3); }
+.total-balance-card .balance-amount { font-size: 2.6em; font-weight: 700; color: var(--text-main); margin: 0 5px; }
+.total-balance-card .currency-symbol, .total-balance-card .currency-code { font-size: 1.1em; color: var(--text-secondary); font-weight: 400; }
+
+.asset-list-container .no-assets { color: var(--text-secondary); text-align: center; padding: var(--spacing-unit) * 3; font-style: italic; }
+.asset-card { /* ... same structure ... */ padding: calc(var(--spacing-unit) * 1.5) var(--content-padding); }
+.asset-logo { width: 40px; height: 40px; }
+.asset-name-symbol .name { font-weight: 600; font-size: 1.05em; }
+.asset-balance-value .balance { font-weight: 600; }
+
+/* --- Form Elements --- */
+.form-group { margin-bottom: calc(var(--spacing-unit) * 2.5); }
+label { /* ... same ... */ color: var(--text-main); font-weight: 500; }
+input[type="text"], input[type="number"], select {
+    /* ... base styles ... */
+    background-color: var(--background-main); /* Match page background */
+    border: 1px solid var(--border-color);
+     padding: calc(var(--spacing-unit) * 1.8); /* Increase padding */
+     font-size: 1em;
+}
+input[type="text"]:focus, input[type="number"]:focus, select:focus {
+    border-color: var(--primary-accent);
+    background-color: var(--card-background); /* Change bg on focus */
+}
+select { /* ... background arrow ... use new text color var */ }
+
+.input-with-button button { /* ... same ... */ background-color: var(--background-main); }
+
+.action-button.primary-button { /* ... same ... */ font-weight: 600; font-size: 1.05em; }
+.action-button.secondary-button {
+     background-color: var(--card-background);
+     color: var(--primary-accent);
+     border: 1px solid var(--primary-accent);
+     /* ... other shared styles from primary */
+}
+
+.status-message { /* ... same ... */ }
+.info-text { /* ... same ... */ color: var(--text-secondary); font-size: 0.95em; }
+.small-text { /* ... same ... */ font-size: 0.85em; color: var(--text-secondary); }
+.warning-text { /* ... same ... */ color: var(--warning-color); }
+
+
+/* --- Deposit Page --- */
+.user-identification-card { padding: var(--spacing-unit) * 2 var(--content-padding); }
+.user-identification-card h3 { margin-bottom: calc(var(--spacing-unit) * 2); font-size: 1.1em; }
+.identifier-item { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-unit) * 1.5; }
+.identifier-item strong { font-weight: 500; color: var(--text-secondary); }
+.identifier-value { display: flex; align-items: center; gap: var(--spacing-unit); font-family: monospace; font-size: 0.95em; }
+.identifier-value span { color: var(--text-main); }
+.copy-button { /* ... same ... */ }
+
+
+/* --- Withdraw Page --- */
+/* Styles inherited, specific tweaks if needed */
+#withdraw-recipient-id::placeholder { color: var(--text-secondary); opacity: 0.7;}
+
+/* --- Swap Page --- */
+.swap-box { padding: calc(var(--spacing-unit) * 2) var(--content-padding); }
+.swap-box label { font-size: 0.9em; }
+.swap-box input[type="number"] { font-size: 1.6em; padding: 10px 0; } /* No padding left/right */
+.token-selector-button { /* ... Pill shape style ... */ }
+.token-logo { width: 28px; height: 28px; } /* Slightly larger */
+.token-symbol { font-weight: 600; font-size: 1.05em; }
+.swap-box .balance-info { font-size: 0.85em; }
+
+.swap-icon-container { height: 45px; margin: 0; /* Reset margin */ position: relative; }
+#swap-switch-button { /* ... same style ... */ position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 5;}
+
+.swap-rate-info, .swap-fee-info {
+    font-size: 0.9em; color: var(--text-secondary); text-align: center;
+    margin: var(--spacing-unit) 0;
+    min-height: 1.4em;
+}
+.swap-fee-info { font-size: 0.85em; } /* Smaller fee display */
+
+/* --- Token Selector Modal --- */
+.modal { /* ... same ... */ }
+.modal-content { /* ... same ... */ background-color: var(--card-background); }
+.modal-header { background-color: var(--background-main); }
+/* ... other modal styles ... */
