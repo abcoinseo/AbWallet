@@ -3,15 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Crypto Explorer</title>
-    <!-- Include Chart.js -->
+    <title>Pro Crypto Dashboard</title>
+    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Include Firebase Libraries -->
+    <!-- Firebase Libraries -->
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
     <style>
-        /* --- Basic Reset & Body Styling --- */
+        /* --- Global Styles & Variables --- */
+        :root {
+            --bg-color: #131722; /* Dark background */
+            --card-bg: #1e222d;  /* Slightly lighter card background */
+            --text-color: #d1d4dc; /* Light grey text */
+            --text-secondary: #8a8e97; /* Dimmer text */
+            --accent-color: #2962ff; /* Blue accent */
+            --green: #089981;     /* TradingView green */
+            --red: #f23645;       /* TradingView red */
+            --border-color: #363a45;
+            --font-main: 'Poppins', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* Modern Font */
+        }
+
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+
         * {
             box-sizing: border-box;
             margin: 0;
@@ -19,156 +33,177 @@
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f0f2f5; /* Light grey background */
-            color: #333;
+            font-family: var(--font-main);
+            background-color: var(--bg-color);
+            color: var(--text-color);
             line-height: 1.6;
-            padding: 20px;
+            padding: 25px;
+            font-weight: 400; /* Default weight */
         }
 
         /* --- Main Container --- */
         .container {
-            max-width: 1200px;
+            max-width: 1400px; /* Wider container */
             margin: 0 auto;
-            background-color: #ffffff; /* White card background */
-            padding: 25px;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            padding: 20px; /* Slightly less padding */
         }
 
         h1 {
             text-align: center;
-            margin-bottom: 30px;
-            color: #1a237e; /* Dark blue header */
+            margin-bottom: 40px;
+            color: #ffffff; /* White header */
+            font-weight: 600;
+            letter-spacing: 1px;
         }
 
         /* --- Loading Indicator --- */
         #loading {
             text-align: center;
-            font-size: 1.2em;
-            color: #555;
-            padding: 40px 0;
+            font-size: 1.3em;
+            color: var(--text-secondary);
+            padding: 50px 0;
+            font-weight: 300;
         }
 
-        /* --- Coin List Styling --- */
+        /* --- Coin Grid --- */
         #coin-list {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); /* Responsive grid */
-            gap: 20px;
+            /* More columns on larger screens */
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 25px; /* Slightly larger gap */
         }
 
-        /* --- Individual Coin Card Styling --- */
+        /* --- Coin Card --- */
         .coin-card {
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
-            padding: 15px;
-            background-color: #fff;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+            border: 1px solid var(--border-color);
+            border-radius: 10px; /* Smoother corners */
+            padding: 20px;
+            background-color: var(--card-bg);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2); /* More pronounced shadow */
+            transition: transform 0.25s ease-in-out, box-shadow 0.25s ease-in-out;
             display: flex;
-            flex-direction: column; /* Stack elements vertically */
+            flex-direction: column;
+            cursor: pointer; /* Indicate interactivity */
         }
 
         .coin-card:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(41, 98, 255, 0.15); /* Accent shadow on hover */
+            border-color: rgba(41, 98, 255, 0.5); /* Accent border on hover */
         }
 
         .coin-header {
             display: flex;
             align-items: center;
-            margin-bottom: 12px;
+            margin-bottom: 15px;
         }
 
         .coin-logo {
-            width: 40px;
-            height: 40px;
-            margin-right: 12px;
+            width: 45px;
+            height: 45px;
+            margin-right: 15px;
             border-radius: 50%;
-            object-fit: contain; /* Ensure logo fits well */
-            background-color: #eee; /* Placeholder bg if image fails */
+            object-fit: contain;
+            background-color: #333; /* Darker placeholder bg */
+            border: 2px solid var(--border-color);
+        }
+
+        .coin-name-symbol {
+            flex-grow: 1; /* Take remaining space */
         }
 
         .coin-name {
-            font-size: 1.4em;
+            font-size: 1.35em; /* Slightly larger name */
             font-weight: 600;
-            color: #2c3e50; /* Darker text color */
+            color: #ffffff; /* White name */
+            display: block; /* Ensure it takes full width */
         }
 
         .coin-symbol {
             font-size: 0.9em;
-            color: #7f8c8d; /* Greyish color for symbol */
-            margin-left: 8px;
+            color: var(--text-secondary);
+            font-weight: 400;
         }
 
         .coin-details {
-           margin-bottom: 15px; /* Space before chart */
+           margin-bottom: 15px;
+        }
+
+        .coin-price-section {
+            display: flex;
+            justify-content: space-between; /* Push price and change apart */
+            align-items: baseline; /* Align text nicely */
+            margin-bottom: 10px;
         }
 
         .coin-price {
-            font-size: 1.5em;
-            font-weight: bold;
-            margin-bottom: 5px;
-            color: #34495e; /* Default price color */
-            display: flex; /* Align price and change */
-            align-items: baseline; /* Align text nicely */
-            gap: 10px; /* Space between price and change % */
+            font-size: 1.7em; /* Larger price */
+            font-weight: 500;
+            color: var(--text-color); /* Use default text color, change below */
+            letter-spacing: 0.5px;
         }
 
         .price-change {
-            font-size: 1em;
+            font-size: 1.0em; /* Adjusted size */
             font-weight: 600;
-            padding: 2px 6px;
-            border-radius: 4px;
-            color: #fff; /* Text color for change */
+            padding: 4px 8px; /* More padding */
+            border-radius: 5px;
+            color: #ffffff; /* White text always */
+            text-align: right;
         }
 
-        /* --- Price Change Colors --- */
+        /* --- Dynamic Colors --- */
         .price-up {
-            color: #2ecc71; /* Green */
+            color: var(--green);
         }
         .price-down {
-            color: #e74c3c; /* Red */
+            color: var(--red);
         }
         .change-up {
-            background-color: #2ecc71; /* Green background */
+            background-color: var(--green);
         }
         .change-down {
-            background-color: #e74c3c; /* Red background */
+            background-color: var(--red);
         }
         .change-neutral {
-            background-color: #95a5a6; /* Grey background */
-            color: #fff;
+            background-color: var(--text-secondary);
         }
         .arrow {
             display: inline-block;
-            margin-right: 3px;
+            margin-right: 4px;
+            font-size: 0.9em; /* Slightly smaller arrow */
         }
 
         /* --- Chart Styling --- */
         .chart-container {
             width: 100%;
-            height: 150px; /* Fixed height for charts */
-            margin-top: auto; /* Pushes chart to bottom if card grows */
+            height: 180px; /* Taller chart */
+            margin-top: auto; /* Pushes chart to bottom */
+            opacity: 0.85; /* Slightly transparent chart */
+            transition: opacity 0.3s ease;
+        }
+        .coin-card:hover .chart-container {
+             opacity: 1; /* Full opacity on hover */
         }
 
          /* --- Footer/Info --- */
          .info {
             text-align: center;
-            margin-top: 30px;
+            margin-top: 40px;
             font-size: 0.9em;
-            color: #777;
+            color: var(--text-secondary);
+            font-weight: 300;
          }
          .info a {
-            color: #3498db;
+            color: var(--accent-color);
             text-decoration: none;
          }
          .info a:hover {
             text-decoration: underline;
          }
          .warning {
-            color: #e74c3c;
-            font-weight: bold;
+            color: #ffa000; /* Orange warning */
+            font-weight: 500;
          }
 
     </style>
@@ -176,29 +211,28 @@
 <body>
 
     <div class="container">
-        <h1>Crypto Price Explorer</h1>
+        <h1>Realtime Crypto Dashboard</h1>
 
-        <!-- Loading Indicator -->
-        <div id="loading">Loading coin data...</div>
+        <div id="loading">Initializing Dashboard...</div>
 
-        <!-- Coin List Container -->
         <div id="coin-list">
-            <!-- Coin cards will be injected here by JavaScript -->
+            <!-- Coin cards dynamically inserted -->
         </div>
 
         <div class="info">
-            Data updates in real-time from Firebase. Chart shows price history during this session only.
+             Real-time data stream via Firebase. Charts show session price movement.
             <br>
-            <span class="warning">Warning:</span> Ensure your Firebase Security Rules are properly configured to protect your data. Public rules are insecure.
+            <span class="warning">Security Alert:</span> Your Firebase rules appear public. Secure them in the Firebase Console to prevent unauthorized access.
+            <br>
+             Advanced charting & trading requires backend infrastructure and historical data.
         </div>
     </div>
 
     <script>
         // --- Firebase Configuration ---
-        // WARNING: It's generally better to hide API keys, but required here for single-file demo.
-        // **IMPORTANT**: SECURE YOUR FIREBASE RULES IN THE CONSOLE!
+        // **CRITICAL**: SECURE YOUR FIREBASE RULES IN THE CONSOLE! PUBLIC RULES ARE DANGEROUS!
         const firebaseConfig = {
-            apiKey: "AIzaSyBW1WPXUN8DYhT6npZQYoQ3l4J-jFSbzfg", // Replace if needed, but use securely!
+            apiKey: "AIzaSyBW1WPXUN8DYhT6npZQYoQ3l4J-jFSbzfg", // Use securely!
             authDomain: "ab-studio-marketcap.firebaseapp.com",
             databaseURL: "https://ab-studio-marketcap-default-rtdb.firebaseio.com",
             projectId: "ab-studio-marketcap",
@@ -207,329 +241,295 @@
             appId: "1:115268088088:web:65643a047f92bfaa66ee6d"
         };
 
+        // --- Constants and State ---
+        const MAX_CHART_POINTS = 45; // Show more points on the line chart
+        const coinDataStore = {}; // { symbol: { currentData: {}, previousPrice: null, chart: null, chartData: { labels: [], prices: [] } } }
+        const UI_ELEMENTS = {
+             coinList: document.getElementById('coin-list'),
+             loading: document.getElementById('loading'),
+        };
+        const CHART_COLORS = {
+             green: 'rgba(8, 153, 129, 0.7)', // Chart green with opacity
+             red: 'rgba(242, 54, 69, 0.7)',   // Chart red with opacity
+             neutral: 'rgba(138, 142, 151, 0.7)', // Chart neutral with opacity
+             border: 'rgba(209, 212, 220, 0.9)' // Lighter border for dark theme
+        };
+
         // --- Initialize Firebase ---
         try {
             firebase.initializeApp(firebaseConfig);
             const database = firebase.database();
             const tokensRef = database.ref('tokens');
 
-            // --- Global State ---
-            const coinDataStore = {}; // Stores { symbol: { currentData: {}, previousPrice: null, chart: null, chartData: { labels: [], prices: [] } } }
-            const MAX_CHART_POINTS = 30; // Max data points to show on chart
-
-            // --- DOM Elements ---
-            const coinListContainer = document.getElementById('coin-list');
-            const loadingIndicator = document.getElementById('loading');
-
-            // --- Chart Colors ---
-            const chartGreen = 'rgba(46, 204, 113, 0.6)';
-            const chartRed = 'rgba(231, 76, 60, 0.6)';
-            const chartNeutral = 'rgba(149, 165, 166, 0.6)';
-            const chartBorder = 'rgba(52, 73, 94, 1)';
-
-
-            // --- Functions ---
-
-            /**
-             * Formats number as USD currency.
-             * @param {number} number - The number to format.
-             * @returns {string} Formatted currency string.
+             /**
+             * Format number as USD currency with dynamic precision.
              */
             function formatCurrency(number) {
-                if (typeof number !== 'number') return '$--';
-                 // Adjust decimals based on price magnitude
+                if (typeof number !== 'number' || isNaN(number)) return '$--.--';
                 const options = {
                     style: 'currency',
                     currency: 'USD',
                     minimumFractionDigits: number < 0.1 ? 4 : 2,
-                    maximumFractionDigits: number < 0.01 ? 8 : (number < 1 ? 4 : 2)
+                    maximumFractionDigits: number < 0.001 ? 8 : (number < 1 ? 4 : 2)
                 };
                 return number.toLocaleString('en-US', options);
             }
 
-             /**
-             * Renders or updates a coin card in the DOM.
-             * @param {string} symbol - The coin symbol (e.g., 'ABS').
-             * @param {object} coin - The coin data object from Firebase.
+            /**
+             * Creates or updates a coin card in the DOM.
              */
             function renderCoinCard(symbol, coin) {
                 let card = document.getElementById(`coin-${symbol}`);
-                let priceElement;
-                let changeElement;
-
-                const previousPrice = coinDataStore[symbol]?.previousPrice;
+                const storeEntry = coinDataStore[symbol] || {}; // Get existing or empty object
+                const previousPrice = storeEntry.previousPrice;
                 const currentPrice = coin.priceUSD;
-                let priceChange = 0;
+
                 let priceChangePercent = 0;
                 let priceClass = '';
                 let changeClass = 'change-neutral';
                 let arrow = '';
-
+                let priceChangeText = '0.00%'; // Default neutral text
 
                 if (typeof previousPrice === 'number' && typeof currentPrice === 'number' && previousPrice !== 0) {
-                    priceChange = currentPrice - previousPrice;
+                    const priceChange = currentPrice - previousPrice;
                     priceChangePercent = (priceChange / previousPrice) * 100;
 
-                    if (priceChange > 0) {
+                    if (priceChangePercent > 0.001) { // Threshold to avoid tiny fluctuations showing color
                         priceClass = 'price-up';
                         changeClass = 'change-up';
                         arrow = '<span class="arrow">▲</span>';
-                    } else if (priceChange < 0) {
+                        priceChangeText = `${arrow}${priceChangePercent.toFixed(2)}%`;
+                    } else if (priceChangePercent < -0.001) {
                         priceClass = 'price-down';
                         changeClass = 'change-down';
                         arrow = '<span class="arrow">▼</span>';
+                        priceChangeText = `${arrow}${Math.abs(priceChangePercent).toFixed(2)}%`;
                     }
+                    // If between -0.001 and 0.001, it remains neutral
                 }
 
-                 // Create new card if it doesn't exist
+                // Create card if it doesn't exist
                 if (!card) {
                     card = document.createElement('div');
                     card.className = 'coin-card';
                     card.id = `coin-${symbol}`;
                     card.innerHTML = `
                         <div class="coin-header">
-                            <img src="${coin.logoUrl || 'placeholder.png'}" alt="${coin.name} Logo" class="coin-logo" onerror="this.style.display='none'">
-                            <div>
-                                <span class="coin-name">${coin.name || 'N/A'}</span>
+                            <img src="${coin.logoUrl || '?'}" alt="${coin.name || 'N/A'}" class="coin-logo" onerror="this.style.visibility='hidden'">
+                            <div class="coin-name-symbol">
+                                <span class="coin-name">${coin.name || 'Unknown Token'}</span>
                                 <span class="coin-symbol">(${symbol})</span>
                             </div>
                         </div>
                         <div class="coin-details">
-                             <div class="coin-price">
-                                <span class="price-value ${priceClass}"></span>
-                                <span class="price-change ${changeClass}"></span>
-                             </div>
-                             <!-- Add other details here if needed -->
+                            <div class="coin-price-section">
+                                <span class="coin-price price-value"></span>
+                                <span class="price-change change-value"></span>
+                            </div>
+                             <!-- Other details can go here -->
                         </div>
                         <div class="chart-container">
                             <canvas id="chart-${symbol}"></canvas>
                         </div>
                     `;
-                    coinListContainer.appendChild(card);
-                    // Initialize chart data structure
+                    UI_ELEMENTS.coinList.appendChild(card);
+                    // Initialize data store entry if new
                     coinDataStore[symbol] = {
-                        ...coinDataStore[symbol], // Keep potential existing chart instance
+                        ...storeEntry,
                         chartData: { labels: [], prices: [] }
                     };
-                    initializeChart(symbol); // Create the chart instance
+                    initializeChart(symbol); // Create chart instance only once
                 }
 
-                // Update existing card elements
-                priceElement = card.querySelector('.price-value');
-                changeElement = card.querySelector('.price-change');
+                // Update dynamic elements
+                const priceElement = card.querySelector('.price-value');
+                const changeElement = card.querySelector('.change-value');
 
                 priceElement.textContent = formatCurrency(currentPrice);
-                priceElement.className = `price-value ${priceClass}`; // Update class for color
+                priceElement.className = `coin-price price-value ${priceClass}`; // Apply up/down class to price too
 
-                if (priceChange !== 0) {
-                     changeElement.innerHTML = `${arrow}${Math.abs(priceChangePercent).toFixed(2)}%`;
-                     changeElement.className = `price-change ${changeClass}`;
-                     changeElement.style.display = 'inline-block'; // Show change element
-                } else if (previousPrice != null) { // Show neutral only if we have a previous price
-                     changeElement.innerHTML = `0.00%`;
-                     changeElement.className = `price-change change-neutral`;
-                     changeElement.style.display = 'inline-block';
-                } else {
-                     changeElement.style.display = 'none'; // Hide if no previous price yet
-                }
+                changeElement.innerHTML = priceChangeText;
+                changeElement.className = `price-change change-value ${changeClass}`;
+                changeElement.style.display = (typeof previousPrice === 'number') ? 'inline-block' : 'none'; // Show only after first update
 
 
-                // Update the store with current data and price for next comparison
+                // Update store
                 coinDataStore[symbol] = {
-                    ...coinDataStore[symbol], // Keep chart instance and data
+                    ...coinDataStore[symbol], // Keep existing chart instance and data
                     currentData: coin,
-                    previousPrice: currentPrice
+                    previousPrice: currentPrice // Update previous price for next calculation
                 };
 
-                 // Update the chart
+                // Update the chart with the new price
                 updateChart(symbol, currentPrice);
             }
 
             /**
-             * Initializes a Chart.js chart instance for a coin.
-             * @param {string} symbol - The coin symbol.
+             * Initializes a Chart.js instance for a coin.
              */
             function initializeChart(symbol) {
-                const ctx = document.getElementById(`chart-${symbol}`);
-                if (!ctx) return; // Exit if canvas not found
+                const canvas = document.getElementById(`chart-${symbol}`);
+                if (!canvas || !coinDataStore[symbol]) return; // Guard clause
 
                 const chartConfig = {
                     type: 'line',
                     data: {
-                        labels: [], // Populated by updateChart
+                        labels: [],
                         datasets: [{
-                            label: 'Price (USD)',
-                            data: [], // Populated by updateChart
-                            borderColor: chartBorder,
+                            label: 'Price',
+                            data: [],
+                            borderColor: CHART_COLORS.neutral, // Start neutral
                             borderWidth: 2,
-                            fill: false, // Don't fill under the line
-                            tension: 0.1, // Slightly smooth the line
-                            pointRadius: 0, // Hide points for cleaner look
+                            fill: { // Gradient fill
+                                target: 'origin',
+                                above: 'rgba(8, 153, 129, 0.1)',   // Light green fill above origin
+                                below: 'rgba(242, 54, 69, 0.1)'    // Light red fill below origin
+                             },
+                            tension: 0.3, // Smoother line
+                            pointRadius: 0,
+                            pointHoverRadius: 4, // Show point on hover
+                            pointBackgroundColor: CHART_COLORS.border,
                         }]
                     },
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
-                        animation: {
-                            duration: 200 // Faster animation
-                        },
+                        animation: { duration: 300, easing: 'linear' },
                         scales: {
-                            x: {
-                                display: false, // Hide X-axis labels (time)
-                            },
+                            x: { display: false },
                             y: {
-                                display: true,
-                                ticks: {
-                                    maxTicksLimit: 5, // Limit Y-axis ticks
-                                    callback: function(value, index, values) {
-                                        // Simple formatting for Y axis
-                                        if (value >= 1) return '$' + value.toFixed(2);
-                                        if (value >= 0.01) return '$' + value.toFixed(4);
-                                        return '$' + value.toFixed(6);
-                                    }
-                                }
+                                display: false, // Hide Y-axis for cleaner look in card
+                                // Optionally configure ticks if you want to display it
+                                // ticks: { ... }
                             }
                         },
                         plugins: {
-                            legend: {
-                                display: false // Hide legend
-                            },
+                            legend: { display: false },
                             tooltip: {
                                 enabled: true,
                                 mode: 'index',
                                 intersect: false,
+                                position: 'nearest',
+                                displayColors: false, // Hide color box in tooltip
+                                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                                titleFont: { weight: 'bold' },
+                                bodyFont: { size: 13 },
+                                padding: 10,
                                 callbacks: {
-                                     label: function(context) {
-                                         let label = context.dataset.label || '';
-                                         if (label) {
-                                             label += ': ';
-                                         }
-                                         if (context.parsed.y !== null) {
-                                             label += formatCurrency(context.parsed.y);
-                                         }
-                                         return label;
-                                     }
+                                     title: (tooltipItems) => `Time: ${tooltipItems[0].label}`, // Show time label
+                                     label: (context) => `Price: ${formatCurrency(context.parsed.y)}`
                                  }
                             }
-                        }
+                        },
+                         interaction: { // Enhance hover effects
+                             mode: 'index',
+                             intersect: false,
+                         },
                     }
                 };
 
-                try {
-                     // Destroy existing chart if it exists (e.g., on hot-reload)
+                 try {
+                     // Destroy existing chart if somehow recreated
                      if (coinDataStore[symbol]?.chart) {
                           coinDataStore[symbol].chart.destroy();
                      }
-                    coinDataStore[symbol].chart = new Chart(ctx.getContext('2d'), chartConfig);
+                    coinDataStore[symbol].chart = new Chart(canvas.getContext('2d'), chartConfig);
                 } catch (error) {
-                     console.error(`Error initializing chart for ${symbol}:`, error);
-                      // Optionally display an error message on the card
-                     const chartContainer = ctx.closest('.chart-container');
-                     if(chartContainer) chartContainer.innerHTML = `<p style="color: red; font-size: 0.8em;">Chart failed to load.</p>`;
+                     console.error(`Chart initialization error for ${symbol}:`, error);
+                     canvas.parentElement.innerHTML = `<p style="color: ${CHART_COLORS.red}; font-size: 0.8em; text-align: center; margin-top: 20px;">Chart Error</p>`;
                 }
             }
 
-
             /**
-             * Updates the chart data for a specific coin.
-             * @param {string} symbol - The coin symbol.
-             * @param {number} newPrice - The latest price.
+             * Updates the chart data and redraws.
              */
             function updateChart(symbol, newPrice) {
                 const storeEntry = coinDataStore[symbol];
-                if (!storeEntry || !storeEntry.chart || typeof newPrice !== 'number') return; // Exit if chart or price invalid
+                if (!storeEntry?.chart || typeof newPrice !== 'number' || isNaN(newPrice)) return;
 
                 const chart = storeEntry.chart;
                 const chartData = storeEntry.chartData;
+                const currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
-                // Add new data point
-                const now = new Date(); // Use timestamp for potential tooltip use
-                chartData.labels.push(now.toLocaleTimeString()); // Simple time label
+                chartData.labels.push(currentTime);
                 chartData.prices.push(newPrice);
 
-                // Limit history length
-                if (chartData.labels.length > MAX_CHART_POINTS) {
-                    chartData.labels.shift(); // Remove oldest label
-                    chartData.prices.shift(); // Remove oldest price
+                // Limit history
+                while (chartData.labels.length > MAX_CHART_POINTS) {
+                    chartData.labels.shift();
+                    chartData.prices.shift();
                 }
 
-                // Update chart dataset
+                // Update chart data
                 chart.data.labels = chartData.labels;
                 chart.data.datasets[0].data = chartData.prices;
 
-                 // Dynamically set border color based on trend (simple version)
-                 let borderColor = chartNeutral;
+                // Set dynamic border color based on start vs end price in current view
+                 let borderColor = CHART_COLORS.neutral;
                  if (chartData.prices.length >= 2) {
-                    const firstPrice = chartData.prices[0];
-                    const lastPrice = chartData.prices[chartData.prices.length - 1];
-                    if(lastPrice > firstPrice) borderColor = chartGreen;
-                    else if (lastPrice < firstPrice) borderColor = chartRed;
+                     const firstPrice = chartData.prices[0];
+                     const lastPrice = chartData.prices[chartData.prices.length - 1];
+                     if (lastPrice > firstPrice) borderColor = CHART_COLORS.green;
+                     else if (lastPrice < firstPrice) borderColor = CHART_COLORS.red;
                  }
-                  chart.data.datasets[0].borderColor = borderColor;
+                 chart.data.datasets[0].borderColor = borderColor;
 
 
-                // Update the chart
-                chart.update('none'); // 'none' prevents jerky animation on every update
+                // Update chart smoothly
+                chart.update('none'); // 'none' for less jarring updates
             }
 
-            // --- Firebase Data Listener ---
+            // --- Firebase Listener ---
             tokensRef.on('value', (snapshot) => {
-                loadingIndicator.style.display = 'none'; // Hide loading indicator
+                UI_ELEMENTS.loading.style.display = 'none';
                 const tokensData = snapshot.val();
 
                 if (tokensData) {
-                    // console.log("Received data:", tokensData); // For debugging
-
-                    // Clear list only if absolutely necessary (causes full redraw)
-                    // Instead, we'll update or add cards individually
-                    // coinListContainer.innerHTML = ''; // Avoid this if possible for performance
-
                     const currentSymbols = Object.keys(tokensData);
-                    const existingSymbols = Array.from(coinListContainer.children).map(card => card.id.replace('coin-', ''));
+                    const existingCardSymbols = Array.from(UI_ELEMENTS.coinList.children).map(card => card.id.replace('coin-', ''));
 
-                    // Process each token from Firebase
-                    for (const symbol in tokensData) {
-                        if (tokensData.hasOwnProperty(symbol)) {
-                            const coin = tokensData[symbol];
-                            // Basic validation
-                            if (coin && typeof coin.priceUSD === 'number' && coin.name) {
-                                renderCoinCard(symbol, coin);
-                            } else {
-                                console.warn(`Skipping token ${symbol} due to missing data:`, coin);
+                    // Update or add cards
+                    currentSymbols.forEach(symbol => {
+                        const coin = tokensData[symbol];
+                        if (coin && typeof coin.priceUSD === 'number' && coin.name) {
+                             renderCoinCard(symbol, coin);
+                         } else {
+                             console.warn(`Invalid data for token ${symbol}:`, coin);
+                              // Optionally remove/hide card with bad data
+                              const badCard = document.getElementById(`coin-${symbol}`);
+                              if(badCard) badCard.style.display = 'none';
+                         }
+                    });
+
+                    // Remove cards for tokens no longer in Firebase
+                    existingCardSymbols.forEach(symbol => {
+                        if (!currentSymbols.includes(symbol)) {
+                            const cardToRemove = document.getElementById(`coin-${symbol}`);
+                            if (cardToRemove) {
+                                if (coinDataStore[symbol]?.chart) {
+                                    coinDataStore[symbol].chart.destroy(); // Clean up chart
+                                }
+                                delete coinDataStore[symbol]; // Remove from store
+                                cardToRemove.remove();
+                                console.log(`Removed stale card: ${symbol}`);
                             }
                         }
-                    }
-
-                     // Optional: Remove cards for coins that no longer exist in Firebase data
-                     existingSymbols.forEach(symbol => {
-                         if (!currentSymbols.includes(symbol)) {
-                             const cardToRemove = document.getElementById(`coin-${symbol}`);
-                             if (cardToRemove) {
-                                 // Clean up chart instance and data store
-                                 if (coinDataStore[symbol]?.chart) {
-                                     coinDataStore[symbol].chart.destroy();
-                                 }
-                                 delete coinDataStore[symbol];
-                                 cardToRemove.remove();
-                                 console.log(`Removed card for ${symbol}`);
-                             }
-                         }
-                     });
+                    });
 
                 } else {
-                    coinListContainer.innerHTML = '<p>No token data found in Firebase.</p>';
-                    console.warn("No data received from Firebase path 'tokens'.");
+                    UI_ELEMENTS.coinList.innerHTML = '<p style="text-align: center; color: var(--text-secondary);">No token data found. Ensure Firebase path `/tokens` has data.</p>';
+                    console.warn("No data received from Firebase path '/tokens'.");
                 }
             }, (error) => {
-                loadingIndicator.style.display = 'none';
-                console.error("Firebase read failed: " + error.message);
-                coinListContainer.innerHTML = `<p style="color: red;">Error fetching data: ${error.message}</p>`;
+                UI_ELEMENTS.loading.style.display = 'none';
+                console.error("Firebase read failed:", error);
+                UI_ELEMENTS.coinList.innerHTML = `<p style="color: ${CHART_COLORS.red}; text-align: center;">Error connecting to data source: ${error.message}</p>`;
             });
 
-        } catch(error) {
-             console.error("Error initializing Firebase or script:", error);
-             document.getElementById('loading').style.display = 'none';
-             document.getElementById('coin-list').innerHTML = `<p style="color: red;">A critical error occurred: ${error.message}</p>`;
+        } catch (error) {
+            console.error("Initialization error:", error);
+            UI_ELEMENTS.loading.style.display = 'none';
+            UI_ELEMENTS.coinList.innerHTML = `<p style="color: ${CHART_COLORS.red}; text-align: center;">Critical script error: ${error.message}</p>`;
         }
 
     </script>
