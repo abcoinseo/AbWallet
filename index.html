@@ -2,20 +2,1458 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AB Wallet Main</title>
-    <script src="script.js" defer></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AB Wallet</title> 
+    <!-- Telegram WebApp SDK -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
     <style>
-        html, body {
+        /* --- Paste all CSS from the previous "wallet_p2p.html" example here --- */
+        /* --- Ensure styles for tx-peer, tx-id, tx icons, and swapFeeInfo are present ---*/
+        :root {
+            --bg-color: #121212; /* Default dark */
+            --primary-text: #ffffff;
+            --secondary-text: #b3b3b3;
+            --card-bg: #282828;
+            --accent-color: #1DB954; /* Default accent */
+            --button-bg: #1DB954;
+            --button-text: #ffffff;
+            --input-bg: #333333;
+            --border-color: #444444;
+            --error-color: #f44336;
+            --success-color: #4caf50;
+            --link-color: #8774e1; /* Telegram link color */
+            --receive-color: var(--success-color);
+            --send-color: var(--error-color);
+            --swap-color: orange;
+        }
+
+        * {
             margin: 0;
             padding: 0;
-            height: 100%;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        html, body {
+           height: 100%; /* Needed for flex column */
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--primary-text);
+            overscroll-behavior: none; /* Prevent pull-to-refresh */
+            display: flex;
+            flex-direction: column;
+            transition: background-color 0.3s, color 0.3s; /* Smooth theme transition */
+        }
+
+        .app-container {
+            flex-grow: 1;
+            padding: 15px 15px 75px 15px; /* Added more bottom padding for nav */
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+        }
+
+        /* --- Page Sections --- */
+        .page {
+            display: none;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        .page.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* --- Navigation --- */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
             width: 100%;
-            overflow: hidden;
+            height: 60px;
+            background-color: var(--card-bg);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            border-top: 1px solid var(--border-color);
+            z-index: 1000;
+            box-shadow: 0 -2px 5px rgba(0,0,0,0.2);
+        }
+
+        .nav-item {
+            background: none;
+            border: none;
+            color: var(--secondary-text);
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-size: 10px; /* Slightly smaller */
+            padding: 8px 5px;
+            transition: color 0.2s ease;
+            flex: 1; /* Distribute space evenly */
+            text-align: center;
+        }
+        .nav-item svg {
+            width: 22px;
+            height: 22px;
+            margin-bottom: 4px;
+            fill: currentColor;
+        }
+        .nav-item.active {
+            color: var(--accent-color);
+        }
+        .nav-item:hover:not(.active) { /* Hover effect only on non-active */
+            color: var(--primary-text);
+        }
+
+
+        /* --- Common Elements --- */
+        h1, h2, h3 {
+            color: var(--primary-text);
+            margin-bottom: 15px;
+        }
+        h1 { font-size: 22px; font-weight: 600; }
+        h2 { font-size: 18px; font-weight: 500; border-bottom: 1px solid var(--border-color); padding-bottom: 8px; margin-bottom: 15px;}
+        h3 { font-size: 16px; color: var(--secondary-text); margin-bottom: 10px; font-weight: 500;}
+
+        .card {
+            background-color: var(--card-bg);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+        }
+
+        .balance-display {
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--primary-text);
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        .balance-display span {
+            font-size: 16px;
+            font-weight: normal;
+            color: var(--secondary-text);
+            margin-left: 5px;
+        }
+        .balance-subtitle {
+             text-align: center;
+             color: var(--secondary-text);
+             font-size: 14px;
+             margin-top: -5px;
+             margin-bottom: 20px;
+        }
+
+        .user-info p {
+            margin-bottom: 8px;
+            color: var(--secondary-text);
+            font-size: 14px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .user-info strong {
+            color: var(--primary-text);
+            font-weight: 500;
+        }
+        .user-info span {
+            text-align: right;
+            word-break: break-all; /* Prevent long usernames/IDs from overflowing */
+        }
+
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: var(--secondary-text);
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        input[type="text"], input[type="number"], select {
+            width: 100%;
+            padding: 12px 15px;
+            margin-bottom: 15px;
+            background-color: var(--input-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--primary-text);
+            font-size: 16px;
+            appearance: none; /* Remove default styling */
+            -webkit-appearance: none;
+        }
+        select {
+             background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23b3b3b3' viewBox='0 0 16 16'%3E%3Cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3E%3C/svg%3E");
+             background-repeat: no-repeat;
+             background-position: right 15px center;
+             padding-right: 40px; /* Space for arrow */
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 2px rgba(29, 185, 84, 0.3); /* Subtle focus ring */
+        }
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button {
+             -webkit-appearance: none;
+             margin: 0;
+        }
+         input[type="number"] { -moz-appearance: textfield; } /* Firefox */
+
+        button {
+            background-color: var(--button-bg);
+            color: var(--button-text);
+            border: none;
+            padding: 14px 20px;
+            border-radius: 25px; /* Pill shape */
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600; /* Bolder */
+            text-align: center;
+            width: 100%;
+            transition: background-color 0.2s ease, transform 0.1s ease;
+            margin-top: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        button:hover {
+            opacity: 0.9;
+        }
+        button:active {
+            transform: scale(0.97);
+        }
+        button:disabled {
+            background-color: #555;
+            color: #999;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+        button svg { /* For potential icons in buttons */
+            width: 18px;
+            height: 18px;
+            fill: currentColor;
+        }
+
+        .swap-icon {
+            text-align: center;
+            margin: 10px 0;
+            font-size: 24px;
+            cursor: pointer;
+            color: var(--accent-color);
+            transform: rotate(90deg);
+            transition: transform 0.3s ease;
+        }
+        .swap-icon:hover {
+             transform: rotate(270deg);
+        }
+
+        .message {
+            padding: 12px;
+            margin: 15px 0;
+            border-radius: 8px;
+            text-align: center;
+            font-size: 14px;
+            border: 1px solid transparent;
+        }
+        .message.error {
+            background-color: rgba(244, 67, 54, 0.1);
+            color: var(--error-color);
+            border-color: rgba(244, 67, 54, 0.3);
+        }
+        .message.success {
+             background-color: rgba(76, 175, 80, 0.1);
+             color: var(--success-color);
+             border-color: rgba(76, 175, 80, 0.3);
+         }
+         .message.info {
+             background-color: rgba(33, 150, 243, 0.1);
+             color: var(--link-color); /* Use link color for info */
+             border-color: rgba(33, 150, 243, 0.3);
+         }
+
+        .loading-indicator {
+             text-align: center;
+             padding: 30px;
+             color: var(--secondary-text);
+             display: none; /* Hidden initially */
+             font-size: 16px;
+         }
+         .loading-indicator.active {
+             display: block;
+         }
+         /* Simple spinner */
+         .loading-indicator::before {
+            content: '';
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: var(--primary-text);
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 10px;
+            vertical-align: middle;
+         }
+         @keyframes spin {
+            to { transform: rotate(360deg); }
+         }
+
+
+        .chat-id-display {
+            background-color: var(--input-bg);
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', Courier, monospace;
+            word-break: break-all;
+            margin-top: 5px;
+            margin-bottom: 5px; /* Reduced bottom margin */
+            border: 1px dashed var(--border-color); /* Dashed border */
+            cursor: pointer;
+            text-align: center;
+            color: var(--secondary-text);
+            transition: background-color 0.2s;
+        }
+        .chat-id-display:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+         .copy-feedback {
+             font-size: 12px;
+             color: var(--success-color);
+             text-align: center;
+             height: 18px; /* Reserve space */
+             margin-bottom: 15px;
+             opacity: 0;
+             transition: opacity 0.3s ease;
+         }
+         .copy-feedback.visible {
+              opacity: 1;
+         }
+
+        .transaction-history ul {
+            list-style: none;
+            padding: 0;
+            max-height: 300px; /* Increased height more */
+            overflow-y: auto;
+        }
+        .transaction-history li {
+            background-color: transparent; /* Use card bg */
+            padding: 12px 0;
+            margin-bottom: 0px;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 13px;
+            color: var(--secondary-text);
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start; /* Align items to top */
+        }
+         .transaction-history li:last-child {
+             border-bottom: none; /* No border for last item */
+         }
+        .transaction-history li .tx-details {
+             flex-grow: 1;
+             margin-right: 10px;
+        }
+
+        .transaction-history li .tx-type-icon {
+             width: 20px; /* Slightly larger icon */
+             height: 20px;
+             margin-right: 10px;
+             vertical-align: top; /* Align icon with top of text */
+             display: inline-block; /* Make display inline block */
+             margin-top: 1px; /* Fine tune alignment */
+        }
+        .transaction-history li .tx-main-info {
+             display: inline-block; /* Allow text to wrap */
+             vertical-align: top;
+             max-width: calc(100% - 30px); /* Prevent overlap with timestamp */
+        }
+        .transaction-history li span.tx-amount { font-weight: 500;}
+        .transaction-history li span.tx-asset { font-weight: 500; }
+        .transaction-history li span.tx-peer { /* For From/To info */
+             font-size: 11px;
+             display: block;
+             margin-top: 3px;
+             color: var(--secondary-text);
+             word-break: break-all;
+         }
+         .transaction-history li span.tx-peer strong { /* Peer ID emphasis */
+              color: var(--primary-text);
+              font-weight: 400;
+          }
+         .transaction-history li span.tx-id { /* Transaction ID */
+             font-size: 10px;
+             display: block;
+             margin-top: 4px;
+             color: var(--secondary-text); /* Less prominent */
+             font-family: monospace;
+             word-break: break-all;
+             opacity: 0.6;
+         }
+         .transaction-history li span.tx-id:hover {
+            opacity: 1; /* Show full opacity on hover */
+            cursor: pointer; /* Indicate it might be copyable */
+         }
+
+        .transaction-history li .tx-timestamp {
+            font-size: 11px;
+            color: var(--secondary-text);
+            white-space: nowrap;
+            text-align: right;
+            padding-left: 10px; /* Space from details */
+        }
+        .transaction-history li.receive .tx-amount { color: var(--receive-color); }
+        .transaction-history li.send .tx-amount { color: var(--send-color); }
+        .transaction-history li.swap .tx-amount { color: var(--swap-color); }
+
+
+        #appBlocker {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            z-index: 2000;
+            padding: 20px;
+            color: white;
+            display: none; /* Hidden by default */
+        }
+        #appBlocker p {
+            margin-bottom: 15px;
+        }
+        #appBlocker button {
+            width: auto;
+            padding: 10px 20px;
+        }
+
+        .token-list-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border-color);
+         }
+         .token-list-item:last-child { border-bottom: none; }
+         .token-list-item .token-info { display: flex; align-items: center; }
+         .token-list-item img {
+             width: 32px;
+             height: 32px;
+             margin-right: 12px;
+             border-radius: 50%;
+             background-color: #fff; /* Placeholder bg */
+         }
+         .token-list-item .token-name { font-weight: 500; color: var(--primary-text);}
+         .token-list-item .token-symbol { font-size: 12px; color: var(--secondary-text); }
+         .token-list-item .token-balance { text-align: right; }
+         .token-list-item .balance-amount { font-weight: 500; color: var(--primary-text); }
+         .token-list-item .balance-usd { font-size: 12px; color: var(--secondary-text); }
+        /* Swap fee display */
+        #swapFeeInfo {
+            font-size: 12px;
+            color: var(--secondary-text);
+            text-align: center;
+            margin-top: -5px;
+            margin-bottom: 15px;
+            min-height: 16px; /* Reserve space */
         }
     </style>
 </head>
 <body>
-    <!-- The body will remain empty, the iframe is created by JavaScript -->
+
+    <!-- Blocker -->
+    <div id="appBlocker">
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="#ffffff"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/></svg>
+        <h2 style="margin-top: 15px;">Access Error</h2>
+        <p>This application requires the Telegram app environment.</p>
+    </div>
+
+    <div class="app-container">
+
+        <!-- Loading Indicator -->
+        <div id="loadingIndicator" class="loading-indicator active">Initializing...</div>
+
+        <!-- Global Message Area -->
+        <div id="globalMessage" class="message" style="display: none;"></div>
+
+        <!-- Home Page -->
+        <div id="homePage" class="page active">
+            <h1 id="welcomeMessage">Welcome!</h1>
+            <div class="card">
+                <h2>Total Balance</h2>
+                <div class="balance-display" id="totalBalance">$0.00 <span>USD</span></div>
+                <p class="balance-subtitle">Estimated value</p> 
+                 <div id="detailedBalances">
+                     <h3>Assets</h3> 
+                     <ul id="assetList" style="list-style: none; padding: 0;">
+                         <li style="color: var(--secondary-text); text-align: center;">Loading...</li>
+                     </ul>
+                 </div>
+            </div>
+            <div class="card user-info">
+                <h2>Account Info</h2> 
+                <p><strong>First Name:</strong> <span id="userFirstName">...</span></p>
+                <p><strong>Last Name:</strong> <span id="userLastName">...</span></p>
+                <p><strong>Username:</strong> <span id="userUsername">...</span></p>
+                <p><strong>Chat ID:</strong> <span id="userChatId">...</span></p>
+            </div>
+             <div class="card transaction-history">
+                 <h2>Activity</h2> 
+                 <ul id="transactionList">
+                    <li style="color: var(--secondary-text); text-align: center; border: none;">Loading...</li>
+                 </ul>
+            </div>
+        </div>
+
+        <!-- Swap Page -->
+        <div id="swapPage" class="page">
+            <h1>Swap Assets</h1>
+            <div class="card">
+                <div id="swapMessage" class="message" style="display: none;"></div>
+
+                <label for="fromToken">From:</label>
+                <select id="fromToken"></select>
+                <input type="number" id="fromAmount" placeholder="0.0" min="0" step="any">
+                <p style="font-size: 12px; color: var(--secondary-text); margin-top: -10px; margin-bottom: 10px;">Balance: <span id="swapFromBalance">0.00</span></p>
+
+                <div class="swap-icon" id="swapDirectionBtn" title="Swap Tokens">⇅</div>
+
+                <label for="toToken">To (Estimated):</label>
+                <select id="toToken"></select>
+                <input type="number" id="toAmount" placeholder="0.0" readonly style="background-color: var(--input-bg); opacity: 0.7;">
+                 <p style="font-size: 12px; color: var(--secondary-text); margin-top: -10px; margin-bottom: 10px;">Balance: <span id="swapToBalance">0.00</span></p>
+
+                <p id="swapRate" style="text-align: center; margin: 15px 0 5px 0; color: var(--secondary-text); font-size: 14px; min-height: 20px;">Select tokens to see rate</p>
+                <p id="swapFeeInfo"></p> 
+
+                <button id="swapButton" disabled>
+                    <svg viewBox="0 0 24 24"><path d="M6.99 11L3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z"/></svg>
+                    Swap
+                </button>
+            </div>
+        </div>
+
+        <!-- Receive Page -->
+        <div id="depositPage" class="page">
+            <h1>Receive Assets</h1>
+            <div class="card">
+                 <div id="depositMessage" class="message" style="display: none;"></div>
+                <p style="color: var(--secondary-text); margin-bottom: 20px; font-size: 14px;">Share your Telegram Chat ID to receive assets from other users of this app.</p>
+
+                <h3>Your Telegram Chat ID</h3>
+                <div id="depositChatId" class="chat-id-display" title="Click to copy">Loading...</div>
+                <div id="copyFeedbackDeposit" class="copy-feedback">Click ID to copy</div>
+
+                 <p style="color: var(--secondary-text); font-size: 13px; margin-top: 20px; text-align: center; opacity: 0.8;">
+                    Use this ID for transfers within this app only.
+                 </p>
+            </div>
+        </div>
+
+        <!-- Send Page -->
+        <div id="sendPage" class="page">
+            <h1>Send Assets</h1>
+            <div class="card">
+                 <div id="sendMessage" class="message" style="display: none;"></div>
+
+                <label for="sendToken">Asset:</label> 
+                <select id="sendToken">
+                    <!-- Options populated by JS -->
+                </select>
+
+                <label for="sendAmount">Amount:</label>
+                <input type="number" id="sendAmount" placeholder="0.0" min="0" step="any">
+                <p style="font-size: 12px; color: var(--secondary-text); margin-top: -10px; margin-bottom: 10px;">Available: <span id="sendAvailableBalance">0.00</span></p>
+
+                <label for="recipientId">Recipient Telegram Chat ID:</label>
+                <input type="number" id="recipientId" placeholder="Enter recipient's numeric Chat ID">
+
+                <p style="color: var(--secondary-text); font-size: 13px; margin: 15px 0; text-align: center; opacity: 0.8;">
+                    Double-check the ID before sending.
+                </p>
+
+                <button id="sendButton" disabled>
+                    <svg viewBox="0 0 24 24"><path d="M2.01 21 23 12 2.01 3 2 10l15 2-15 2z"></path></svg>
+                    Send
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Bottom Navigation -->
+    <nav class="bottom-nav">
+        <button class="nav-item active" data-page="homePage">
+            <svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8h5z"/></svg>
+            Home
+        </button>
+        <button class="nav-item" data-page="swapPage">
+             <svg viewBox="0 0 24 24"><path d="M6.99 11L3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z"/></svg>
+            Swap
+        </button>
+        <button class="nav-item" data-page="depositPage">
+             <svg viewBox="0 0 24 24"><path d="M17 13h-4v4h-2v-4H7v-2h4V7h2v4h4v2z M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
+            Receive
+        </button>
+        <button class="nav-item" data-page="sendPage">
+             <svg viewBox="0 0 24 24"><path d="M2.01 21 23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+            Send
+        </button>
+    </nav>
+
+    <script>
+        const firebaseConfig = {
+            // --- PASTE YOUR FIREBASE CONFIG HERE ---
+            // --- THIS IS STILL INSECURE CLIENT-SIDE ---
+            apiKey: "AIzaSyBW1WPXUN8DYhT6npZQYoQ3l4J-jFSbzfg",
+            authDomain: "ab-studio-marketcap.firebaseapp.com",
+            databaseURL: "https://ab-studio-marketcap-default-rtdb.firebaseio.com",
+            projectId: "ab-studio-marketcap",
+            storageBucket: "ab-studio-marketcap.firebasestorage.app",
+            messagingSenderId: "115268088088",
+            appId: "1:115268088088:web:65643a047f92bfaa66ee6d"
+            // --- --- --- --- --- --- --- --- --- --- ---
+        };
+
+        // --- GLOBAL STATE ---
+        let currentUser = null;
+        let userDbRef = null;
+        let db = null;
+        let userBalance = {};
+        let tokenData = {};
+        let userTransactions = {};
+        let tg = null;
+        let firebaseInitialized = false;
+        let listenersAttached = false;
+        const SWAP_FEE_PERCENT = 0.005; // 0.5%
+
+        // --- DOM Elements (Should match previous) ---
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const globalMessage = document.getElementById('globalMessage');
+        const pages = document.querySelectorAll('.page');
+        const navItems = document.querySelectorAll('.nav-item');
+        const appContainer = document.querySelector('.app-container');
+        const appBlocker = document.getElementById('appBlocker');
+        const welcomeMessageEl = document.getElementById('welcomeMessage');
+        const totalBalanceEl = document.getElementById('totalBalance');
+        const userFirstNameEl = document.getElementById('userFirstName');
+        const userLastNameEl = document.getElementById('userLastName');
+        const userUsernameEl = document.getElementById('userUsername');
+        const userChatIdEl = document.getElementById('userChatId');
+        const assetListEl = document.getElementById('assetList');
+        const transactionListEl = document.getElementById('transactionList');
+        const fromTokenSelect = document.getElementById('fromToken');
+        const toTokenSelect = document.getElementById('toToken');
+        const fromAmountInput = document.getElementById('fromAmount');
+        const toAmountInput = document.getElementById('toAmount');
+        const swapButton = document.getElementById('swapButton');
+        const swapMessage = document.getElementById('swapMessage');
+        const swapRateEl = document.getElementById('swapRate');
+        const swapFeeInfoEl = document.getElementById('swapFeeInfo');
+        const swapDirectionBtn = document.getElementById('swapDirectionBtn');
+        const swapFromBalanceEl = document.getElementById('swapFromBalance');
+        const swapToBalanceEl = document.getElementById('swapToBalance');
+        const depositChatIdEl = document.getElementById('depositChatId');
+        const depositMessage = document.getElementById('depositMessage');
+        const copyFeedbackDepositEl = document.getElementById('copyFeedbackDeposit');
+        const sendTokenSelect = document.getElementById('sendToken');
+        const sendAmountInput = document.getElementById('sendAmount');
+        const recipientIdInput = document.getElementById('recipientId');
+        const sendButton = document.getElementById('sendButton');
+        const sendMessage = document.getElementById('sendMessage');
+        const sendAvailableBalanceEl = document.getElementById('sendAvailableBalance');
+
+        // --- UTILITY FUNCTIONS (Mostly unchanged - Ensure they exist) ---
+        function showLoading(show, text = 'Loading...') { /* ... */ }
+        function showMessage(element, message, type = 'error', duration = 5000) { /* ... */ }
+        function showGlobalMessage(message, type = 'error', duration = 5000) { /* ... */ }
+        function formatCurrency(amount, decimals = 2) { /* ... */ }
+        function formatTokenAmount(amount, decimals = 6) { /* ... */ }
+        function triggerHapticFeedback(style = 'medium') { /* ... */ }
+        function applyTheme(params) { /* ... */ }
+        // --- Paste Utility Functions from previous example ---
+        function showLoading(show, text = 'Loading...') {
+            loadingIndicator.textContent = text;
+            loadingIndicator.style.display = show ? 'block' : 'none';
+        }
+        function showMessage(element, message, type = 'error', duration = 5000) {
+            if (!element) return;
+            element.textContent = message;
+            element.className = `message ${type}`;
+            if (element.timeoutId) clearTimeout(element.timeoutId);
+            if (duration > 0) {
+                element.timeoutId = setTimeout(() => {
+                    element.style.display = 'none';
+                }, duration);
+            } else { // duration 0 or less means persistent
+                 element.style.display = 'block';
+            }
+        }
+        function showGlobalMessage(message, type = 'error', duration = 5000) {
+            showMessage(globalMessage, message, type, duration);
+            window.scrollTo(0, 0);
+        }
+        function formatCurrency(amount, decimals = 2) {
+            const num = parseFloat(amount);
+            return isNaN(num) ? '0.00' : num.toFixed(decimals);
+        }
+         function formatTokenAmount(amount, decimals = 6) {
+            const num = parseFloat(amount);
+            if (isNaN(num)) return '0';
+            // Show more decimals for smaller amounts
+            const effectiveDecimals = Math.max(0, Math.min(decimals, num > 0.0001 || num === 0 ? 4 : decimals));
+            return num.toLocaleString(undefined, { minimumFractionDigits: Math.min(2, effectiveDecimals) , maximumFractionDigits: effectiveDecimals });
+        }
+        function triggerHapticFeedback(style = 'medium') {
+             if (tg && tg.HapticFeedback) {
+                 try { tg.HapticFeedback.impactOccurred(style); }
+                 catch (e) { console.warn("Haptic feedback failed:", e); }
+             }
+        }
+        function applyTheme(params) {
+            if (!params) return;
+            const root = document.documentElement;
+            root.style.setProperty('--bg-color', params.bg_color || '#121212');
+            root.style.setProperty('--primary-text', params.text_color || '#ffffff');
+            root.style.setProperty('--secondary-text', params.hint_color || '#b3b3b3');
+            root.style.setProperty('--link-color', params.link_color || '#8774e1');
+            root.style.setProperty('--button-bg', params.button_color || '#1DB954');
+            root.style.setProperty('--button-text', params.button_text_color || '#ffffff');
+            root.style.setProperty('--accent-color', params.button_color || '#1DB954');
+            root.style.setProperty('--receive-color', params.button_color || '#4caf50');
+            document.body.style.backgroundColor = params.bg_color || '#121212';
+            document.body.style.color = params.text_color || '#ffffff';
+            if (tg && tg.setHeaderColor) {
+                try { tg.setHeaderColor(params.secondary_bg_color || params.bg_color || '#121212'); }
+                catch(e) { console.warn("Failed to set header color", e);}
+            }
+        }
+
+        // --- PAGE NAVIGATION ---
+        function showPage(pageId) {
+             if (!document.getElementById(pageId)) {
+                console.error("Page not found:", pageId);
+                return;
+            }
+            pages.forEach(page => {
+                page.classList.toggle('active', page.id === pageId);
+            });
+            navItems.forEach(item => {
+                item.classList.toggle('active', item.dataset.page === pageId);
+            });
+            appContainer.scrollTop = 0;
+
+             // Hide specific page messages
+             if (swapMessage) swapMessage.style.display = 'none';
+             if (depositMessage) depositMessage.style.display = 'none';
+             if (sendMessage) sendMessage.style.display = 'none';
+
+             // Optionally hide global message on page change? Depends on UX preference.
+             // globalMessage.style.display = 'none';
+
+             // Refresh data relevant to the shown page
+             switch(pageId) {
+                 case 'homePage': updateHomePageUI(); break; // Refreshes balances and tx list
+                 case 'swapPage': if (tokenData && Object.keys(tokenData).length > 0) updateSwapUI(); break; // Update swap balances/rates
+                 case 'sendPage': if (userBalance && Object.keys(userBalance).length > 0) updateSendForm(); break; // Update send form balances
+                 case 'depositPage': updateDepositPageUI(); break; // Ensure ChatID is shown
+             }
+        }
+
+        // --- FIREBASE FUNCTIONS ---
+        function initializeFirebase() {
+             return new Promise((resolve, reject) => {
+                 if (firebaseInitialized) { resolve(); return; }
+                 try {
+                    if (!firebase || !firebase.app) { // Basic check if SDK loaded
+                        throw new Error("Firebase SDK not loaded correctly.");
+                    }
+                    firebase.initializeApp(firebaseConfig);
+                    db = firebase.database();
+                    console.log("Firebase Initialized");
+                    firebaseInitialized = true;
+                    resolve();
+                 } catch (error) {
+                    console.error("Firebase Initialization Error:", error);
+                    showGlobalMessage("Error connecting to database services.", "error", 0);
+                    reject(error);
+                 }
+            });
+        }
+
+        function getUserDataRealtime(userId) {
+            if (!db || !userId) return Promise.reject("Database or UserID not available");
+            const userRef = db.ref(`users/${userId}`); // Use a different var name to avoid conflict with global
+
+            return new Promise((resolve, reject) => {
+                userRef.on('value', (snapshot) => {
+                    const data = snapshot.val();
+                    if (data) {
+                        // Update global state (careful with race conditions if resolved multiple times)
+                        userBalance = data.balances || {};
+                        userTransactions = data.transactions || {};
+                        if (!listenersAttached) resolve(data); // Resolve only on first load before listeners attach
+
+                        // Trigger UI updates that depend on this data
+                        updateHomePageUI();
+                        updateSwapUI();
+                        updateSendForm();
+                        populateSendTokenSelector(); // Important to update sendable tokens
+
+                    } else if (currentUser && userId === String(currentUser.id) && !snapshot.exists()) {
+                        // Only attempt creation for the *current* user if they don't exist
+                        console.log("User not found in DB, creating entry...");
+                        const { id, first_name, last_name, username } = currentUser;
+                        const initialUserData = {
+                            chatId: String(id), // Ensure string
+                            firstName: first_name || '', lastName: last_name || '', username: username || 'N/A',
+                            joinedAt: firebase.database.ServerValue.TIMESTAMP,
+                            balances: { USDT: 0 }, // Start with 0 USDT
+                            transactions: {}
+                        };
+                        userRef.set(initialUserData)
+                           .then(() => { console.log("Initial user data created."); if (!listenersAttached) resolve(initialUserData); })
+                           .catch(err => { console.error("Failed to create user data:", err); reject(err); });
+                    } else if (!listenersAttached && !snapshot.exists()) {
+                        // If it's not the current user and they don't exist on first check
+                         console.warn(`User data for ID ${userId} not found.`);
+                         resolve(null); // Resolve with null if user doesn't exist initially
+                    }
+                }, (error) => {
+                    console.error(`Firebase Read Error for user ${userId}:`, error);
+                    showGlobalMessage("Connection error. Data may be outdated.", "error");
+                    if (!listenersAttached) reject(error); // Reject on initial load error
+                });
+            });
+        }
+
+
+         function getTokenData() {
+            if (!db) return Promise.reject("Database not available");
+             const tokensRef = db.ref('tokens');
+             return tokensRef.once('value')
+                 .then(snapshot => {
+                     tokenData = snapshot.val() || {};
+                     if (Object.keys(tokenData).length === 0) {
+                         console.warn("No token data found in Firebase under /tokens path.");
+                         showGlobalMessage("Token information could not be loaded.", "error");
+                     } else {
+                         console.log("Token data loaded:", tokenData);
+                     }
+                     return tokenData;
+                 })
+                 .catch(error => {
+                     console.error("Error fetching token data:", error);
+                     showGlobalMessage("Failed to load essential token information.", "error");
+                     return {};
+                 });
+         }
+
+        // Single user atomic update (for swaps)
+        async function performSwapTransaction(userId, updates, txRecord) {
+            if (!db || !userId) return Promise.reject("Database or UserID not available");
+            userId = String(userId); // Ensure string ID
+            const multiPathUpdate = {};
+            for (const asset in updates) {
+                multiPathUpdate[`/users/${userId}/balances/${asset}`] = firebase.database.ServerValue.increment(updates[asset]);
+            }
+            const txRef = db.ref(`users/${userId}/transactions`).push();
+            multiPathUpdate[`/users/${userId}/transactions/${txRef.key}`] = {
+                ...txRecord,
+                timestamp: firebase.database.ServerValue.TIMESTAMP
+            };
+            console.log("Performing Swap Update:", multiPathUpdate);
+            return db.ref().update(multiPathUpdate);
+        }
+
+        // P2P atomic update (for sending) - CRITICAL FUNCTION
+        async function performP2PTransfer(senderId, recipientId, asset, amount) {
+             senderId = String(senderId);
+             recipientId = String(recipientId);
+             if (!db || !senderId || !recipientId || !asset || !amount || amount <= 0) {
+                 return Promise.reject("Invalid parameters for transfer.");
+             }
+             if (senderId === recipientId) {
+                 return Promise.reject("Cannot send assets to yourself.");
+             }
+
+             // Pre-check recipient existence (optional, improves UX but not atomic)
+             const recipientRef = db.ref(`users/${recipientId}`);
+             const recipientSnapshot = await recipientRef.once('value');
+             if (!recipientSnapshot.exists()) {
+                 throw new Error(`Recipient with Chat ID ${recipientId} not found.`);
+             }
+
+             const senderTxRef = db.ref(`users/${senderId}/transactions`).push();
+             const recipientTxRef = db.ref(`users/${recipientId}/transactions`).push();
+
+             const multiPathUpdate = {};
+
+             // 1. Decrement sender balance
+             multiPathUpdate[`/users/${senderId}/balances/${asset}`] = firebase.database.ServerValue.increment( -parseFloat(amount) );
+             // 2. Increment recipient balance
+             multiPathUpdate[`/users/${recipientId}/balances/${asset}`] = firebase.database.ServerValue.increment( parseFloat(amount) );
+             // 3. Add sender transaction record
+             multiPathUpdate[`/users/${senderId}/transactions/${senderTxRef.key}`] = {
+                 type: "send", asset: asset, amount: parseFloat(amount),
+                 toUserId: recipientId, status: "completed",
+                 timestamp: firebase.database.ServerValue.TIMESTAMP,
+                 recipientTxKey: recipientTxRef.key // Link
+             };
+             // 4. Add recipient transaction record
+             multiPathUpdate[`/users/${recipientId}/transactions/${recipientTxRef.key}`] = {
+                 type: "receive", asset: asset, amount: parseFloat(amount),
+                 fromUserId: senderId, status: "completed",
+                 timestamp: firebase.database.ServerValue.TIMESTAMP,
+                 senderTxKey: senderTxRef.key // Link
+             };
+
+             console.log("Attempting P2P Update:", multiPathUpdate);
+             return db.ref().update(multiPathUpdate); // The atomic operation
+         }
+
+
+        // --- UI UPDATE FUNCTIONS ---
+        function updateHomePageUI() {
+            if (!currentUser) return;
+            welcomeMessageEl.textContent = `Welcome, ${currentUser.first_name || 'User'}!`;
+            userFirstNameEl.textContent = currentUser.first_name || '-';
+            userLastNameEl.textContent = currentUser.last_name || '-';
+            userUsernameEl.textContent = currentUser.username ? `@${currentUser.username}` : '-';
+            userChatIdEl.textContent = currentUser.id || 'N/A';
+
+            let totalUsdValue = 0;
+            assetListEl.innerHTML = '';
+
+            const sortedBalances = Object.entries(userBalance)
+               .filter(([asset, balance]) => tokenData[asset] || asset === 'USDT') // Only show known assets or USDT
+               .sort(([assetA], [assetB]) => { // Sort by USD value descending, then alphabetically
+                   const valA = (parseFloat(userBalance[assetA] || 0) * parseFloat(tokenData[assetA]?.priceUSD || (assetA === 'USDT' ? 1 : 0)));
+                   const valB = (parseFloat(userBalance[assetB] || 0) * parseFloat(tokenData[assetB]?.priceUSD || (assetB === 'USDT' ? 1 : 0)));
+                   if (valB !== valA) return valB - valA;
+                   return assetA.localeCompare(assetB);
+               });
+
+            if (sortedBalances.length === 0) {
+               assetListEl.innerHTML = '<li style="color: var(--secondary-text); text-align: center; padding: 10px 0;">No assets found.</li>';
+            } else {
+                sortedBalances.forEach(([asset, balance]) => {
+                   const numBalance = parseFloat(balance || 0);
+                   if (numBalance < 0.000001 && asset !== 'USDT') return; // Hide tiny dust balances except USDT
+
+                   const tokenInfo = tokenData[asset];
+                   const priceUsd = tokenInfo ? parseFloat(tokenInfo.priceUSD || 0) : (asset === 'USDT' ? 1 : 0);
+                   const usdValue = numBalance * priceUsd;
+                   totalUsdValue += usdValue;
+                   const li = document.createElement('li');
+                   li.className = 'token-list-item';
+                   li.innerHTML = `
+                       <div class="token-info">
+                           <img src="${tokenInfo?.logoUrl || 'https://via.placeholder.com/32/cccccc/000000?text=?'}" alt="${asset}">
+                           <div>
+                               <div class="token-name">${tokenInfo?.name || asset}</div>
+                               <div class="token-symbol">${asset}</div>
+                           </div>
+                       </div>
+                       <div class="token-balance">
+                            ${numBalance > 0.000001 || asset === 'USDT' ? `<div class="balance-amount">${formatTokenAmount(numBalance)}</div>` : ''}
+                            ${usdValue > 0.01 ? `<div class="balance-usd">≈ $${formatCurrency(usdValue)}</div>` : ''}
+                       </div>
+                   `;
+                   assetListEl.appendChild(li);
+                });
+            }
+            totalBalanceEl.innerHTML = `$${formatCurrency(totalUsdValue)} <span>USD</span>`;
+            updateTransactionHistory();
+        }
+
+        function updateTransactionHistory() {
+            transactionListEl.innerHTML = '';
+            const txArray = Object.entries(userTransactions || {})
+                .map(([key, value]) => ({ id: key, ...value }))
+                .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+            if (txArray.length === 0) {
+                 transactionListEl.innerHTML = '<li style="color: var(--secondary-text); text-align: center; border: none; padding: 10px 0;">No recent activity.</li>';
+                 return;
+            }
+
+             txArray.slice(0, 25).forEach(tx => { // Show latest 25
+                 const li = document.createElement('li');
+                 li.classList.add(tx.type); // send, receive, swap
+
+                 let iconSvg = '';
+                 let mainInfoHtml = '';
+                 let peerInfoHtml = '';
+
+                 switch (tx.type) {
+                      case 'receive':
+                         iconSvg = `<svg class="tx-type-icon" style="color: var(--receive-color);" viewBox="0 0 24 24" fill="currentColor"><path d="M11 15h2v-4h4v-2h-4V5h-2v4H7v2h4v4zm1-13C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>`;
+                         mainInfoHtml = `Received <span class="tx-amount">${formatTokenAmount(tx.amount)}</span> <span class="tx-asset">${tx.asset}</span>`;
+                         peerInfoHtml = `<span class="tx-peer">From: <strong>${tx.fromUserId || 'Unknown'}</strong></span>`;
+                         break;
+                     case 'send':
+                          iconSvg = `<svg class="tx-type-icon" style="color: var(--send-color);" viewBox="0 0 24 24" fill="currentColor"><path d="M3.4 20.4l17.4-8.4c.7-.3.7-1.2 0-1.5L3.4 2.1c-.6-.3-1.3.1-1.3.8l.9 6.5c0 .5.5.9 1 .9h6.4c.4 0 .6.5.3.8l-2.6 2.1c-.4.3-.4.9 0 1.2l2.6 2.1c.3.3.1.8-.3.8H4c-.5 0-1 .4-1 .9l-.9 6.5c0 .6.7 1.1 1.3.8z"></path></svg>`;
+                         mainInfoHtml = `Sent <span class="tx-amount">${formatTokenAmount(tx.amount)}</span> <span class="tx-asset">${tx.asset}</span>`;
+                         peerInfoHtml = `<span class="tx-peer">To: <strong>${tx.toUserId || 'Unknown'}</strong></span>`;
+                         break;
+                     case 'swap':
+                          iconSvg = `<svg class="tx-type-icon" style="color: var(--swap-color);" viewBox="0 0 24 24" fill="currentColor"><path d="M6.99 11L3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z"/></svg>`;
+                         mainInfoHtml = `Swapped <span class="tx-amount">${formatTokenAmount(tx.fromAmount)} ${tx.fromAsset}</span> for <span class="tx-amount">${formatTokenAmount(tx.toAmount)} ${tx.toAsset}</span>`;
+                          peerInfoHtml = `<span class="tx-peer">Rate: ≈ ${formatTokenAmount(tx.effectiveRate, 4)} ${tx.toAsset}/${tx.fromAsset}</span>`; // Show effective rate
+                         break;
+                     default:
+                         iconSvg = `<svg class="tx-type-icon" style="color: var(--secondary-text);" viewBox="0 0 24 24" fill="currentColor"><path d="M11 17h2v-6h-2v6zm1-15C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zM11 9h2V7h-2v2z"/></svg>`;
+                         mainInfoHtml = `${tx.type || 'System'} <span class="tx-amount">${formatTokenAmount(tx.amount || tx.fromAmount)}</span> <span class="tx-asset">${tx.asset || tx.fromAsset}</span>`;
+                 }
+
+                 const timestampStr = tx.timestamp ? new Date(tx.timestamp).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : 'Pending...';
+                 // Add click-to-copy for Tx ID
+                 const txIdHtml = `<span class="tx-id" title="Click to copy Tx ID" onclick="copyTextToClipboard('${tx.id}')">TxID: ${tx.id.substring(0, 8)}...</span>`;
+
+                 li.innerHTML = `
+                    <div class="tx-details">
+                        ${iconSvg}
+                        <div class="tx-main-info">
+                             ${mainInfoHtml}
+                             ${peerInfoHtml}
+                             ${txIdHtml}
+                        </div>
+                    </div>
+                    <div class="tx-timestamp">${timestampStr}</div>
+                 `;
+                 transactionListEl.appendChild(li);
+             });
+        }
+
+         function populateTokenSelectors() {
+             if (!tokenData || Object.keys(tokenData).length === 0) {
+                 console.warn("Token data not available for populating selectors.");
+                 swapButton.disabled = true;
+                 fromTokenSelect.innerHTML = '<option>Unavailable</option>';
+                 toTokenSelect.innerHTML = '<option>Unavailable</option>';
+                 return;
+             }
+             const sortedSymbols = Object.keys(tokenData).sort((a,b) => (tokenData[a].name || a).localeCompare(tokenData[b].name || b) );
+             let fromOptions = '';
+             let toOptions = '';
+
+             sortedSymbols.forEach(symbol => {
+                 const token = tokenData[symbol];
+                 const optionHtml = `<option value="${symbol}" data-logo="${token.logoUrl || ''}">${token.name} (${symbol})</option>`;
+                 fromOptions += optionHtml;
+                 toOptions += optionHtml;
+             });
+
+             fromTokenSelect.innerHTML = fromOptions;
+             toTokenSelect.innerHTML = toOptions;
+
+             // Default selection (e.g., USDT and the first non-USDT token)
+             const nonUsdtTokens = sortedSymbols.filter(s => s !== 'USDT');
+             if (sortedSymbols.includes('USDT')) {
+                fromTokenSelect.value = 'USDT';
+                if (nonUsdtTokens.length > 0) {
+                    toTokenSelect.value = nonUsdtTokens[0];
+                } else if (sortedSymbols.length > 1) {
+                    toTokenSelect.value = sortedSymbols.find(s => s !== 'USDT') || sortedSymbols[1]; // Fallback
+                } else {
+                     toTokenSelect.value = 'USDT'; // Only USDT available
+                }
+             } else if (sortedSymbols.length > 0) {
+                 fromTokenSelect.value = sortedSymbols[0];
+                 if (sortedSymbols.length > 1) toTokenSelect.value = sortedSymbols[1];
+                 else toTokenSelect.value = sortedSymbols[0];
+             }
+
+             updateSwapUI();
+         }
+
+
+         function populateSendTokenSelector() {
+            sendTokenSelect.innerHTML = '';
+             let hasOptions = false;
+             const availableAssets = Object.entries(userBalance)
+                 .filter(([asset, balance]) => parseFloat(balance || 0) > 0.000001 && tokenData[asset]) // Min balance threshold
+                 .sort(([assetA], [assetB]) => (tokenData[assetA]?.name || assetA).localeCompare(tokenData[assetB]?.name || assetB));
+
+             if (availableAssets.length > 0) {
+                 availableAssets.forEach(([asset, balance]) => {
+                     const token = tokenData[asset];
+                     const option = document.createElement('option');
+                     option.value = asset;
+                     option.textContent = `${token.name} (${asset})`;
+                     sendTokenSelect.appendChild(option);
+                     hasOptions = true;
+                 });
+             }
+
+             if (!hasOptions) {
+                 const option = document.createElement('option');
+                 option.textContent = 'No assets available';
+                 option.disabled = true;
+                 sendTokenSelect.appendChild(option);
+             }
+             updateSendForm();
+         }
+
+         function updateSwapUI() {
+            if (!fromTokenSelect || !toTokenSelect || !tokenData) return; // Ensure elements and data exist
+
+            const fromAsset = fromTokenSelect.value;
+            const toAsset = toTokenSelect.value;
+            const fromAmount = parseFloat(fromAmountInput.value || 0); // Keep fromAmount as entered by user
+            const fromBalance = parseFloat(userBalance[fromAsset] || 0);
+            const toBalance = parseFloat(userBalance[toAsset] || 0);
+
+            // Update balance displays below inputs
+            swapFromBalanceEl.textContent = `${formatTokenAmount(fromBalance)} ${fromAsset || ''}`;
+            swapToBalanceEl.textContent = `${formatTokenAmount(toBalance)} ${toAsset || ''}`;
+
+            // Calculate rate, apply fee, update 'toAmount' input and fee info
+            updateSwapRateAndToAmount();
+
+            // Enable/disable swap button based on validation
+            const toAmount = parseFloat(toAmountInput.value || 0); // Use the calculated toAmount
+            const hasSufficientBalance = fromBalance >= fromAmount;
+            const isValidSwap = fromAsset && toAsset && fromAmount > 0 && fromAsset !== toAsset && toAmount > 0 && hasSufficientBalance;
+
+            swapButton.disabled = !isValidSwap;
+
+            // Provide clearer feedback if balance is insufficient
+             if (fromAmount > 0 && !hasSufficientBalance && fromAsset) {
+                 // Consider showing a temporary message near the balance or input
+                 showMessage(swapMessage, `Insufficient ${fromAsset} balance`, 'error', 3000);
+             } else if (swapMessage.textContent.includes('Insufficient')) {
+                 swapMessage.style.display = 'none'; // Hide previous insufficient balance message if now ok
+             }
+         }
+
+
+         function updateSwapRateAndToAmount() {
+            const fromAsset = fromTokenSelect.value;
+            const toAsset = toTokenSelect.value;
+            const fromAmount = parseFloat(fromAmountInput.value || 0);
+            let feeText = '';
+
+            // Reset outputs
+             toAmountInput.value = '';
+             swapRateEl.textContent = 'Select tokens';
+             swapFeeInfoEl.textContent = '';
+
+            if (!fromAsset || !toAsset || !tokenData[fromAsset] || !tokenData[toAsset]) {
+                return; // Exit if token data is missing
+            }
+            if (fromAsset === toAsset) {
+                 swapRateEl.textContent = 'Cannot swap same token'; return;
+            }
+
+            const fromPrice = parseFloat(tokenData[fromAsset].priceUSD || 0);
+            const toPrice = parseFloat(tokenData[toAsset].priceUSD || 0);
+
+             if (fromPrice <= 0 || toPrice <= 0) {
+                 swapRateEl.textContent = 'Price info unavailable'; return;
+             }
+
+            const baseRate = fromPrice / toPrice; // 1 FromAsset = X ToAsset (no fee)
+            let effectiveRate = baseRate;
+            let calculatedToAmount = fromAmount * baseRate;
+            const feePercentDisplay = (SWAP_FEE_PERCENT * 100).toFixed(2) + '%';
+
+            // --- Asymmetric Fee Logic ---
+            const isUsdtToX = fromAsset === 'USDT' && toAsset !== 'USDT';
+            const isXToUsdt = fromAsset !== 'USDT' && toAsset === 'USDT';
+
+            if (isUsdtToX) {
+                // Buying X with USDT: Increase X's price (get less X)
+                effectiveRate = baseRate / (1 + SWAP_FEE_PERCENT); // Divide by increased price factor
+                calculatedToAmount = fromAmount * effectiveRate;
+                feeText = `Fee: ${feePercentDisplay}`;
+            } else if (isXToUsdt) {
+                // Selling X for USDT: Decrease X's price (get less USDT)
+                effectiveRate = baseRate * (1 - SWAP_FEE_PERCENT); // Multiply by decreased price factor
+                calculatedToAmount = fromAmount * effectiveRate;
+                 feeText = `Fee: ${feePercentDisplay}`;
+            } else {
+                // Crypto-to-crypto or other cases: Apply flat fee or no fee
+                 // Example: Apply flat fee for simplicity here
+                 effectiveRate = baseRate * (1 - SWAP_FEE_PERCENT);
+                 calculatedToAmount = fromAmount * effectiveRate;
+                 feeText = `Fee: ${feePercentDisplay}`;
+                 // Or set feeText = '' if no fee for C2C
+            }
+            // --- End Fee Logic ---
+
+            swapRateEl.textContent = `1 ${fromAsset} ≈ ${formatTokenAmount(baseRate, 5)} ${toAsset}`; // Show rate before fee
+            swapFeeInfoEl.textContent = feeText;
+            // Ensure calculated amount isn't negative or NaN before displaying
+             toAmountInput.value = (isNaN(calculatedToAmount) || calculatedToAmount < 0) ? '' : formatTokenAmount(calculatedToAmount, 6);
+        }
+
+        function updateSendForm() {
+             const selectedAsset = sendTokenSelect.value;
+             const availableBalance = parseFloat(userBalance[selectedAsset] || 0);
+             sendAvailableBalanceEl.textContent = `${formatTokenAmount(availableBalance)} ${selectedAsset || ''}`;
+
+             const sendAmount = parseFloat(sendAmountInput.value || 0);
+             const recipientId = recipientIdInput.value.trim();
+
+             const isValidRecipient = /^\d+$/.test(recipientId) && recipientId !== String(currentUser?.id);
+             const hasSufficientBalance = availableBalance >= sendAmount;
+
+             sendButton.disabled = !(selectedAsset && sendAmount > 0 && recipientId && isValidRecipient && hasSufficientBalance);
+
+             // Clear previous error messages if condition changes
+             if (sendMessage.style.display !== 'none' && sendMessage.classList.contains('error')) {
+                 if (sendAmount <= 0 || !recipientId || !isValidRecipient || !hasSufficientBalance) {
+                     // Keep showing message if still invalid
+                 } else {
+                     sendMessage.style.display = 'none'; // Hide if conditions met
+                 }
+             }
+         }
+
+         function updateDepositPageUI() {
+             if (currentUser) {
+                depositChatIdEl.textContent = currentUser.id;
+             } else {
+                 depositChatIdEl.textContent = 'N/A';
+             }
+         }
+
+         // Helper for copying text
+         function copyTextToClipboard(text) {
+            if (!navigator.clipboard) {
+                // Fallback or show message 'copy not supported'
+                showGlobalMessage('Clipboard copy not available.', 'info');
+                return;
+            }
+            navigator.clipboard.writeText(text).then(() => {
+                showGlobalMessage('Copied to clipboard!', 'success', 2000);
+                triggerHapticFeedback('success');
+            }).catch(err => {
+                console.error('Failed to copy text: ', err);
+                showGlobalMessage('Failed to copy.', 'error');
+                triggerHapticFeedback('error');
+            });
+        }
+
+
+        // --- ACTION HANDLERS ---
+        async function handleSwap() {
+             const fromAsset = fromTokenSelect.value;
+             const toAsset = toTokenSelect.value;
+             const fromAmount = parseFloat(fromAmountInput.value);
+             const toAmount = parseFloat(toAmountInput.value); // Use calculated amount including fee
+
+             // --- Validation ---
+             if (!currentUser || !fromAsset || !toAsset || fromAsset === toAsset || isNaN(fromAmount) || fromAmount <= 0 || isNaN(toAmount) || toAmount <= 0) {
+                 showMessage(swapMessage, "Invalid swap details.", "error"); return;
+             }
+             const fromBalance = parseFloat(userBalance[fromAsset] || 0);
+             if (fromBalance < fromAmount) {
+                 showMessage(swapMessage, `Insufficient ${fromAsset} balance.`, "error"); return;
+             }
+             // --- End Validation ---
+
+             showLoading(true, 'Processing Swap...');
+             swapButton.disabled = true;
+
+             try {
+                 // Recalculate rates just before transaction for accuracy in logs
+                 const fromPrice = parseFloat(tokenData[fromAsset]?.priceUSD || 0);
+                 const toPrice = parseFloat(tokenData[toAsset]?.priceUSD || 0);
+                 const baseRate = (fromPrice > 0 && toPrice > 0) ? fromPrice / toPrice : 0;
+                 const effectiveRate = (fromAmount > 0) ? toAmount / fromAmount : 0;
+
+                 const balanceUpdates = { [fromAsset]: -fromAmount, [toAsset]: toAmount };
+                 const txRecord = {
+                     type: "swap", fromAsset, fromAmount, toAsset, toAmount,
+                     rate: baseRate, effectiveRate: effectiveRate, status: "completed"
+                 };
+
+                 await performSwapTransaction(currentUser.id, balanceUpdates, txRecord);
+
+                 showMessage(swapMessage, `Swap successful!`, "success", 4000);
+                 triggerHapticFeedback('success');
+                 fromAmountInput.value = ''; // Clear input, balance updates via listener
+
+             } catch (error) {
+                 console.error("Swap Transaction Error:", error);
+                 showMessage(swapMessage, "Swap failed. Please try again.", "error");
+                 triggerHapticFeedback('error');
+             } finally {
+                 showLoading(false);
+                 // updateSwapUI will re-enable button if possible after data refresh
+             }
+         }
+
+        async function handleSend() {
+             const asset = sendTokenSelect.value;
+             const amount = parseFloat(sendAmountInput.value);
+             const recipientId = recipientIdInput.value.trim();
+
+             // --- Validation ---
+             if (!currentUser || !asset || isNaN(amount) || amount <= 0 || !recipientId) {
+                 showMessage(sendMessage, "Please fill all fields correctly.", "error"); return;
+             }
+             if (!/^\d+$/.test(recipientId)) {
+                  showMessage(sendMessage, "Recipient Chat ID must be numeric.", "error"); return;
+             }
+             const senderId = String(currentUser.id);
+              if (recipientId === senderId) {
+                 showMessage(sendMessage, "You cannot send assets to yourself.", "error"); return;
+             }
+             const balance = parseFloat(userBalance[asset] || 0);
+             if (balance < amount) {
+                 showMessage(sendMessage, `Insufficient ${asset} balance.`, "error"); return;
+             }
+             // --- End Validation ---
+
+             showLoading(true, 'Sending Transfer...');
+             sendButton.disabled = true;
+
+             try {
+                 // performP2PTransfer includes recipient existence check now
+                 await performP2PTransfer(senderId, recipientId, asset, amount);
+
+                 showMessage(sendMessage, `Sent ${formatTokenAmount(amount)} ${asset} to ${recipientId}.`, "success", 4000);
+                 triggerHapticFeedback('success');
+                 sendAmountInput.value = '';
+                 recipientIdInput.value = '';
+                 // UI updates via listener
+
+             } catch (error) {
+                 console.error("Send Transaction Error:", error);
+                 // Provide more specific feedback if possible
+                 if (error.message.includes("Recipient with Chat ID")) {
+                     showMessage(sendMessage, error.message, "error"); // Show the specific "not found" error
+                 } else if (error.message.includes("permission_denied")) {
+                      showMessage(sendMessage, `Transfer failed. Check recipient ID or permissions.`, "error");
+                 } else {
+                      showMessage(sendMessage, "Send failed. Please try again.", "error");
+                 }
+                 triggerHapticFeedback('error');
+             } finally {
+                 showLoading(false);
+                 // Re-enable button state managed by updateSendForm after data refresh
+             }
+         }
+
+        // --- EVENT LISTENERS SETUP ---
+        function setupEventListeners() {
+             if (listenersAttached) return;
+
+             navItems.forEach(item => item.addEventListener('click', () => showPage(item.dataset.page)));
+
+             fromTokenSelect.addEventListener('change', updateSwapUI);
+             toTokenSelect.addEventListener('change', updateSwapUI);
+             fromAmountInput.addEventListener('input', updateSwapUI);
+             swapButton.addEventListener('click', handleSwap);
+             swapDirectionBtn.addEventListener('click', () => {
+                 const fromVal = fromTokenSelect.value;
+                 const toVal = toTokenSelect.value;
+                 fromTokenSelect.value = toVal;
+                 toTokenSelect.value = fromVal;
+                 triggerHapticFeedback('light');
+                 updateSwapUI();
+             });
+
+             depositChatIdEl.addEventListener('click', () => {
+                if(currentUser && currentUser.id) copyTextToClipboard(String(currentUser.id));
+             });
+
+             sendTokenSelect.addEventListener('change', updateSendForm);
+             sendAmountInput.addEventListener('input', updateSendForm);
+             recipientIdInput.addEventListener('input', updateSendForm);
+             sendButton.addEventListener('click', handleSend);
+
+             // Add listener for clicking transaction IDs (already in innerHTML)
+             // The onclick attribute handles this directly now
+
+             listenersAttached = true;
+             console.log("Event listeners attached.");
+         }
+
+        // --- INITIALIZATION ---
+        async function initializeApp() {
+            console.log("Initializing App...");
+            showLoading(true, 'Connecting...');
+             if (typeof window.Telegram === 'undefined' || !window.Telegram.WebApp) {
+                 console.error("Telegram SDK not found.");
+                 showLoading(false); appBlocker.style.display = 'flex'; return;
+             }
+             tg = window.Telegram.WebApp;
+
+            try {
+                 tg.ready();
+                 console.log("Telegram WebApp Ready");
+                 tg.expand();
+                 applyTheme(tg.themeParams);
+                 tg.onEvent('themeChanged', () => applyTheme(tg.themeParams));
+
+                 if (tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.id) {
+                     currentUser = tg.initDataUnsafe.user;
+                     console.log("User Identified:", currentUser.id);
+                     // Show basic user info immediately
+                     updateHomePageUI();
+                     updateDepositPageUI();
+                 } else {
+                     throw new Error("Telegram user data unavailable.");
+                 }
+
+                 showLoading(true, 'Loading Wallet Data...');
+                 await initializeFirebase();
+
+                 // Fetch static token data first is essential for pricing
+                 await getTokenData();
+                 populateTokenSelectors(); // Populate swap dropdowns now that tokens are known
+
+                 // Start listening for user data AFTER tokens loaded & swap populated
+                 // The getUserDataRealtime function will resolve once the first data comes in
+                 // or user is created.
+                 await getUserDataRealtime(String(currentUser.id));
+
+                 // Initial population of send tokens based on fetched balance
+                 populateSendTokenSelector();
+
+                 setupEventListeners(); // Setup interactions only after data is ready
+                 showLoading(false);
+                 showPage('homePage'); // Ensure home is active
+
+            } catch (error) {
+                 console.error("Initialization Failed:", error);
+                 showLoading(false);
+                 if (error.message.includes("Telegram user data")) {
+                     appBlocker.style.display = 'flex';
+                     appBlocker.querySelector('p').textContent = error.message;
+                 } else {
+                     showGlobalMessage(`Initialization Error: ${error.message}`, "error", 0);
+                 }
+                 // Disable interactions if init fails
+                 document.querySelectorAll('button, input, select').forEach(el => el.disabled = true);
+            }
+        }
+
+        // Start the app
+        document.addEventListener('DOMContentLoaded', initializeApp);
+
+    </script>
+
 </body>
 </html>
