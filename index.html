@@ -3,16 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>AB Wallet Pro+</title> <!-- Wallet Name -->
+    <title>AB Wallet</title> <!-- Simplified Name -->
     <link rel="stylesheet" href="style.css">
-    <!-- Consider adding a Favicon -->
-    <!-- <link rel="icon" href="/favicon.ico" type="image/x-icon"> -->
+    <!-- Icons (Optional - Example using Material Icons) -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <script defer src="firebase.js"></script>
 </head>
-<body class="dark-theme"> <!-- Add class to body for theme -->
+<body class="dark-theme"> <!-- Apply dark theme by default -->
 
     <div id="app-container">
         <!-- Loading Overlay -->
@@ -28,12 +29,12 @@
                 <header class="page-header">
                     <h1>Portfolio</h1>
                     <button id="refresh-button" class="icon-button" title="Refresh Data">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"></path></svg>
+                        <span class="material-icons-outlined">refresh</span>
                     </button>
                 </header>
                  <section class="content-section total-balance-section">
                     <h2>Total Estimated Value</h2>
-                    <div class="total-balance-card card"> <!-- Added generic card class -->
+                    <div class="total-balance-card card">
                         <span class="currency-symbol">$</span>
                         <span class="balance-amount" id="total-balance-display">0.00</span>
                         <span class="currency-code">USD</span>
@@ -47,133 +48,122 @@
                  </section>
                 <section class="content-section user-info-section">
                     <h2>Account Info</h2>
-                    <div class="user-info-card card" id="user-info-display"> <!-- Added generic card class -->
+                    <div class="user-info-card card" id="user-info-display">
                         <p class="placeholder-text">Loading user data...</p>
                     </div>
                 </section>
             </div>
 
-            <!-- Swap Page - Enhanced Structure -->
+            <!-- Swap Page -->
             <div id="swap-page" class="page">
                  <header class="page-header">
-                    <button class="back-button icon-button" data-target="home-page" title="Back">
-                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"></path></svg>
+                    <button class="back-button icon-button" data-target="home-page" aria-label="Back">
+                        <span class="material-icons-outlined">arrow_back</span>
                     </button>
                     <h1>Swap Assets</h1>
                     <div class="header-spacer"></div> <!-- Spacer for centering title -->
                  </header>
-                 <section class="content-section swap-section">
-                     <div class="swap-interface card"> <!-- Wrap interface in a card -->
+                 <section class="content-section swap-section card"> <!-- Wrap in a card -->
+                     <div class="swap-interface">
                          <!-- From Section -->
                          <div class="swap-box">
                              <label for="swap-from-amount">You Pay</label>
-                             <div class="input-group">
-                                 <input type="number" id="swap-from-amount" placeholder="0.0" step="any" min="0">
+                             <div class="input-line">
+                                 <input type="number" class="amount-input" id="swap-from-amount" placeholder="0" step="any" min="0">
                                  <div class="token-selector-container">
                                      <button class="token-selector-button" id="swap-from-token-button">
-                                         <img src="placeholder.png" alt="Token" class="token-logo">
+                                         <img src="placeholder.png" alt="-" class="token-logo">
                                          <span class="token-symbol">Select</span>
-                                         <span class="arrow">▼</span>
+                                         <span class="material-icons-outlined arrow">expand_more</span>
                                      </button>
                                  </div>
                              </div>
-                             <div class="balance-info" id="swap-from-balance">Balance: 0.0</div>
+                             <div class="balance-info subtle-text" id="swap-from-balance">Balance: -</div>
                          </div>
 
-                         <!-- Switch Button -->
                          <div class="swap-icon-container">
-                              <button id="swap-switch-button" class="icon-button" title="Switch Tokens">
-                                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M6.99 11 3 15l3.99 4v-3H14v-2H6.99v-3zm10.02-6v3H10v2h7.01v3L21 9z"></path></svg>
-                              </button>
+                              <button id="swap-switch-button" class="icon-button switch-button" title="Switch Tokens" aria-label="Switch Tokens">
+                                  <span class="material-icons-outlined">swap_vert</span>
+                                </button>
                          </div>
 
                          <!-- To Section -->
                          <div class="swap-box">
                              <label for="swap-to-amount">You Receive (Estimated)</label>
-                             <div class="input-group">
-                                 <!-- Readonly Input for better styling control -->
-                                 <input type="text" id="swap-to-amount" placeholder="0.0" readonly class="readonly-input">
+                             <div class="input-line">
+                                 <input type="number" class="amount-input" id="swap-to-amount" placeholder="0" step="any" disabled>
                                  <div class="token-selector-container">
                                      <button class="token-selector-button" id="swap-to-token-button">
-                                          <img src="placeholder.png" alt="Token" class="token-logo">
+                                          <img src="placeholder.png" alt="-" class="token-logo">
                                           <span class="token-symbol">Select</span>
-                                          <span class="arrow">▼</span>
+                                          <span class="material-icons-outlined arrow">expand_more</span>
                                      </button>
                                  </div>
                              </div>
-                              <div class="balance-info" id="swap-to-balance">Balance: 0.0</div>
+                              <div class="balance-info subtle-text" id="swap-to-balance">Balance: -</div>
                          </div>
-                     </div> <!-- End swap-interface card -->
+                    </div> <!-- End swap-interface -->
 
-                     <!-- Rate & Fee Info outside main card for clarity -->
-                     <div class="swap-details-card card">
-                         <div class="detail-row">
-                             <span>Rate:</span>
-                             <span id="swap-rate-display" class="rate-value">Select tokens</span>
+                     <!-- Rate & Action (Outside swap-interface but inside card) -->
+                     <div class="swap-details">
+                         <div class="swap-rate-info subtle-text" id="swap-rate-display">
+                             Select tokens to view rate
                          </div>
-                         <div class="detail-row">
-                             <span>Fee (0.1%):</span>
-                             <span id="swap-fee-display" class="fee-value">-</span>
-                         </div>
+                         <p class="fee-info subtle-text" id="swap-fee-info">Fee: 0.1%</p>
                      </div>
-
-                     <!-- Action Button -->
                      <button id="execute-swap-button" class="action-button primary-button" disabled>Swap</button>
                      <p id="swap-status" class="status-message"></p>
-                 </section>
+
+                 </section> <!-- End swap-section card -->
             </div>
 
             <!-- Receive Page -->
             <div id="deposit-page" class="page">
                 <header class="page-header">
-                     <button class="back-button icon-button" data-target="home-page" title="Back">
-                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"></path></svg>
+                     <button class="back-button icon-button" data-target="home-page" aria-label="Back">
+                         <span class="material-icons-outlined">arrow_back</span>
                      </button>
                      <h1>Receive Funds</h1>
                      <div class="header-spacer"></div>
                 </header>
-                <section class="content-section">
-                    <p class="info-text">Share your unique Chat ID below with another AB Wallet user to receive funds directly.</p>
-
-                    <div class="deposit-info-card card"> <!-- Added card class -->
-                        <h3>Your Account Chat ID</h3>
+                <section class="content-section card">
+                    <p class="info-text">Share your Chat ID below for other AB Wallet users to send funds to you.</p>
+                    <div class="deposit-info-card">
+                        <h3>Your AB Wallet Chat ID</h3>
                         <div class="chat-id-display">
                            <span id="deposit-chat-id" class="mono-text">Loading...</span>
-                           <button class="copy-button icon-button" title="Copy Chat ID" data-clipboard-target="#deposit-chat-id">
-                               <svg xmlns="http://www.w3.org/2000/svg" height="18px" viewBox="0 0 24 24" width="18px" fill="currentColor"><path d="M0 0h24v24H0V0z" fill="none"/><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+                           <button class="copy-button icon-button subtle-button" title="Copy Chat ID" data-clipboard-target="#deposit-chat-id" aria-label="Copy Chat ID">
+                               <span class="material-icons-outlined">content_copy</span>
                            </button>
                         </div>
-                         <p class="small-text">This ID identifies your account for internal transfers.</p>
                     </div>
-                    <p class="info-text">Received funds will appear in your balance automatically.</p>
+                    <p class="info-text" style="margin-top: 20px;">Received funds will appear in your balance automatically.</p>
                 </section>
             </div>
 
             <!-- Send Page -->
             <div id="withdraw-page" class="page">
                 <header class="page-header">
-                    <button class="back-button icon-button" data-target="home-page" title="Back">
-                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"></path></svg>
+                    <button class="back-button icon-button" data-target="home-page" aria-label="Back">
+                         <span class="material-icons-outlined">arrow_back</span>
                     </button>
                     <h1>Send Funds</h1>
-                     <div class="header-spacer"></div>
+                    <div class="header-spacer"></div>
                 </header>
-                 <section class="content-section card"> <!-- Wrap in card -->
+                 <section class="content-section card">
                      <div class="form-group">
                          <label for="withdraw-asset-select">Asset to Send:</label>
                          <select id="withdraw-asset-select">
                              <option value="">-- Select Asset --</option>
-                             <!-- Options populated by JS -->
                          </select>
-                         <p class="current-balance-info">Available: <strong id="withdraw-available-balance">0.00</strong></p>
+                         <p class="current-balance-info subtle-text">Available: <strong id="withdraw-available-balance">-</strong></p>
                      </div>
                     <div class="form-group">
                         <label for="withdraw-recipient-id">Recipient's Chat ID:</label>
-                        <input type="number" id="withdraw-recipient-id" placeholder="Enter numeric Telegram Chat ID">
-                         <p class="small-text info-text"><small>Enter the exact Chat ID. Double-check before sending.</small></p>
+                        <input type="number" id="withdraw-recipient-id" placeholder="Enter recipient's numeric Chat ID">
                     </div>
                     <div class="form-group">
-                        <label for="withdraw-amount">Amount to Send:</label>
+                        <label for="withdraw-amount">Amount:</label>
                         <div class="input-with-button">
                             <input type="number" id="withdraw-amount" placeholder="0.00" step="any" min="0">
                             <button id="withdraw-max-button" class="secondary-button">Max</button>
@@ -187,55 +177,56 @@
 
         <!-- Bottom Navigation Bar -->
         <nav id="bottom-nav">
-             <button data-page="home-page" class="nav-button active" aria-label="Home">
-                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"></path></svg>
+            <button data-page="home-page" class="nav-button active" aria-label="Home">
+                 <span class="material-icons-outlined">account_balance_wallet</span>
                 <span>Home</span>
             </button>
             <button data-page="swap-page" class="nav-button" aria-label="Swap">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M6.99 11 3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z"></path></svg>
+                <span class="material-icons-outlined">swap_horiz</span>
                 <span>Swap</span>
             </button>
             <button data-page="deposit-page" class="nav-button" aria-label="Receive">
-                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M19 12v7H5v-7H3v9h18v-9h-2zm-6 .67l2.59-2.58L17 11.5l-5 5-5-5 1.41-1.41L11 12.67V3h2v9.67z"></path></svg>
+                <span class="material-icons-outlined">call_received</span>
                 <span>Receive</span>
             </button>
             <button data-page="withdraw-page" class="nav-button" aria-label="Send">
-                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M3.4 20.4l17.4-7.4L3.4 5.6v4.8l10.2 2-10.2 2v4.8z"></path></svg>
+                 <span class="material-icons-outlined">send</span>
                 <span>Send</span>
             </button>
         </nav>
 
          <!-- Token Selector Modal -->
          <div id="token-selector-modal" class="modal">
-             <div class="modal-content card"> <!-- Added card class -->
+             <div class="modal-content card">
                  <div class="modal-header">
                      <h2>Select Token</h2>
-                     <button class="close-modal-button icon-button" title="Close">×</button>
+                     <button class="close-modal-button icon-button subtle-button" aria-label="Close">
+                        <span class="material-icons-outlined">close</span>
+                     </button>
                  </div>
                  <div class="modal-body">
-                     <input type="text" id="token-search-input" placeholder="Search token name or symbol...">
+                     <input type="text" id="token-search-input" placeholder="Search name or symbol...">
                      <ul id="token-list-modal">
-                         <!-- Token items populated here -->
+                         <!-- Populated by JS -->
+                         <li class="placeholder-text">Loading tokens...</li>
                      </ul>
                  </div>
              </div>
          </div>
-    </div>
 
-    <!-- Clipboard JS -->
+    </div> <!-- End #app-container -->
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.11/clipboard.min.js"></script>
     <script>
         if (typeof ClipboardJS === 'function') {
              var clipboard = new ClipboardJS('.copy-button');
              clipboard.on('success', function(e) {
-                 const button = e.trigger;
-                 const originalContent = button.innerHTML; // Store original SVG/content
-                  // Simple text feedback for now, could enhance with animation
-                 button.innerHTML = '<span style="font-size: 12px;">Copied!</span>';
+                 const icon = e.trigger.querySelector('.material-icons-outlined');
+                 if(icon) icon.textContent = 'done'; // Feedback
                  e.clearSelection();
-                 setTimeout(() => { button.innerHTML = originalContent; }, 1500);
+                 setTimeout(() => { if(icon) icon.textContent = 'content_copy'; }, 1500);
              });
-             clipboard.on('error', function(e) { console.error('Clipboard error:', e); });
+             clipboard.on('error', (e) => console.error('Clipboard error:', e));
         }
     </script>
 
