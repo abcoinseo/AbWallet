@@ -3,285 +3,542 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TradingView Style Chart</title>
-    <!-- TradingView Lightweight Charts Library -->
-    <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
-    <!-- Firebase Libraries -->
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
-
+    <title>AB Viewer - Trading Chart Simulator</title>
     <style>
-        html, body {
-            height: 100%;
+        /* --- Basic Reset & Global Styles --- */
+        * {
             margin: 0;
             padding: 0;
-            background-color: #131722; /* TradingView dark background */
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+            overflow: hidden; /* Prevent body scrollbars */
+        }
+
+        body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            background-color: #131722; /* Dark background */
+            color: #d1d4dc; /* Light text */
+            display: flex;
+            flex-direction: column;
         }
-        #chart-container {
+
+        /* --- App Container --- */
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
             width: 100%;
-            height: 100%; /* Make chart fill the screen */
-            position: relative;
         }
-        #loading-chart {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
+
+        /* --- Header --- */
+        header {
+            background-color: #1e222d;
+            padding: 10px 15px;
+            border-bottom: 1px solid #363a45;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0; /* Prevent header from shrinking */
+        }
+
+        header h1 {
+            font-size: 1.4em;
+            color: #fff;
+            font-weight: 600;
+        }
+
+        /* --- Controls --- */
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .control-group label {
+            font-size: 0.9em;
+            margin-right: 5px;
+            color: #b2b5be;
+        }
+
+        .control-group select {
+            padding: 5px 8px;
+            background-color: #2a2e39;
             color: #d1d4dc;
-            font-size: 1.5em;
-            z-index: 10; /* Ensure it's above the chart initially */
+            border: 1px solid #363a45;
+            border-radius: 4px;
+            font-size: 0.9em;
+            cursor: pointer;
+            outline: none;
         }
-         .tv-lightweight-charts {
-             /* Ensures chart div takes space immediately */
-             display: block;
-             width: 100%;
-             height: 100%;
+
+         .control-group select:focus {
+             border-color: #2962ff;
          }
-         /* --- Firebase Status Indicator (Optional) --- */
-         #firebase-status {
-             position: fixed; /* Keep it fixed on screen */
-             bottom: 10px;
-             left: 10px;
-             padding: 5px 10px;
-             border-radius: 4px;
-             font-size: 0.8em;
-             z-index: 20;
-             opacity: 0.8;
-         }
-         .status-connected {
-             background-color: #089981; /* Green */
-             color: white;
-         }
-         .status-disconnected {
-             background-color: #f23645; /* Red */
-             color: white;
-         }
-         .status-updating {
-              background-color: #ff9800; /* Orange */
-              color: black;
-         }
+
+        /* --- Main Content Area (Chart) --- */
+        main {
+            flex-grow: 1; /* Takes remaining vertical space */
+            position: relative; /* Needed for absolute positioning of canvas overlay */
+            overflow: hidden; /* Prevent content overflow */
+            display: flex; /* Use flex for inner elements if needed */
+        }
+
+        .chart-container {
+            width: 100%;
+            height: 100%;
+            position: relative; /* Context for absolute positioning */
+        }
+
+        #tradingChart {
+            display: block; /* Remove extra space below canvas */
+            width: 100%;
+            height: 100%;
+            background-color: #131722; /* Match body or slightly different */
+        }
+
+        /* Current Price Display Overlay */
+        .current-price-display {
+            position: absolute;
+            top: 10px;
+            right: 70px; /* Space for the price scale */
+            background-color: rgba(42, 46, 57, 0.8);
+            color: #fff;
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-size: 0.9em;
+            font-weight: bold;
+            z-index: 10;
+            pointer-events: none; /* Don't interfere with chart interaction (if any) */
+        }
+
+        /* --- Footer (Optional - kept simple) --- */
+        footer {
+            background-color: #1e222d;
+            padding: 5px 15px;
+            font-size: 0.8em;
+            text-align: center;
+            border-top: 1px solid #363a45;
+            flex-shrink: 0; /* Prevent footer from shrinking */
+            color: #b2b5be;
+        }
+
+        /* --- Responsive Adjustments --- */
+        @media (max-width: 600px) {
+            header h1 {
+                font-size: 1.1em;
+            }
+            .controls {
+                gap: 10px;
+            }
+             .control-group label {
+                font-size: 0.8em;
+            }
+             .control-group select {
+                font-size: 0.8em;
+                padding: 4px 6px;
+            }
+            .current-price-display {
+                font-size: 0.8em;
+                right: 60px; /* Adjust for smaller scale */
+                top: 5px;
+            }
+            footer {
+                font-size: 0.7em;
+            }
+        }
+
     </style>
 </head>
 <body>
-    <div id="loading-chart">Loading Chart Data...</div>
-    <div id="chart-container"></div>
-    <div id="firebase-status" class="status-disconnected">Connecting...</div>
+
+    <div class="app-container">
+        <header>
+            <h1>AB Viewer</h1>
+            <div class="controls">
+                <div class="control-group">
+                    <label for="symbolSelect">Symbol:</label>
+                    <select id="symbolSelect">
+                        <option value="SIM_BTCUSD">SIM-BTC/USD</option>
+                        <option value="SIM_ETHUSD">SIM-ETH/USD</option>
+                        <option value="SIM_XYZUSD">SIM-XYZ/USD</option>
+                    </select>
+                </div>
+                <!-- Add more controls here if needed (e.g., time interval) -->
+            </div>
+        </header>
+
+        <main>
+            <div class="chart-container">
+                <canvas id="tradingChart"></canvas>
+                <div id="currentPriceDisplay" class="current-price-display">--.--</div>
+            </div>
+        </main>
+
+        <footer>
+            Status: Running Simulated Data | AB Viewer © 2023 - For Demonstration Purposes Only
+        </footer>
+    </div>
 
     <script>
-        // --- Firebase Configuration ---
-        // **CRITICAL**: SECURE YOUR FIREBASE RULES IN THE CONSOLE!
-        const firebaseConfig = {
-            apiKey: "AIzaSyBW1WPXUN8DYhT6npZQYoQ3l4J-jFSbzfg", // Use securely!
-            authDomain: "ab-studio-marketcap.firebaseapp.com",
-            databaseURL: "https://ab-studio-marketcap-default-rtdb.firebaseio.com",
-            projectId: "ab-studio-marketcap",
-            storageBucket: "ab-studio-marketcap.firebasestorage.app",
-            messagingSenderId: "115268088088",
-            appId: "1:115268088088:web:65643a047f92bfaa66ee6d"
+        const canvas = document.getElementById('tradingChart');
+        const ctx = canvas.getContext('2d');
+        const currentPriceDisplay = document.getElementById('currentPriceDisplay');
+        const symbolSelect = document.getElementById('symbolSelect');
+
+        // --- Chart Configuration ---
+        let chartData = [];
+        const maxDataPoints = 200; // Keep last N points
+        let currentPrice = 10000; // Starting price
+        let volatility = 50; // How much the price can jump each step
+        let updateInterval = 1000; // Milliseconds (1 second)
+        let animationFrameId = null;
+        let updateTimerId = null;
+
+        // --- Colors ---
+        const colors = {
+            background: '#131722',
+            grid: '#2a2e39',
+            axisText: '#b2b5be',
+            priceLine: '#2962ff',
+            currentPriceLine: 'rgba(255, 82, 82, 0.8)', // Reddish for current price line
+            priceScaleBackground: 'rgba(30, 34, 45, 0.9)',
         };
 
-        // --- Chart Setup ---
-        const chartContainer = document.getElementById('chart-container');
-        const loadingIndicator = document.getElementById('loading-chart');
-        const firebaseStatusElement = document.getElementById('firebase-status');
-        let chart = null;
-        let candlestickSeries = null;
-        let currentChartData = []; // Holds the current OHLCV data displayed
-
-        // ** IMPORTANT: SAMPLE Historical Data (Replace with real data source if possible) **
-        // Format: { time: 'YYYY-MM-DD' or UnixTimestamp, open: number, high: number, low: number, close: number }
-        const sampleHistoricalData = [
-             // Add A LOT more data here for a realistic chart
-             { time: '2023-10-01', open: 0.0010, high: 0.0011, low: 0.0009, close: 0.00095 },
-             { time: '2023-10-02', open: 0.00095, high: 0.00105, low: 0.00092, close: 0.00102 },
-             { time: '2023-10-03', open: 0.00102, high: 0.00115, low: 0.00100, close: 0.0011 },
-             { time: '2023-10-04', open: 0.0011, high: 0.00112, low: 0.00105, close: 0.00108 },
-             { time: '2023-10-05', open: 0.00108, high: 0.00125, low: 0.00107, close: 0.0012 },
-             { time: '2023-10-06', open: 0.0012, high: 0.00122, low: 0.00115, close: 0.00118 },
-             { time: '2023-10-07', open: 0.00118, high: 0.00130, low: 0.00116, close: 0.00128 },
-             { time: '2023-10-08', open: 0.00128, high: 0.00135, low: 0.00125, close: 0.00133 },
-             { time: '2023-10-09', open: 0.00133, high: 0.00140, low: 0.00130, close: 0.00138 },
-             { time: '2023-10-10', open: 0.00138, high: 0.00145, low: 0.00135, close: 0.00142 },
-             // Add many more data points for a usable chart...
-             // Let's add a point for "today" based on the last static point
-             { time: '2023-10-11', open: 0.00142, high: 0.00142, low: 0.00142, close: 0.00142 } // Placeholder for today
-         ];
-        // Convert dates to Unix timestamps (seconds) for Lightweight Charts if needed, or use 'YYYY-MM-DD'
-        // sampleHistoricalData = sampleHistoricalData.map(d => ({ ...d, time: new Date(d.time).getTime() / 1000 }));
+        // --- Debounce function for resizing ---
+        function debounce(func, wait, immediate) {
+            var timeout;
+            return function() {
+                var context = this, args = arguments;
+                var later = function() {
+                    timeout = null;
+                    if (!immediate) func.apply(context, args);
+                };
+                var callNow = immediate && !timeout;
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+                if (callNow) func.apply(context, args);
+            };
+        };
 
 
-        // --- Initialize Chart ---
-        function initializeChart() {
-            try {
-                chart = LightweightCharts.createChart(chartContainer, {
-                    width: chartContainer.clientWidth,
-                    height: chartContainer.clientHeight,
-                    layout: {
-                        backgroundColor: '#131722',
-                        textColor: 'rgba(255, 255, 255, 0.9)',
-                    },
-                    grid: {
-                        vertLines: { color: '#334158' },
-                        horzLines: { color: '#334158' },
-                    },
-                    crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
-                    priceScale: {
-                        borderColor: '#485c7b',
-                        autoScale: true, // Automatically adjust price scale
-                         // More precise formatting for low-value tokens
-                         formatter: price => {
-                             if (price < 0.0001) return price.toFixed(8);
-                             if (price < 0.01) return price.toFixed(6);
-                             if (price < 1) return price.toFixed(4);
-                             return price.toFixed(2);
-                         },
-                    },
-                    timeScale: {
-                        borderColor: '#485c7b',
-                        timeVisible: true, // Show time on the bottom scale
-                        secondsVisible: false, // Hide seconds for daily/hourly data usually
-                    },
-                });
+        // --- Simulation Logic ---
+        function simulatePriceChange() {
+            const change = (Math.random() - 0.49) * volatility; // Slightly biased upward trend :)
+            currentPrice += change;
+            if (currentPrice < 10) currentPrice = 10; // Prevent negative or zero prices
 
-                candlestickSeries = chart.addCandlestickSeries({
-                    upColor: '#089981',   // TradingView Green
-                    downColor: '#f23645', // TradingView Red
-                    borderDownColor: '#f23645',
-                    borderUpColor: '#089981',
-                    wickDownColor: '#f23645',
-                    wickUpColor: '#089981',
-                });
+            const now = Date.now(); // Use timestamp for potential future time axis
+            chartData.push({ time: now, price: currentPrice });
 
-                // Sort data just in case it's not
-                 currentChartData = sampleHistoricalData.sort((a, b) => new Date(a.time) - new Date(b.time));
-                 // Make sure time is in 'YYYY-MM-DD' format as Lightweight Charts handles it well
-                 currentChartData = currentChartData.map(d => ({...d, time: d.time.split('T')[0]}));
+            // Keep data array size manageable
+            if (chartData.length > maxDataPoints) {
+                chartData.shift(); // Remove the oldest data point
+            }
 
-                candlestickSeries.setData(currentChartData);
+            // Update display
+            currentPriceDisplay.textContent = currentPrice.toFixed(2);
 
-                loadingIndicator.style.display = 'none'; // Hide loading message
+            // Request redraw
+            requestDrawChart();
+        }
 
-                // Make chart responsive
-                window.addEventListener('resize', () => {
-                    chart.resize(chartContainer.clientWidth, chartContainer.clientHeight);
-                });
+        // --- Drawing Logic ---
+        function drawChart() {
+            if (!chartData || chartData.length < 2) {
+                 // Need at least two points to draw a line
+                ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear anyway
+                drawWatermark();
+                return;
+            }
 
-            } catch (error) {
-                console.error("Chart initialization failed:", error);
-                loadingIndicator.textContent = "Error loading chart.";
-                loadingIndicator.style.color = "#f23645";
+            const canvasWidth = canvas.width;
+            const canvasHeight = canvas.height;
+            const priceScaleWidth = 60; // Space on the right for price labels
+            const timeScaleHeight = 30; // Space on the bottom for time labels (optional)
+            const chartWidth = canvasWidth - priceScaleWidth;
+            const chartHeight = canvasHeight - timeScaleHeight;
+
+            // Clear canvas
+            ctx.fillStyle = colors.background;
+            ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+            // --- Calculate Price Range (Min/Max) ---
+            let minPrice = Infinity;
+            let maxPrice = -Infinity;
+            for (const point of chartData) {
+                if (point.price < minPrice) minPrice = point.price;
+                if (point.price > maxPrice) maxPrice = point.price;
+            }
+             // Add some padding to min/max
+            const priceRange = maxPrice - minPrice;
+            const pricePadding = priceRange * 0.1; // 10% padding
+            minPrice -= pricePadding;
+            maxPrice += pricePadding;
+            // Ensure min price is not below 0 after padding
+            if (minPrice < 0) minPrice = 0;
+
+            // --- Draw Grid ---
+            drawGrid(chartWidth, chartHeight, minPrice, maxPrice, priceScaleWidth, timeScaleHeight);
+
+            // --- Draw Price Line ---
+            ctx.beginPath();
+            ctx.lineWidth = 1.5;
+            ctx.strokeStyle = colors.priceLine;
+
+            for (let i = 0; i < chartData.length; i++) {
+                const x = (i / (maxDataPoints - 1)) * chartWidth; // Scale index to chart width
+                const y = chartHeight - ((chartData[i].price - minPrice) / (maxPrice - minPrice)) * chartHeight;
+
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            }
+            ctx.stroke();
+            ctx.closePath();
+
+
+             // --- Draw Current Price Horizontal Line ---
+             const lastPrice = chartData[chartData.length - 1].price;
+             const lastY = chartHeight - ((lastPrice - minPrice) / (maxPrice - minPrice)) * chartHeight;
+             ctx.beginPath();
+             ctx.setLineDash([5, 3]); // Dashed line
+             ctx.moveTo(0, lastY);
+             ctx.lineTo(chartWidth, lastY);
+             ctx.strokeStyle = colors.currentPriceLine;
+             ctx.lineWidth = 1;
+             ctx.stroke();
+             ctx.setLineDash([]); // Reset line dash
+             ctx.closePath();
+
+
+            // --- Draw Price Scale (Right Axis) ---
+             drawPriceScale(canvasWidth, canvasHeight, minPrice, maxPrice, priceScaleWidth, timeScaleHeight);
+
+             // --- Draw Time Scale (Bottom Axis - Basic) ---
+             drawTimeScale(chartWidth, chartHeight, timeScaleHeight, priceScaleWidth);
+
+            // Draw watermark/branding if needed
+             drawWatermark();
+        }
+
+        function drawGrid(chartWidth, chartHeight, minPrice, maxPrice, priceScaleWidth, timeScaleHeight) {
+            ctx.strokeStyle = colors.grid;
+            ctx.lineWidth = 0.5;
+            ctx.font = '10px sans-serif';
+            ctx.fillStyle = colors.axisText;
+
+            // Horizontal Grid Lines & Price Labels
+            const priceStep = calculateNiceStep((maxPrice - minPrice) / 5); // Aim for ~5 grid lines
+            for (let price = minPrice; price <= maxPrice; price += priceStep) {
+                 if (price < 0) continue; // Avoid drawing negative lines if minPrice was adjusted below 0
+                const y = chartHeight - ((price - minPrice) / (maxPrice - minPrice)) * chartHeight;
+                 if (y > chartHeight || y < 0) continue; // Don't draw outside chart area
+
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(chartWidth, y);
+                ctx.stroke();
+            }
+
+            // Vertical Grid Lines (Example: every 50 data points)
+            const timeStep = Math.max(1, Math.floor(maxDataPoints / 4)); // Aim for ~4 vertical lines
+            for (let i = 0; i < maxDataPoints; i += timeStep) {
+                 if (i === 0) continue; // Skip first line often overlaps axis
+                const x = (i / (maxDataPoints - 1)) * chartWidth;
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, chartHeight);
+                ctx.stroke();
             }
         }
 
-        // --- Firebase Integration ---
-        function connectFirebase() {
-            try {
-                firebase.initializeApp(firebaseConfig);
-                const database = firebase.database();
-                // ** SPECIFY WHICH TOKEN TO TRACK **
-                const tokenSymbol = 'ABS'; // Change this to the specific token you want to chart
-                const tokenRef = database.ref(`tokens/${tokenSymbol}`);
+        function drawPriceScale(canvasWidth, canvasHeight, minPrice, maxPrice, priceScaleWidth, timeScaleHeight) {
+            const chartHeight = canvasHeight - timeScaleHeight;
+            const scaleX = canvasWidth - priceScaleWidth;
 
-                console.log(`Attempting to connect to Firebase for token: ${tokenSymbol}`);
-                setFirebaseStatus('Connecting...', 'status-disconnected'); // Initial connecting state
+            // Background for scale area
+            ctx.fillStyle = colors.priceScaleBackground;
+            ctx.fillRect(scaleX, 0, priceScaleWidth, chartHeight);
 
-                 // Monitor connection state
-                 const connectedRef = database.ref(".info/connected");
-                 connectedRef.on("value", (snap) => {
-                   if (snap.val() === true) {
-                     console.log("Firebase Connected.");
-                     setFirebaseStatus(`Connected (${tokenSymbol})`, 'status-connected');
-                   } else {
-                     console.log("Firebase Disconnected.");
-                     setFirebaseStatus('Disconnected', 'status-disconnected');
-                   }
-                 });
+            // Price Labels
+            ctx.font = '11px sans-serif';
+            ctx.fillStyle = colors.axisText;
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
 
+            const priceStep = calculateNiceStep((maxPrice - minPrice) / 5); // Use same step as grid
+             for (let price = minPrice; price <= maxPrice; price += priceStep) {
+                 if (price < 0) continue;
+                const y = chartHeight - ((price - minPrice) / (maxPrice - minPrice)) * chartHeight;
+                if (y > chartHeight || y < 0) continue;
 
-                tokenRef.on('value', (snapshot) => {
-                    const tokenData = snapshot.val();
+                // Draw small tick mark
+                ctx.strokeStyle = colors.grid;
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(scaleX, y);
+                ctx.lineTo(scaleX + 5, y);
+                ctx.stroke();
 
-                    if (chart && candlestickSeries && tokenData && typeof tokenData.priceUSD === 'number') {
-                        const newPrice = tokenData.priceUSD;
-                        console.log(`Received price update for ${tokenSymbol}: ${newPrice}`);
-                        setFirebaseStatus(`Updating ${tokenSymbol}: ${newPrice.toFixed(6)}`, 'status-updating'); // Show updating status
-
-                        // --- Update the LAST candle ---
-                        if (currentChartData.length > 0) {
-                            let lastCandle = { ...currentChartData[currentChartData.length - 1] }; // Get a copy
-
-                             // For a REAL system, you'd check if the current time falls
-                             // into the *next* candle's interval. For this demo, we just
-                             // update the existing last candle.
-
-                            // Update close price
-                            lastCandle.close = newPrice;
-
-                            // Update high price if new price is higher
-                            if (newPrice > lastCandle.high) {
-                                lastCandle.high = newPrice;
-                            }
-
-                            // Update low price if new price is lower
-                            if (newPrice < lastCandle.low) {
-                                lastCandle.low = newPrice;
-                            }
-
-                            // Update the series with the modified last candle
-                            candlestickSeries.update(lastCandle);
-
-                            // Update our local store too (optional but good practice)
-                            currentChartData[currentChartData.length - 1] = lastCandle;
-
-                            // Briefly change status back to connected after update
-                            setTimeout(() => setFirebaseStatus(`Connected (${tokenSymbol})`, 'status-connected'), 1000);
-
-
-                        } else {
-                             console.warn("Chart data is empty, cannot update last candle.");
-                        }
-
-                    } else if (tokenData === null) {
-                         console.warn(`Token ${tokenSymbol} not found in Firebase.`);
-                         setFirebaseStatus(`Error: ${tokenSymbol} not found`, 'status-disconnected');
-                    }
-                     else {
-                        console.warn("Skipping update: Chart not ready or invalid token data received.", tokenData);
-                     }
-                }, (error) => {
-                    console.error(`Firebase read failed for ${tokenSymbol}:`, error);
-                    setFirebaseStatus(`Firebase Error`, 'status-disconnected');
-                });
-
-            } catch (error) {
-                console.error("Firebase initialization failed:", error);
-                setFirebaseStatus('Firebase Init Error', 'status-disconnected');
-                 loadingIndicator.textContent = "Error connecting to data.";
-                 loadingIndicator.style.color = "#f23645";
+                // Draw text label
+                ctx.fillText(price.toFixed(2), scaleX + 8, y);
             }
+
+             // Draw current price label on scale
+             const lastPrice = chartData[chartData.length - 1].price;
+             const lastY = chartHeight - ((lastPrice - minPrice) / (maxPrice - minPrice)) * chartHeight;
+             ctx.fillStyle = colors.currentPriceLine; // Use distinct color
+             ctx.fillRect(scaleX, lastY - 8, priceScaleWidth, 16); // Background highlight
+             ctx.fillStyle = '#ffffff'; // White text on highlight
+             ctx.fillText(lastPrice.toFixed(2), scaleX + 8, lastY);
+
         }
 
-         // --- Helper Function for Status ---
-         function setFirebaseStatus(message, className) {
-             if (firebaseStatusElement) {
-                 firebaseStatusElement.textContent = message;
-                 firebaseStatusElement.className = ''; // Clear existing classes
-                 firebaseStatusElement.classList.add('firebase-status', className);
+         function drawTimeScale(chartWidth, chartHeight, timeScaleHeight, priceScaleWidth) {
+             const scaleY = chartHeight;
+
+              // Background for scale area (Optional)
+             // ctx.fillStyle = colors.priceScaleBackground; // Can use same as price scale
+             // ctx.fillRect(0, scaleY, chartWidth, timeScaleHeight);
+
+             // Basic Time Labels (Example: Start/End/Middle) - Very Simplified
+             ctx.font = '11px sans-serif';
+             ctx.fillStyle = colors.axisText;
+             ctx.textAlign = 'center';
+             ctx.textBaseline = 'top';
+
+             if (chartData.length > 0) {
+                 const startTime = new Date(chartData[0].time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                 const endTime = new Date(chartData[chartData.length - 1].time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                 const midIndex = Math.floor(chartData.length / 2);
+                 const midTime = new Date(chartData[midIndex].time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+                 ctx.fillText(startTime, 20, scaleY + 5);
+                 ctx.fillText(midTime, chartWidth / 2, scaleY + 5);
+                 ctx.fillText(endTime, chartWidth - 20, scaleY + 5);
+
+                 // Draw tick marks
+                 ctx.strokeStyle = colors.grid;
+                 ctx.lineWidth = 1;
+                 ctx.beginPath();
+                 ctx.moveTo(0, scaleY);
+                 ctx.lineTo(0, scaleY + 5);
+                 ctx.moveTo(chartWidth/2, scaleY);
+                 ctx.lineTo(chartWidth/2, scaleY + 5);
+                 ctx.moveTo(chartWidth, scaleY);
+                 ctx.lineTo(chartWidth, scaleY + 5);
+                 ctx.stroke();
              }
          }
 
+         function drawWatermark() {
+             ctx.font = 'bold 24px sans-serif';
+             ctx.fillStyle = 'rgba(200, 200, 200, 0.1)'; // Very faint
+             ctx.textAlign = 'center';
+             ctx.textBaseline = 'middle';
+             ctx.fillText('AB Viewer Sim', canvas.width / 2, canvas.height / 2);
+         }
 
-        // --- Start ---
-        initializeChart();
-        // Connect to Firebase AFTER chart is initialized
-        if (chart) {
-             connectFirebase();
-        } else {
-             // Handle case where chart init failed before Firebase connection attempt
-             setFirebaseStatus('Chart Init Failed', 'status-disconnected');
+
+        // --- Utility: Calculate a 'nice' step for grid/axis labels ---
+        function calculateNiceStep(range) {
+            if (range <= 0) return 1;
+            const exponent = Math.floor(Math.log10(range));
+            const fraction = range / Math.pow(10, exponent);
+            let niceFraction;
+            if (fraction <= 1.0) niceFraction = 1.0;
+            else if (fraction <= 2.0) niceFraction = 2.0;
+            else if (fraction <= 5.0) niceFraction = 5.0;
+            else niceFraction = 10.0;
+            return niceFraction * Math.pow(10, exponent);
         }
 
+        // --- Request Animation Frame for smoother drawing ---
+        function requestDrawChart() {
+            if (!animationFrameId) {
+                animationFrameId = requestAnimationFrame(() => {
+                    drawChart();
+                    animationFrameId = null; // Clear the ID after drawing
+                });
+            }
+        }
+
+        // --- Resize Handling ---
+        function resizeCanvas() {
+            // Get the size of the container
+            const container = canvas.parentNode;
+            const dpr = window.devicePixelRatio || 1;
+            const rect = container.getBoundingClientRect();
+
+            // Set the display size
+            canvas.style.width = `${rect.width}px`;
+            canvas.style.height = `${rect.height}px`;
+
+            // Set the internal canvas size (scaled for high-res displays)
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+
+            // Scale the context
+            ctx.scale(dpr, dpr);
+
+            // Redraw after resizing
+            requestDrawChart();
+        }
+
+        const debouncedResize = debounce(resizeCanvas, 100); // Debounce resize events
+        window.addEventListener('resize', debouncedResize);
+
+        // --- Symbol Change Handler ---
+        symbolSelect.addEventListener('change', (event) => {
+            console.log(`Symbol changed to: ${event.target.value}`);
+            // Reset chart data and simulation for the new symbol
+            // In a real app, you'd fetch data here. We just reset.
+            chartData = [];
+            // Adjust starting price based on symbol (simple example)
+            if (event.target.value === 'SIM_ETHUSD') {
+                currentPrice = 3000;
+                volatility = 20;
+            } else if (event.target.value === 'SIM_XYZUSD') {
+                 currentPrice = 150;
+                 volatility = 5;
+            } else { // Default BTC
+                currentPrice = 45000;
+                volatility = 200;
+            }
+             // Add one initial point immediately for faster display
+            chartData.push({ time: Date.now(), price: currentPrice });
+            currentPriceDisplay.textContent = currentPrice.toFixed(2);
+            requestDrawChart(); // Draw immediately with the single point (or clear)
+            // Simulation will add more points on the next interval
+        });
+
+        // --- Initialization ---
+        function initialize() {
+            // Initial data point
+             chartData.push({ time: Date.now(), price: currentPrice });
+             currentPriceDisplay.textContent = currentPrice.toFixed(2);
+
+
+            // Set initial canvas size
+            resizeCanvas(); // Initial sizing and draw
+
+            // Start the simulation loop
+            if(updateTimerId) clearInterval(updateTimerId); // Clear previous timer if any
+            updateTimerId = setInterval(simulatePriceChange, updateInterval);
+
+             // Trigger initial symbol setup
+            symbolSelect.dispatchEvent(new Event('change'));
+        }
+
+        // --- Start the application ---
+        initialize();
+
     </script>
+
 </body>
 </html>
