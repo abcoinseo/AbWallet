@@ -1,46 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <script>
-document.addEventListener("DOMContentLoaded", function() {
-    function formatNumber(num) {
-        if (num >= 1e12) {
-            return (num / 1e12).toFixed(1).replace(/\.0$/, '') + 'T';
-        }
-        if (num >= 1e9) {
-            return (num / 1e9).toFixed(1).replace(/\.0$/, '') + 'B';
-        }
-        if (num >= 1e6) {
-            return (num / 1e6).toFixed(1).replace(/\.0$/, '') + 'M';
-        }
-        if (num >= 1e3) {
-            return (num / 1e3).toFixed(1).replace(/\.0$/, '') + 'K';
-        }
-        return num;
-    }
-
-    function walkAndFormat(node) {
-        if (node.nodeType === Node.TEXT_NODE) {
-            let text = node.nodeValue;
-            let replacedText = text.replace(/\b\d{1,15}\b/g, function(match) {
-                return formatNumber(parseInt(match));
-            });
-            if (replacedText !== text) {
-                node.nodeValue = replacedText;
-            }
-        } else {
-            node = node.firstChild;
-            while (node) {
-                walkAndFormat(node);
-                node = node.nextSibling;
-            }
-        }
-    }
-
-    walkAndFormat(document.body);
-});
-</script>
-
     <!-- Existing meta tags, title, SDK scripts -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
