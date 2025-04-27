@@ -2,559 +2,537 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Token Explorer - AB Wallet</title>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-    <!-- Using tinycolor for better theme adaptation is recommended but optional -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/tinycolor/1.6.0/tinycolor.min.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crypto Explorer</title>
+    <!-- Include Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Include Firebase Libraries -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
     <style>
-        :root {
-            --bg-color: #121212;
-            --primary-text: #ffffff;
-            --secondary-text: #b3b3b3;
-            --card-bg: #1e1e1e;
-            --accent-color: #1DB954;
-            --button-bg: #1DB954; /* Match accent or specific button color */
-            --button-text: #ffffff;
-            --input-bg: #282828;
-            --border-color: #333333;
-            --error-color: #f44336;
-            --success-color: #4caf50;
-            --hover-bg: rgba(255, 255, 255, 0.05);
-            --modal-bg: #2a2a2a;
-            --modal-overlay-bg: rgba(0, 0, 0, 0.7);
-            --positive-change-color: var(--success-color); /* Default Green */
-            --negative-change-color: var(--error-color);   /* Default Red */
+        /* --- Basic Reset & Body Styling --- */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
         }
 
-        /* --- Base Styles --- */
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
-        html, body { height: 100%; overflow: hidden; /* Prevent double scrollbars */}
-        body { background-color: var(--bg-color); color: var(--primary-text); display: flex; flex-direction: column; }
-        .app-container { flex-grow: 1; padding: 20px 15px; display: flex; flex-direction: column; overflow: hidden; /* Contain child scrolling */}
-
-        /* --- Header Area --- */
-        .explorer-header { padding-bottom: 15px; flex-shrink: 0; border-bottom: 1px solid var(--border-color); margin-bottom: 15px;}
-        h1 { font-size: 24px; font-weight: 600; text-align: center; margin-bottom: 15px; color: var(--primary-text); }
-        .controls-container { display: flex; gap: 12px; align-items: center;}
-        .search-box {
-            flex-grow: 1; padding: 11px 15px; /* Consistent padding */
-            background-color: var(--input-bg); border: 1px solid var(--border-color);
-            border-radius: 20px; /* Pill shape */ color: var(--primary-text); font-size: 15px; outline: none; transition: border-color 0.2s, box-shadow 0.2s;
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f2f5; /* Light grey background */
+            color: #333;
+            line-height: 1.6;
+            padding: 20px;
         }
-        .search-box::placeholder { color: var(--secondary-text); opacity: 0.8; }
-        .search-box:focus { border-color: var(--accent-color); box-shadow: 0 0 0 3px rgba(29, 185, 84, 0.15); }
-        .sort-select {
-             padding: 11px 15px; background-color: var(--input-bg); border: 1px solid var(--border-color); color: var(--primary-text);
-             border-radius: 20px; /* Pill shape */ cursor: pointer; appearance: none;
-             background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' fill='%23b3b3b3' viewBox='0 0 16 16'%3E%3Cpath fill-rule='evenodd' d='M8 4a.5.5 0 0 1 .5.5v5.793l2.146-2.147a.5.5 0 0 1 .708.708l-3 3a.5.5 0 0 1-.708 0l-3-3a.5.5 0 1 1 .708-.708L7.5 10.293V4.5A.5.5 0 0 1 8 4z'/%3E%3C/svg%3E");
-             background-repeat: no-repeat; background-position: right 12px center; padding-right: 38px; outline: none; transition: border-color 0.2s, box-shadow 0.2s; font-size: 14px; min-width: 100px; text-align: left; /* Align text left */
-         }
-        .sort-select:focus { border-color: var(--accent-color); box-shadow: 0 0 0 3px rgba(29, 185, 84, 0.15); }
 
-
-        /* --- Status Indicator --- */
-        .status-indicator { text-align: center; padding: 40px 20px; color: var(--secondary-text); display: flex; justify-content: center; align-items: center; flex-direction: column; min-height: 150px; font-size: 16px; }
-        .status-indicator.hidden { display: none; }
-        .status-indicator svg { width: 28px; height: 28px; border: 4px solid rgba(255,255,255,0.15); border-radius: 50%; border-top-color: var(--accent-color); animation: spin 1s linear infinite; margin-bottom: 15px; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .error-message { color: var(--error-color); font-weight: 500; font-size: 15px; }
-
-        /* --- Token List --- */
-        .list-scroll-container {
-             flex-grow: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;
-             /* Optional: subtle gradient fade at top/bottom */
-              /* mask-image: linear-gradient(to bottom, transparent 0%, black 10px, black calc(100% - 10px), transparent 100%); */
-         }
-        #tokenListContainer { /* Inner container */ }
-        .token-list-item-explorer {
-            display: flex; align-items: center; justify-content: space-between;
-            padding: 10px 15px; /* Slightly less padding */ border-bottom: 1px solid var(--border-color);
-            cursor: pointer; transition: background-color 0.15s ease, transform 0.1s ease;
+        /* --- Main Container --- */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: #ffffff; /* White card background */
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
         }
-        .token-list-item-explorer:last-child { border-bottom: none; }
-        .token-list-item-explorer:hover { background-color: var(--hover-bg); }
-        .token-list-item-explorer:active { transform: scale(0.99); /* Subtle press effect */}
-        .token-list-item-explorer.hidden { display: none; } /* For filtering */
 
-        .token-info-explorer { display: flex; align-items: center; gap: 12px; flex-shrink: 1; min-width: 0; /* Allow shrinking */ }
-        .token-info-explorer img { width: 34px; height: 34px; border-radius: 50%; background-color: var(--input-bg); border: 1px solid var(--border-color); flex-shrink: 0; object-fit: contain; }
-        .token-name-symbol-explorer { line-height: 1.35; overflow: hidden; }
-        .token-name-explorer { font-weight: 500; color: var(--primary-text); font-size: 15px; text-overflow: ellipsis; white-space: nowrap; overflow: hidden;}
-        .token-symbol-explorer { font-size: 12px; color: var(--secondary-text); text-transform: uppercase; }
-
-        .token-pricing-explorer { text-align: right; flex-shrink: 0; min-width: 85px; padding-left: 10px;}
-        .token-price-explorer { font-weight: 500; color: var(--primary-text); font-size: 14px; margin-bottom: 3px; transition: color 0.3s ease, transform 0.2s ease; }
-        .token-change-explorer {
-            font-size: 12px; font-weight: 500;
-            color: var(--secondary-text); display: inline-block; /* Prevents jump on color change */
-            transition: color 0.3s ease, background-color 0.3s ease; padding: 1px 5px; border-radius: 4px;
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #1a237e; /* Dark blue header */
         }
-        .token-change-explorer.positive { color: var(--positive-change-color); background-color: rgba(76, 175, 80, 0.1); }
-        .token-change-explorer.negative { color: var(--negative-change-color); background-color: rgba(244, 67, 54, 0.1); }
 
-        /* Price flash effect - use transform for smoother visual */
-         @keyframes price-up-effect { 0% { transform: translateY(2px); color: var(--positive-change-color); } 50% { transform: translateY(-1px); } 100% { transform: translateY(0); color: var(--primary-text);} }
-         @keyframes price-down-effect { 0% { transform: translateY(2px); color: var(--negative-change-color); } 50% { transform: translateY(-1px); } 100% { transform: translateY(0); color: var(--primary-text);} }
-         .price-flash-up { animation: price-up-effect 0.6s ease-out; }
-         .price-flash-down { animation: price-down-effect 0.6s ease-out; }
+        /* --- Loading Indicator --- */
+        #loading {
+            text-align: center;
+            font-size: 1.2em;
+            color: #555;
+            padding: 40px 0;
+        }
 
-        /* --- Token Detail Modal --- */
-         .modal-overlay {
-             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-             background-color: var(--modal-overlay-bg); display: flex;
-             justify-content: center; align-items: center; /* Center vertically and horizontally */
-             z-index: 1100; opacity: 0; visibility: hidden; backdrop-filter: blur(3px);
-             transition: opacity 0.25s ease, visibility 0s linear 0.25s;
+        /* --- Coin List Styling --- */
+        #coin-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); /* Responsive grid */
+            gap: 20px;
+        }
+
+        /* --- Individual Coin Card Styling --- */
+        .coin-card {
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            background-color: #fff;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+            display: flex;
+            flex-direction: column; /* Stack elements vertically */
+        }
+
+        .coin-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .coin-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .coin-logo {
+            width: 40px;
+            height: 40px;
+            margin-right: 12px;
+            border-radius: 50%;
+            object-fit: contain; /* Ensure logo fits well */
+            background-color: #eee; /* Placeholder bg if image fails */
+        }
+
+        .coin-name {
+            font-size: 1.4em;
+            font-weight: 600;
+            color: #2c3e50; /* Darker text color */
+        }
+
+        .coin-symbol {
+            font-size: 0.9em;
+            color: #7f8c8d; /* Greyish color for symbol */
+            margin-left: 8px;
+        }
+
+        .coin-details {
+           margin-bottom: 15px; /* Space before chart */
+        }
+
+        .coin-price {
+            font-size: 1.5em;
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #34495e; /* Default price color */
+            display: flex; /* Align price and change */
+            align-items: baseline; /* Align text nicely */
+            gap: 10px; /* Space between price and change % */
+        }
+
+        .price-change {
+            font-size: 1em;
+            font-weight: 600;
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: #fff; /* Text color for change */
+        }
+
+        /* --- Price Change Colors --- */
+        .price-up {
+            color: #2ecc71; /* Green */
+        }
+        .price-down {
+            color: #e74c3c; /* Red */
+        }
+        .change-up {
+            background-color: #2ecc71; /* Green background */
+        }
+        .change-down {
+            background-color: #e74c3c; /* Red background */
+        }
+        .change-neutral {
+            background-color: #95a5a6; /* Grey background */
+            color: #fff;
+        }
+        .arrow {
+            display: inline-block;
+            margin-right: 3px;
+        }
+
+        /* --- Chart Styling --- */
+        .chart-container {
+            width: 100%;
+            height: 150px; /* Fixed height for charts */
+            margin-top: auto; /* Pushes chart to bottom if card grows */
+        }
+
+         /* --- Footer/Info --- */
+         .info {
+            text-align: center;
+            margin-top: 30px;
+            font-size: 0.9em;
+            color: #777;
          }
-         .modal-overlay.active { opacity: 1; visibility: visible; transition: opacity 0.25s ease; }
-
-         .token-detail-modal {
-             background-color: var(--modal-bg); width: 92%; max-width: 420px; border-radius: 14px;
-             box-shadow: 0 8px 25px rgba(0,0,0,0.4); display: flex; flex-direction: column;
-             transform: translateY(15px) scale(0.98); /* Start slightly offset */ transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.2s ease-out;
-             max-height: 80vh; overflow: hidden; opacity: 0;
+         .info a {
+            color: #3498db;
+            text-decoration: none;
          }
-        .modal-overlay.active .token-detail-modal { transform: translateY(0) scale(1); opacity: 1; }
-
-        .modal-header { padding: 15px 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;}
-        .modal-header h3 { margin: 0; font-size: 17px; font-weight: 600; display: flex; align-items: center; gap: 10px; }
-        .modal-header img { width: 26px; height: 26px; border-radius: 50%; background-color: var(--input-bg); }
-        .modal-close-button { background: none; border: none; color: var(--secondary-text); font-size: 26px; cursor: pointer; line-height: 1; padding: 0 5px; transition: color 0.2s;}
-        .modal-close-button:hover { color: var(--primary-text); }
-
-         .modal-content { padding: 20px; overflow-y: auto; flex-grow: 1; }
-        .token-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 18px; margin-bottom: 25px; } /* Responsive columns */
-         .stat-item { }
-         .stat-label { font-size: 12px; color: var(--secondary-text); margin-bottom: 4px; display: block; text-transform: uppercase; opacity: 0.9;}
-         .stat-value { font-size: 16px; font-weight: 600; color: var(--primary-text); word-break: break-word; } /* Allow long numbers to break */
-         .stat-value.positive { color: var(--positive-change-color); }
-         .stat-value.negative { color: var(--negative-change-color); }
-
-         #candlestickChart {
-             width: 100%; min-height: 130px; /* Slightly smaller */
-             background-color: rgba(0,0,0,0.1); border-radius: 8px;
-             padding: 10px 5px; /* Reduced padding */ display: flex; justify-content: center; align-items: center;
+         .info a:hover {
+            text-decoration: underline;
          }
-         #candlestickChart svg { width: 60%; max-width: 80px; height: 110px; /* Adjusted size */ }
-         .candle-body { stroke: none; }
-         .wick { stroke-linecap: round; }
-         .candle-body.positive, .wick.positive { fill: var(--positive-change-color); stroke: var(--positive-change-color); }
-         .candle-body.negative, .wick.negative { fill: var(--negative-change-color); stroke: var(--negative-change-color); }
-         .chart-no-data { font-size: 13px; color: var(--secondary-text); text-align: center; }
-
+         .warning {
+            color: #e74c3c;
+            font-weight: bold;
+         }
 
     </style>
 </head>
 <body>
 
-    <div class="app-container">
+    <div class="container">
+        <h1>Crypto Price Explorer</h1>
 
-        <div class="explorer-header">
-            <h1>Token Explorer</h1>
-            <div class="controls-container">
-                <input type="search" id="searchBox" class="search-box" placeholder="Search name or symbol..." autocomplete="off">
-                <select id="sortSelect" class="sort-select" aria-label="Sort Tokens">
-                    <option value="name_asc">Name A-Z</option>
-                    <option value="name_desc">Name Z-A</option>
-                    <option value="price_desc">Price High-Low</option>
-                    <option value="price_asc">Price Low-High</option>
-                    <option value="change_desc">Change High-Low</option>
-                    <option value="change_asc">Change Low-High</option>
-                    <!-- Could add Sort by Added Time if data available -->
-                     <!-- <option value="added_desc">Newest</option> -->
-                 </select>
-            </div>
+        <!-- Loading Indicator -->
+        <div id="loading">Loading coin data...</div>
+
+        <!-- Coin List Container -->
+        <div id="coin-list">
+            <!-- Coin cards will be injected here by JavaScript -->
         </div>
 
-        <!-- Status Indicator -->
-        <div id="statusIndicator" class="status-indicator">
-             <svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="32" stroke-width="8" stroke="currentColor" stroke-dasharray="50.26548245743669 50.26548245743669" fill="none" stroke-linecap="round"><animateTransform attributeName="transform" type="rotate" repeatCount="indefinite" dur="1s" keyTimes="0;1" values="0 50 50;360 50 50"></animateTransform></circle></svg>
-             <span>Initializing...</span>
-        </div>
-
-        <!-- Token List Scrollable Area -->
-        <div class="list-scroll-container" id="listScrollContainer" style="display: none;"> <!-- Initially hidden -->
-             <div id="tokenListContainer">
-                 <!-- Token items generated here -->
-             </div>
-         </div>
-
-    </div>
-
-    <!-- Token Detail Modal (HTML structure is okay) -->
-    <div id="tokenDetailModalOverlay" class="modal-overlay">
-        <div id="tokenDetailModal" class="token-detail-modal">
-            <div class="modal-header">
-                <h3 id="modalTokenName"><img id="modalTokenLogo" src="" alt=""> <span>Token Details</span></h3>
-                <button id="modalCloseBtn" class="modal-close-button" aria-label="Close">×</button>
-            </div>
-            <div class="modal-content">
-                <div class="token-stats">
-                    <div class="stat-item">
-                        <span class="stat-label">Price</span>
-                        <span class="stat-value" id="modalTokenPrice">$0.00</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">Change (Recent)</span>
-                        <span class="stat-value" id="modalTokenChange">0.00%</span>
-                    </div>
-                 </div>
-                 <h4 style="font-size: 14px; color: var(--secondary-text); margin: 20px 0 10px 0; font-weight: 500;">Recent Movement</h4>
-                <div id="candlestickChart">
-                     <span class="chart-no-data">Price history needed for chart.</span>
-                 </div>
-                 <p style="font-size: 10px; text-align: center; color: var(--secondary-text); margin-top: 8px; opacity: 0.7;">Note: Chart shows a simplified view of the last price change.</p>
-            </div>
+        <div class="info">
+            Data updates in real-time from Firebase. Chart shows price history during this session only.
+            <br>
+            <span class="warning">Warning:</span> Ensure your Firebase Security Rules are properly configured to protect your data. Public rules are insecure.
         </div>
     </div>
 
     <script>
-        // --- Firebase Config (Using YOUR Provided Config) ---
+        // --- Firebase Configuration ---
+        // WARNING: It's generally better to hide API keys, but required here for single-file demo.
+        // **IMPORTANT**: SECURE YOUR FIREBASE RULES IN THE CONSOLE!
         const firebaseConfig = {
-             apiKey: "AIzaSyBW1WPXUN8DYhT6npZQYoQ3l4J-jFSbzfg",
-             authDomain: "ab-studio-marketcap.firebaseapp.com",
-             databaseURL: "https://ab-studio-marketcap-default-rtdb.firebaseio.com",
-             projectId: "ab-studio-marketcap",
-              // Corrected storageBucket URL format
-             storageBucket: "ab-studio-marketcap.appspot.com",
-             messagingSenderId: "115268088088",
-             appId: "1:115268088088:web:65643a047f92bfaa66ee6d"
+            apiKey: "AIzaSyBW1WPXUN8DYhT6npZQYoQ3l4J-jFSbzfg", // Replace if needed, but use securely!
+            authDomain: "ab-studio-marketcap.firebaseapp.com",
+            databaseURL: "https://ab-studio-marketcap-default-rtdb.firebaseio.com",
+            projectId: "ab-studio-marketcap",
+            storageBucket: "ab-studio-marketcap.firebasestorage.app",
+            messagingSenderId: "115268088088",
+            appId: "1:115268088088:web:65643a047f92bfaa66ee6d"
         };
 
-        // --- Global State ---
-        let db = null;
-        let tokenData = {};         // Current processed token data + derived state
-        let previousTokenData = {}; // Store previous state for comparisons
-        let firebaseInitialized = false;
-        let listenersAttached = false;
-        let tg = null;
-        let currentSort = 'name_asc';
-        let currentSearchTerm = '';
-        let tokenListItemsCache = {}; // { symbol: { element: DOMNode, currentPrice: number, currentChange: number, currentSign: boolean|null } }
-        let searchDebounceTimeout = null; // For debouncing search input
+        // --- Initialize Firebase ---
+        try {
+            firebase.initializeApp(firebaseConfig);
+            const database = firebase.database();
+            const tokensRef = database.ref('tokens');
 
-        // --- DOM Elements ---
-        const statusIndicator = document.getElementById('statusIndicator');
-        const listScrollContainer = document.getElementById('listScrollContainer');
-        const tokenListContainer = document.getElementById('tokenListContainer');
-        const searchBox = document.getElementById('searchBox');
-        const sortSelect = document.getElementById('sortSelect');
-        const modalOverlay = document.getElementById('tokenDetailModalOverlay');
-        const modal = document.getElementById('tokenDetailModal');
-        const modalCloseBtn = document.getElementById('modalCloseBtn');
-        const modalTokenName = document.getElementById('modalTokenName');
-        const modalTokenLogo = document.getElementById('modalTokenLogo');
-        const modalTokenPrice = document.getElementById('modalTokenPrice');
-        const modalTokenChange = document.getElementById('modalTokenChange');
-        const candlestickChartContainer = document.getElementById('candlestickChart');
+            // --- Global State ---
+            const coinDataStore = {}; // Stores { symbol: { currentData: {}, previousPrice: null, chart: null, chartData: { labels: [], prices: [] } } }
+            const MAX_CHART_POINTS = 30; // Max data points to show on chart
 
-        // --- Tinycolor Instance ---
-        // Ensure tinycolor is available or provide a robust fallback if the script fails
-        const tc = window.tinycolor || function(color){ return { isDark:()=>true, lighten:()=>color, darken:()=>color, setAlpha:()=>color, toString:()=>color} };
+            // --- DOM Elements ---
+            const coinListContainer = document.getElementById('coin-list');
+            const loadingIndicator = document.getElementById('loading');
 
-        // --- Utility Functions ---
-        function setStatus(type, message) {
-             if (!statusIndicator) return;
-             const svgIcon = statusIndicator.querySelector('svg');
-             const spanText = statusIndicator.querySelector('span');
-
-            if (type === 'hidden') {
-                 statusIndicator.classList.add('hidden');
-                 if(listScrollContainer) listScrollContainer.style.display = 'block'; // Show list when indicator is hidden
-                 return;
-             }
-
-            statusIndicator.classList.remove('hidden');
-             if(listScrollContainer) listScrollContainer.style.display = 'none'; // Hide list container when showing status
-             if(spanText) spanText.textContent = message;
-             if(spanText) spanText.classList.remove('error-message');
-             if(svgIcon) svgIcon.style.display = 'none';
-
-            if (type === 'loading') {
-                if(svgIcon) svgIcon.style.display = 'block';
-             } else if (type === 'error') {
-                 if(spanText) spanText.classList.add('error-message');
-             }
-         }
-        function formatCurrency(amount, decimals = 2) { const num = parseFloat(amount); if (isNaN(num)) return 'N/A'; const effectiveDecimals = (num > 0 && num < 0.0001) ? 8 : (num > 0 && num < 0.01) ? 6 : (num > 0 && num < 1) ? 4 : decimals; return num.toLocaleString(undefined, { minimumFractionDigits: effectiveDecimals, maximumFractionDigits: effectiveDecimals }); }
-        function formatPercentage(change) { const num = parseFloat(change); return isNaN(num) ? '--' : `${num > 1e-6 ? '+' : ''}${num.toFixed(2)}%`; } /* Handle tiny positive changes */
-         function applyTheme(params) { if (!params) return; const root=document.documentElement; const setProp=(prop, value) => root.style.setProperty(prop, value); try { const bgColor = params.bg_color || '#121212'; const textColor = params.text_color || '#ffffff'; const hintColor = params.hint_color || '#b3b3b3'; const buttonColor = params.button_color || '#1DB954'; const secondaryBgColor = params.secondary_bg_color || '#1e1e1e'; const t_bgColor=tc(bgColor); const t_textColor=tc(textColor); const t_secondaryBgColor=tc(secondaryBgColor); setProp('--bg-color',bgColor);setProp('--primary-text',textColor);setProp('--secondary-text',hintColor);setProp('--accent-color',buttonColor);setProp('--button-bg',buttonColor);setProp('--card-bg',secondaryBgColor);setProp('--input-bg',t_secondaryBgColor.darken(5).toString()); setProp('--border-color',t_bgColor.isDark() ? t_secondaryBgColor.lighten(5).toString() : t_secondaryBgColor.darken(5).toString()); setProp('--hover-bg',t_textColor.setAlpha(0.05).toString());setProp('--error-color','#f44336');setProp('--success-color','#4caf50');setProp('--positive-change-color',t_bgColor.isDark()?'#4caf50':'#2e7d32');setProp('--negative-change-color',t_bgColor.isDark()?'#f44336':'#c62828');setProp('--modal-bg',t_secondaryBgColor.lighten(t_bgColor.isDark()?3:-3).toString()); setProp('--modal-overlay-bg',t_bgColor.setAlpha(0.6).toString());document.body.style.backgroundColor=bgColor; document.body.style.color=textColor; if(tg&&tg.setHeaderColor)try{tg.setHeaderColor(secondaryBgColor);}catch(e){} if(tg&&tg.setBackgroundColor)try{tg.setBackgroundColor(bgColor);}catch(e){}}catch(e){console.error("Theme apply error", e)}}
+            // --- Chart Colors ---
+            const chartGreen = 'rgba(46, 204, 113, 0.6)';
+            const chartRed = 'rgba(231, 76, 60, 0.6)';
+            const chartNeutral = 'rgba(149, 165, 166, 0.6)';
+            const chartBorder = 'rgba(52, 73, 94, 1)';
 
 
-        // --- Firebase Functions ---
-        function initializeFirebase() { return new Promise((resolve, reject) => { if(firebaseInitialized){resolve(); return;} try { if (typeof firebase === 'undefined') throw new Error("Firebase SDK not loaded"); if(!firebase.apps.length) {firebase.initializeApp(firebaseConfig);} else {firebase.app();} db = firebase.database(); firebaseInitialized = true; console.log("Firebase Initialized Successfully."); resolve(); } catch (error) { console.error("Firebase Init Error:", error); setStatus('error', `Database connection failed. Please check console.`); reject(error); } }); }
+            // --- Functions ---
 
-        // --- Real-time Listener & Data Processing ---
-        function listenForTokenData() {
-            if (!db) { setStatus('error', "Database not ready."); return; }
-            const tokensRef = db.ref('tokens');
-            console.log("Attaching Firebase listener: /tokens");
-            let isFirstLoad = true; // Flag to handle initial status better
+            /**
+             * Formats number as USD currency.
+             * @param {number} number - The number to format.
+             * @returns {string} Formatted currency string.
+             */
+            function formatCurrency(number) {
+                if (typeof number !== 'number') return '$--';
+                 // Adjust decimals based on price magnitude
+                const options = {
+                    style: 'currency',
+                    currency: 'USD',
+                    minimumFractionDigits: number < 0.1 ? 4 : 2,
+                    maximumFractionDigits: number < 0.01 ? 8 : (number < 1 ? 4 : 2)
+                };
+                return number.toLocaleString('en-US', options);
+            }
 
-            tokensRef.on('value', (snapshot) => {
-                const newTokensRaw = snapshot.val() || {};
-                 const currentTokenData = {}; // Build the new state for this cycle
+             /**
+             * Renders or updates a coin card in the DOM.
+             * @param {string} symbol - The coin symbol (e.g., 'ABS').
+             * @param {object} coin - The coin data object from Firebase.
+             */
+            function renderCoinCard(symbol, coin) {
+                let card = document.getElementById(`coin-${symbol}`);
+                let priceElement;
+                let changeElement;
 
-                 // Process Raw Data & Calculate Change
-                for (const symbol in newTokensRaw) {
-                    try {
-                         const rawData = newTokensRaw[symbol];
-                         if (typeof rawData !== 'object' || rawData === null || rawData.priceUSD == null) {
-                              // console.warn(`Skipping incomplete data for ${symbol}`);
-                              continue;
-                         }
-                         const currentPrice = parseFloat(rawData.priceUSD);
-                          if (isNaN(currentPrice) || currentPrice < 0) {
-                              // console.warn(`Skipping invalid price for ${symbol}: ${rawData.priceUSD}`);
-                             continue;
-                          }
+                const previousPrice = coinDataStore[symbol]?.previousPrice;
+                const currentPrice = coin.priceUSD;
+                let priceChange = 0;
+                let priceChangePercent = 0;
+                let priceClass = '';
+                let changeClass = 'change-neutral';
+                let arrow = '';
 
-                         const prevInfo = tokenData[symbol]; // Compare against the *global state* from the previous cycle
-                         const prevPrice = prevInfo ? prevInfo.priceUSD : null;
-                         let changePercent = 0;
-                         let isPositive = null;
-                         let priceChanged = false;
 
-                          if (prevPrice !== null && prevPrice > 0 && Math.abs(currentPrice - prevPrice) > 1e-9) {
-                              priceChanged = true;
-                              const priceDiff = currentPrice - prevPrice;
-                             changePercent = (priceDiff / prevPrice) * 100;
-                             isPositive = priceDiff > 1e-9; // true=positive, false=negative
-                          }
+                if (typeof previousPrice === 'number' && typeof currentPrice === 'number' && previousPrice !== 0) {
+                    priceChange = currentPrice - previousPrice;
+                    priceChangePercent = (priceChange / previousPrice) * 100;
 
-                         currentTokenData[symbol] = {
-                            name: rawData.name || symbol,
-                             priceUSD: currentPrice,
-                             logoUrl: rawData.logoUrl || `https://via.placeholder.com/36/333333/ffffff?text=${symbol.substring(0,1)}`,
-                            addedAt: rawData.addedAt,
-                             // Derived state for UI
-                             _changePercent: changePercent,
-                            _isPositive: isPositive,
-                            _priceChanged: priceChanged // Flag if price specifically changed in this update
-                         };
-                    } catch (e) {
-                        console.error(`Error processing token ${symbol}:`, e, newTokensRaw[symbol]);
-                     }
-                 }
+                    if (priceChange > 0) {
+                        priceClass = 'price-up';
+                        changeClass = 'change-up';
+                        arrow = '<span class="arrow">▲</span>';
+                    } else if (priceChange < 0) {
+                        priceClass = 'price-down';
+                        changeClass = 'change-down';
+                        arrow = '<span class="arrow">▼</span>';
+                    }
+                }
 
-                 // Force USDT Price (essential)
-                 if (currentTokenData.USDT) currentTokenData.USDT.priceUSD = 1.00;
-
-                 // Update Global State AFTER processing is complete
-                 // Store the state that was just processed (which is now the "previous" for the *next* run)
-                 previousTokenData = { ...tokenData }; // Store the state that was *previously* global
-                 tokenData = currentTokenData;          // Set the *newly processed* data as the current global state
-
-                // Handle Initial Load Status
-                 if (isFirstLoad) {
-                     console.log(`Initial token data load complete (${Object.keys(tokenData).length} tokens).`);
-                     if (Object.keys(tokenData).length === 0) {
-                         setStatus('error', 'No token data found in database.');
-                     } else {
-                         setStatus('hidden'); // Hide status only after successful first load with data
-                         listScrollContainer.style.display = 'block'; // Explicitly show list container
-                     }
-                     isFirstLoad = false;
-                 }
-
-                // Update UI - Render the list based on the new global `tokenData`
-                 updateTokenExplorerList();
-
-             }, (error) => {
-                 console.error("Firebase Listener Error:", error);
-                 setStatus('error', `Real-time connection failed: ${error.message}`);
-                 isFirstLoad = false; // Don't stay stuck in loading if listener fails
-             });
-         }
-
-        // --- Core UI Update/Render Function (Optimized) ---
-        function updateTokenExplorerList() {
-            if (!tokenListContainer || !listScrollContainer || typeof tokenData !== 'object') {
-                console.warn("List update skipped - container or data not ready.");
-                return;
-             }
-
-             const searchTermLower = currentSearchTerm.toLowerCase();
-
-            // 1. Filter Data
-            const filteredTokens = Object.entries(tokenData)
-                .map(([symbol, data]) => ({ symbol, ...data }))
-                .filter(token => {
-                    if (!token.name || token.priceUSD == null) return false;
-                    if (!searchTermLower) return true;
-                    return token.symbol.toLowerCase().includes(searchTermLower) || token.name.toLowerCase().includes(searchTermLower);
-                 });
-
-             // 2. Sort Data
-             filteredTokens.sort((a, b) => { /* ... Keep existing sort logic ... */ switch (currentSort) { case 'name_asc': return (a.name || a.symbol).localeCompare(b.name || b.symbol); case 'name_desc': return (b.name || b.symbol).localeCompare(a.name || a.symbol); case 'price_asc': return (a.priceUSD || 0) - (b.priceUSD || 0); case 'price_desc': return (b.priceUSD || 0) - (a.priceUSD || 0); case 'change_asc': return (a._changePercent || 0) - (b._changePercent || 0); case 'change_desc': return (b._changePercent || 0) - (a._changePercent || 0); default: return 0; } });
-
-            // 3. Efficient DOM Rendering
-            const fragment = document.createDocumentFragment();
-            const currentlyDisplayedSymbols = new Set(); // Track symbols that should be visible *now*
-             let listIsEmpty = true;
-
-            if (filteredTokens.length > 0) {
-                listIsEmpty = false;
-                 filteredTokens.forEach(token => {
-                     const symbol = token.symbol;
-                     currentlyDisplayedSymbols.add(symbol);
-                     const changePercent = token._changePercent;
-                     const isPositive = token._isPositive;
-                     const priceChanged = token._priceChanged; // Did price change *this cycle*?
-
-                    let cacheEntry = tokenListItemsCache[symbol];
-                     let listItemElement;
-
-                    if (!cacheEntry) {
-                         // --- Create Element ---
-                         listItemElement = document.createElement('div');
-                         listItemElement.className = 'token-list-item-explorer';
-                         listItemElement.dataset.symbol = symbol;
-                         listItemElement.innerHTML = `
-                            <div class="token-info-explorer">
-                                <img src="${token.logoUrl}" alt="${symbol}" class="token-logo" onerror="this.src='https://via.placeholder.com/36/333333/ffffff?text=${symbol.substring(0,1)}'; this.onerror=null;">
-                                <div class="token-name-symbol-explorer">
-                                    <div class="token-name-explorer">${token.name}</div>
-                                    <div class="token-symbol-explorer">${symbol}</div>
-                                </div>
+                 // Create new card if it doesn't exist
+                if (!card) {
+                    card = document.createElement('div');
+                    card.className = 'coin-card';
+                    card.id = `coin-${symbol}`;
+                    card.innerHTML = `
+                        <div class="coin-header">
+                            <img src="${coin.logoUrl || 'placeholder.png'}" alt="${coin.name} Logo" class="coin-logo" onerror="this.style.display='none'">
+                            <div>
+                                <span class="coin-name">${coin.name || 'N/A'}</span>
+                                <span class="coin-symbol">(${symbol})</span>
                             </div>
-                            <div class="token-pricing-explorer">
-                                <div class="token-price-explorer">${'$' + formatCurrency(token.priceUSD)}</div>
-                                <div class="token-change-explorer ${isPositive === true ? 'positive' : isPositive === false ? 'negative' : ''}">${formatPercentage(changePercent)}</div>
-                            </div>`;
-                        listItemElement.addEventListener('click', () => showTokenDetailModal(symbol)); // Add listener on creation
-                        tokenListItemsCache[symbol] = { element: listItemElement, data: token }; // Store ref and initial data
-                     } else {
-                         // --- Update Existing Element ---
-                         listItemElement = cacheEntry.element;
-                         const cachedData = cacheEntry.data;
+                        </div>
+                        <div class="coin-details">
+                             <div class="coin-price">
+                                <span class="price-value ${priceClass}"></span>
+                                <span class="price-change ${changeClass}"></span>
+                             </div>
+                             <!-- Add other details here if needed -->
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="chart-${symbol}"></canvas>
+                        </div>
+                    `;
+                    coinListContainer.appendChild(card);
+                    // Initialize chart data structure
+                    coinDataStore[symbol] = {
+                        ...coinDataStore[symbol], // Keep potential existing chart instance
+                        chartData: { labels: [], prices: [] }
+                    };
+                    initializeChart(symbol); // Create the chart instance
+                }
 
-                        // Update elements only if data *actually* changed
-                         if (cachedData.priceUSD !== token.priceUSD) {
-                            listItemElement.querySelector('.token-price-explorer').textContent = '$' + formatCurrency(token.priceUSD);
-                             // Apply flash effect only if price changed THIS cycle
-                             const priceEl = listItemElement.querySelector('.token-price-explorer');
-                             if (priceEl && priceChanged) {
-                                 priceEl.classList.remove('price-flash-up', 'price-flash-down'); // Clear previous
-                                 void priceEl.offsetWidth; // Trigger reflow (needed for re-applying animation)
-                                 priceEl.classList.add(isPositive === true ? 'price-flash-up' : isPositive === false ? 'price-flash-down' : '');
+                // Update existing card elements
+                priceElement = card.querySelector('.price-value');
+                changeElement = card.querySelector('.price-change');
+
+                priceElement.textContent = formatCurrency(currentPrice);
+                priceElement.className = `price-value ${priceClass}`; // Update class for color
+
+                if (priceChange !== 0) {
+                     changeElement.innerHTML = `${arrow}${Math.abs(priceChangePercent).toFixed(2)}%`;
+                     changeElement.className = `price-change ${changeClass}`;
+                     changeElement.style.display = 'inline-block'; // Show change element
+                } else if (previousPrice != null) { // Show neutral only if we have a previous price
+                     changeElement.innerHTML = `0.00%`;
+                     changeElement.className = `price-change change-neutral`;
+                     changeElement.style.display = 'inline-block';
+                } else {
+                     changeElement.style.display = 'none'; // Hide if no previous price yet
+                }
+
+
+                // Update the store with current data and price for next comparison
+                coinDataStore[symbol] = {
+                    ...coinDataStore[symbol], // Keep chart instance and data
+                    currentData: coin,
+                    previousPrice: currentPrice
+                };
+
+                 // Update the chart
+                updateChart(symbol, currentPrice);
+            }
+
+            /**
+             * Initializes a Chart.js chart instance for a coin.
+             * @param {string} symbol - The coin symbol.
+             */
+            function initializeChart(symbol) {
+                const ctx = document.getElementById(`chart-${symbol}`);
+                if (!ctx) return; // Exit if canvas not found
+
+                const chartConfig = {
+                    type: 'line',
+                    data: {
+                        labels: [], // Populated by updateChart
+                        datasets: [{
+                            label: 'Price (USD)',
+                            data: [], // Populated by updateChart
+                            borderColor: chartBorder,
+                            borderWidth: 2,
+                            fill: false, // Don't fill under the line
+                            tension: 0.1, // Slightly smooth the line
+                            pointRadius: 0, // Hide points for cleaner look
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: {
+                            duration: 200 // Faster animation
+                        },
+                        scales: {
+                            x: {
+                                display: false, // Hide X-axis labels (time)
+                            },
+                            y: {
+                                display: true,
+                                ticks: {
+                                    maxTicksLimit: 5, // Limit Y-axis ticks
+                                    callback: function(value, index, values) {
+                                        // Simple formatting for Y axis
+                                        if (value >= 1) return '$' + value.toFixed(2);
+                                        if (value >= 0.01) return '$' + value.toFixed(4);
+                                        return '$' + value.toFixed(6);
+                                    }
+                                }
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                display: false // Hide legend
+                            },
+                            tooltip: {
+                                enabled: true,
+                                mode: 'index',
+                                intersect: false,
+                                callbacks: {
+                                     label: function(context) {
+                                         let label = context.dataset.label || '';
+                                         if (label) {
+                                             label += ': ';
+                                         }
+                                         if (context.parsed.y !== null) {
+                                             label += formatCurrency(context.parsed.y);
+                                         }
+                                         return label;
+                                     }
+                                 }
+                            }
+                        }
+                    }
+                };
+
+                try {
+                     // Destroy existing chart if it exists (e.g., on hot-reload)
+                     if (coinDataStore[symbol]?.chart) {
+                          coinDataStore[symbol].chart.destroy();
+                     }
+                    coinDataStore[symbol].chart = new Chart(ctx.getContext('2d'), chartConfig);
+                } catch (error) {
+                     console.error(`Error initializing chart for ${symbol}:`, error);
+                      // Optionally display an error message on the card
+                     const chartContainer = ctx.closest('.chart-container');
+                     if(chartContainer) chartContainer.innerHTML = `<p style="color: red; font-size: 0.8em;">Chart failed to load.</p>`;
+                }
+            }
+
+
+            /**
+             * Updates the chart data for a specific coin.
+             * @param {string} symbol - The coin symbol.
+             * @param {number} newPrice - The latest price.
+             */
+            function updateChart(symbol, newPrice) {
+                const storeEntry = coinDataStore[symbol];
+                if (!storeEntry || !storeEntry.chart || typeof newPrice !== 'number') return; // Exit if chart or price invalid
+
+                const chart = storeEntry.chart;
+                const chartData = storeEntry.chartData;
+
+                // Add new data point
+                const now = new Date(); // Use timestamp for potential tooltip use
+                chartData.labels.push(now.toLocaleTimeString()); // Simple time label
+                chartData.prices.push(newPrice);
+
+                // Limit history length
+                if (chartData.labels.length > MAX_CHART_POINTS) {
+                    chartData.labels.shift(); // Remove oldest label
+                    chartData.prices.shift(); // Remove oldest price
+                }
+
+                // Update chart dataset
+                chart.data.labels = chartData.labels;
+                chart.data.datasets[0].data = chartData.prices;
+
+                 // Dynamically set border color based on trend (simple version)
+                 let borderColor = chartNeutral;
+                 if (chartData.prices.length >= 2) {
+                    const firstPrice = chartData.prices[0];
+                    const lastPrice = chartData.prices[chartData.prices.length - 1];
+                    if(lastPrice > firstPrice) borderColor = chartGreen;
+                    else if (lastPrice < firstPrice) borderColor = chartRed;
+                 }
+                  chart.data.datasets[0].borderColor = borderColor;
+
+
+                // Update the chart
+                chart.update('none'); // 'none' prevents jerky animation on every update
+            }
+
+            // --- Firebase Data Listener ---
+            tokensRef.on('value', (snapshot) => {
+                loadingIndicator.style.display = 'none'; // Hide loading indicator
+                const tokensData = snapshot.val();
+
+                if (tokensData) {
+                    // console.log("Received data:", tokensData); // For debugging
+
+                    // Clear list only if absolutely necessary (causes full redraw)
+                    // Instead, we'll update or add cards individually
+                    // coinListContainer.innerHTML = ''; // Avoid this if possible for performance
+
+                    const currentSymbols = Object.keys(tokensData);
+                    const existingSymbols = Array.from(coinListContainer.children).map(card => card.id.replace('coin-', ''));
+
+                    // Process each token from Firebase
+                    for (const symbol in tokensData) {
+                        if (tokensData.hasOwnProperty(symbol)) {
+                            const coin = tokensData[symbol];
+                            // Basic validation
+                            if (coin && typeof coin.priceUSD === 'number' && coin.name) {
+                                renderCoinCard(symbol, coin);
+                            } else {
+                                console.warn(`Skipping token ${symbol} due to missing data:`, coin);
+                            }
+                        }
+                    }
+
+                     // Optional: Remove cards for coins that no longer exist in Firebase data
+                     existingSymbols.forEach(symbol => {
+                         if (!currentSymbols.includes(symbol)) {
+                             const cardToRemove = document.getElementById(`coin-${symbol}`);
+                             if (cardToRemove) {
+                                 // Clean up chart instance and data store
+                                 if (coinDataStore[symbol]?.chart) {
+                                     coinDataStore[symbol].chart.destroy();
+                                 }
+                                 delete coinDataStore[symbol];
+                                 cardToRemove.remove();
+                                 console.log(`Removed card for ${symbol}`);
                              }
                          }
-                        if (cachedData._changePercent !== changePercent || cachedData._isPositive !== isPositive) {
-                             const changeEl = listItemElement.querySelector('.token-change-explorer');
-                            changeEl.textContent = formatPercentage(changePercent);
-                             changeEl.className = `token-change-explorer ${isPositive === true ? 'positive' : isPositive === false ? 'negative' : ''}`;
-                         }
-                         if (cachedData.name !== token.name) listItemElement.querySelector('.token-name-explorer').textContent = token.name;
-                        if (cachedData.logoUrl !== token.logoUrl) listItemElement.querySelector('.token-logo').src = token.logoUrl;
+                     });
 
-                        // Update the cached data for the next comparison
-                        cacheEntry.data = token;
-                    }
-                     fragment.appendChild(listItemElement);
-                 });
-            }
+                } else {
+                    coinListContainer.innerHTML = '<p>No token data found in Firebase.</p>';
+                    console.warn("No data received from Firebase path 'tokens'.");
+                }
+            }, (error) => {
+                loadingIndicator.style.display = 'none';
+                console.error("Firebase read failed: " + error.message);
+                coinListContainer.innerHTML = `<p style="color: red;">Error fetching data: ${error.message}</p>`;
+            });
 
-             // Remove elements not in the current filtered/sorted set
-             Object.keys(tokenListItemsCache).forEach(symbol => {
-                if (!currentlyDisplayedSymbols.has(symbol)) {
-                    tokenListItemsCache[symbol]?.element?.remove(); // Remove from DOM
-                    delete tokenListItemsCache[symbol]; // Remove from cache
-                 }
-             });
-
-            // Append updates or show empty message
-            tokenListContainer.innerHTML = ''; // Clear efficiently *once*
-            if (listIsEmpty) {
-                tokenListContainer.innerHTML = `<p style='color: var(--secondary-text); text-align: center; padding: 30px; font-size: 15px;'>No tokens match your search.</p>`;
-            } else {
-                tokenListContainer.appendChild(fragment);
-            }
+        } catch(error) {
+             console.error("Error initializing Firebase or script:", error);
+             document.getElementById('loading').style.display = 'none';
+             document.getElementById('coin-list').innerHTML = `<p style="color: red;">A critical error occurred: ${error.message}</p>`;
         }
 
-
-        // --- Modal Functions (Simplified Chart Draw remains) ---
-        function showTokenDetailModal(symbol) { /* ... Keep existing show logic (uses derived state) ... */ const currentInfo=tokenData[symbol]; const previousInfo=previousTokenData[symbol]; if(!currentInfo){console.error("No current data for modal:", symbol); return;} /* Safely handle if prev data missing for chart */ const hasPrevPrice = previousInfo && previousInfo.priceUSD != null && previousInfo.priceUSD > 0; modalTokenName.querySelector('span').textContent=`${currentInfo.name} (${symbol})`; modalTokenLogo.src=currentInfo.logoUrl; modalTokenLogo.alt=symbol; modalTokenLogo.onerror=function(){this.src=`https://via.placeholder.com/26/333333/ffffff?text=${symbol.substring(0,1)}`}; modalTokenPrice.textContent=`$${formatCurrency(currentInfo.priceUSD)}`; const changePercent=currentInfo._changePercent; const isPositive=currentInfo._isPositive; modalTokenChange.textContent=formatPercentage(changePercent); modalTokenChange.className=`stat-value ${isPositive===true?'positive':isPositive===false?'negative':''}`; drawSimpleCandlestick(currentInfo.priceUSD, hasPrevPrice ? previousInfo.priceUSD : null); /* Pass only prices now */ modalOverlay.classList.add('active'); document.body.style.overflow='hidden';}
-         function closeTokenDetailModal() { /* ... keep existing close logic ... */ modalOverlay.classList.remove('active'); document.body.style.overflow = ''; }
-         function drawSimpleCandlestick(currentPrice, prevPrice) { /* Adjusted to take prices */ candlestickChartContainer.innerHTML=''; if(prevPrice===null||currentPrice===null||currentPrice<=0||prevPrice<=0){candlestickChartContainer.innerHTML='<span class="chart-no-data">Recent price data missing.</span>'; return;} const openPrice=prevPrice; const closePrice=currentPrice; const highPrice=Math.max(openPrice,closePrice)*1.005; /* Reduce simulated wick size */ const lowPrice=Math.min(openPrice,closePrice)*0.995; const isPositive=closePrice>=openPrice; const candleClass=isPositive?'positive':'negative'; const svgNS="http://www.w3.org/2000/svg"; const svg=document.createElementNS(svgNS,"svg"); const priceRange=highPrice-lowPrice; const minY=lowPrice-(priceRange*0.05); const maxY=highPrice+(priceRange*0.05); const viewHeight=Math.max(1, maxY-minY); svg.setAttribute("viewBox",`0 ${minY} 100 ${viewHeight}`); svg.setAttribute("preserveAspectRatio","xMidYMid meet"); const wick=document.createElementNS(svgNS,"line"); wick.setAttribute("x1","50"); wick.setAttribute("y1",lowPrice); wick.setAttribute("x2","50"); wick.setAttribute("y2",highPrice); wick.setAttribute("class",`wick ${candleClass}`); wick.setAttribute("stroke-width", Math.max(0.8, viewHeight*0.01)); svg.appendChild(wick); const body=document.createElementNS(svgNS,"rect"); body.setAttribute("x","35"); body.setAttribute("width","30"); /* Thinner body */ body.setAttribute("y",Math.min(openPrice,closePrice)); body.setAttribute("height",Math.max(viewHeight * 0.01, Math.abs(openPrice-closePrice))); /* Min height relative to view */ body.setAttribute("class",`candle-body ${candleClass}`); body.setAttribute("stroke","none"); svg.appendChild(body); candlestickChartContainer.appendChild(svg); }
-
-
-        // --- Event Listener Setup ---
-        function setupEventListeners() {
-             if (listenersAttached) return;
-             console.log("Setting up Explorer UI listeners...");
-
-             // Debounced Search Input
-             searchBox.addEventListener('input', () => {
-                 clearTimeout(searchDebounceTimeout);
-                 searchDebounceTimeout = setTimeout(() => {
-                     currentSearchTerm = searchBox.value;
-                     // Reset scroll when searching/filtering
-                     if (listScrollContainer) listScrollContainer.scrollTop = 0;
-                     updateTokenExplorerList();
-                 }, 250); // Debounce time in ms (e.g., 250ms)
-             });
-
-             // Sort Select
-             sortSelect.addEventListener('change', () => {
-                 currentSort = sortSelect.value;
-                 if (listScrollContainer) listScrollContainer.scrollTop = 0; // Scroll to top on sort change
-                 updateTokenExplorerList();
-             });
-
-             // Modal Close
-            modalCloseBtn.addEventListener('click', closeTokenDetailModal);
-            modalOverlay.addEventListener('click', (event) => { if (event.target === modalOverlay) closeTokenDetailModal(); });
-            // List item clicks are handled by listeners added during item creation/update in `updateTokenExplorerList`
-
-             listenersAttached = true;
-             console.log("Explorer listeners attached.");
-         }
-
-        // --- App Initialization ---
-        async function initializeApp() {
-            console.log("--- Initializing Token Explorer App ---");
-             setStatus('loading', 'Initializing...');
-
-            // 1. Check Telegram Env
-             if (typeof window.Telegram === 'undefined' || !window.Telegram.WebApp) { setStatus('error', "Telegram App context required."); return; }
-             tg = window.Telegram.WebApp;
-
-             try {
-                // 2. Telegram Ready & Theme
-                 await new Promise(resolve => tg.ready(resolve));
-                 console.log("Telegram SDK Ready.");
-                 tg.expand(); // Maximize view
-                 applyTheme(tg.themeParams || {}); // Apply theme (use empty obj if params missing)
-                 if (tg.MainButton) tg.MainButton.hide(); // Hide default TG button
-
-                 // 3. Initialize Firebase
-                 await initializeFirebase(); // Will set status on error
-
-                 // 4. Setup Listeners for Interactions FIRST
-                 setupEventListeners(); // Setup search/sort/modal listeners
-
-                 // 5. Start Real-time Data Listener
-                 // Loading status will be updated by the listener itself
-                 listenForTokenData();
-
-                 console.log("--- Explorer Initialization Sequence Complete ---");
-
-             } catch (error) {
-                console.error("Critical Initialization Error:", error);
-                // InitializeFirebase already sets status on error
-                 // Make sure error is clearly displayed
-             }
-         }
-
-        // --- Start ---
-         document.addEventListener('DOMContentLoaded', initializeApp);
-
-     </script>
+    </script>
 
 </body>
 </html>
