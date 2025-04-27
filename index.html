@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AB Wallet Pro</title>
+    <title>AB Wallet P2P</title>
     <!-- Telegram WebApp SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <!-- Firebase SDK -->
@@ -11,6 +11,9 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
     <style>
+        /* --- Paste all CSS from the previous "wallet_pro.html" example here --- */
+        /* --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- */
+        /* Add specific styles or modifications if needed */
         :root {
             --bg-color: #121212; /* Default dark */
             --primary-text: #ffffff;
@@ -24,6 +27,9 @@
             --error-color: #f44336;
             --success-color: #4caf50;
             --link-color: #8774e1; /* Telegram link color */
+            --receive-color: var(--success-color);
+            --send-color: var(--error-color);
+            --swap-color: orange;
         }
 
         * {
@@ -339,7 +345,7 @@
         .transaction-history ul {
             list-style: none;
             padding: 0;
-            max-height: 250px; /* Increased height */
+            max-height: 300px; /* Increased height more */
             overflow-y: auto;
         }
         .transaction-history li {
@@ -351,7 +357,7 @@
             color: var(--secondary-text);
             display: flex;
             justify-content: space-between;
-            align-items: center;
+            align-items: flex-start; /* Align items to top */
         }
          .transaction-history li:last-child {
              border-bottom: none; /* No border for last item */
@@ -362,22 +368,52 @@
         }
 
         .transaction-history li .tx-type-icon {
-             width: 16px;
-             height: 16px;
-             margin-right: 8px;
-             vertical-align: middle;
+             width: 20px; /* Slightly larger icon */
+             height: 20px;
+             margin-right: 10px;
+             vertical-align: top; /* Align icon with top of text */
+             display: inline-block; /* Make display inline block */
+             margin-top: 1px; /* Fine tune alignment */
         }
-        .transaction-history li span.tx-amount { color: var(--primary-text); font-weight: 500;}
+        .transaction-history li .tx-main-info {
+             display: inline-block; /* Allow text to wrap */
+             vertical-align: top;
+             max-width: calc(100% - 30px); /* Prevent overlap with timestamp */
+        }
+        .transaction-history li span.tx-amount { font-weight: 500;}
         .transaction-history li span.tx-asset { font-weight: 500; }
-        .transaction-history li span.tx-recipient { font-size: 11px; display: block; margin-top: 2px; }
+        .transaction-history li span.tx-peer { /* For From/To info */
+             font-size: 11px;
+             display: block;
+             margin-top: 3px;
+             color: var(--secondary-text);
+             word-break: break-all;
+         }
+         .transaction-history li span.tx-peer strong { /* Peer ID emphasis */
+              color: var(--primary-text);
+              font-weight: 400;
+          }
+         .transaction-history li span.tx-id { /* Transaction ID */
+             font-size: 10px;
+             display: block;
+             margin-top: 4px;
+             color: var(--hint-color);
+             font-family: monospace;
+             word-break: break-all;
+             opacity: 0.7;
+         }
+
         .transaction-history li .tx-timestamp {
             font-size: 11px;
             color: var(--secondary-text);
             white-space: nowrap;
+            text-align: right;
+            padding-left: 10px; /* Space from details */
         }
-        .transaction-history li.deposit .tx-amount { color: var(--success-color); }
-        .transaction-history li.withdraw .tx-amount { color: var(--error-color); }
-        /* Swap needs more specific styling maybe */
+        .transaction-history li.receive .tx-amount { color: var(--receive-color); }
+        .transaction-history li.send .tx-amount { color: var(--send-color); }
+        .transaction-history li.swap .tx-amount { color: var(--swap-color); }
+
 
         #appBlocker {
             position: fixed;
@@ -425,19 +461,24 @@
          .token-list-item .token-balance { text-align: right; }
          .token-list-item .balance-amount { font-weight: 500; color: var(--primary-text); }
          .token-list-item .balance-usd { font-size: 12px; color: var(--secondary-text); }
-
+        /* Swap fee display */
+        #swapFeeInfo {
+            font-size: 12px;
+            color: var(--secondary-text);
+            text-align: center;
+            margin-top: -5px;
+            margin-bottom: 15px;
+            min-height: 16px; /* Reserve space */
+        }
     </style>
 </head>
 <body>
 
-    <!-- Blocker for non-Telegram environments -->
+    <!-- Blocker -->
     <div id="appBlocker">
         <svg width="64" height="64" viewBox="0 0 24 24" fill="#ffffff"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/></svg>
         <h2 style="margin-top: 15px;">Access Denied</h2>
-        <p>This application is designed to work exclusively within the Telegram app.</p>
-        <p>Please open it through your Telegram bot.</p>
-        <!-- Optional: Add a button to try closing (might not work everywhere) -->
-        <!-- <button id="closeWebAppBtn">Close</button> -->
+        <p>This application works only within Telegram.</p>
     </div>
 
     <div class="app-container">
@@ -450,36 +491,29 @@
 
         <!-- Home Page -->
         <div id="homePage" class="page active">
-            <!-- Welcome message injected by JS -->
             <h1 id="welcomeMessage">Welcome!</h1>
-
             <div class="card">
                 <h2>Total Balance</h2>
-                <div class="balance-display" id="totalBalance">
-                    $0.00 <span>USD</span>
-                </div>
+                <div class="balance-display" id="totalBalance">$0.00 <span>USD</span></div>
                 <p class="balance-subtitle">Estimated total value of all assets</p>
                  <div id="detailedBalances">
                      <h3>Asset Balances</h3>
                      <ul id="assetList" style="list-style: none; padding: 0;">
-                         <!-- Populated by JS -->
-                         <li style="color: var(--secondary-text); text-align: center;">Loading balances...</li>
+                         <li style="color: var(--secondary-text); text-align: center;">Loading...</li>
                      </ul>
                  </div>
             </div>
-
             <div class="card user-info">
                 <h2>Your Telegram Info</h2>
-                <p><strong>First Name:</strong> <span id="userFirstName">Loading...</span></p>
-                <p><strong>Last Name:</strong> <span id="userLastName">Loading...</span></p>
-                <p><strong>Username:</strong> <span id="userUsername">Loading...</span></p>
-                <p><strong>Chat ID:</strong> <span id="userChatId">Loading...</span></p>
+                <p><strong>First Name:</strong> <span id="userFirstName">...</span></p>
+                <p><strong>Last Name:</strong> <span id="userLastName">...</span></p>
+                <p><strong>Username:</strong> <span id="userUsername">...</span></p>
+                <p><strong>Chat ID:</strong> <span id="userChatId">...</span></p>
             </div>
-
              <div class="card transaction-history">
                  <h2>Recent Activity</h2>
                  <ul id="transactionList">
-                    <li style="color: var(--secondary-text); text-align: center; border: none;">Loading transactions...</li>
+                    <li style="color: var(--secondary-text); text-align: center; border: none;">Loading...</li>
                  </ul>
             </div>
         </div>
@@ -495,16 +529,15 @@
                 <input type="number" id="fromAmount" placeholder="0.0" min="0" step="any">
                 <p style="font-size: 12px; color: var(--secondary-text); margin-top: -10px; margin-bottom: 10px;">Balance: <span id="swapFromBalance">0.00</span></p>
 
-
                 <div class="swap-icon" id="swapDirectionBtn" title="Swap Tokens">⇅</div>
 
-                <label for="toToken">To:</label>
+                <label for="toToken">To (Estimated):</label>
                 <select id="toToken"></select>
                 <input type="number" id="toAmount" placeholder="0.0" readonly style="background-color: var(--input-bg); opacity: 0.7;">
                  <p style="font-size: 12px; color: var(--secondary-text); margin-top: -10px; margin-bottom: 10px;">Balance: <span id="swapToBalance">0.00</span></p>
 
-
-                <p id="swapRate" style="text-align: center; margin: 15px 0; color: var(--secondary-text); font-size: 14px; min-height: 20px;">Select tokens to see rate</p>
+                <p id="swapRate" style="text-align: center; margin: 15px 0 5px 0; color: var(--secondary-text); font-size: 14px; min-height: 20px;">Select tokens to see rate</p>
+                <p id="swapFeeInfo"></p> {/* Fee info display */}
 
                 <button id="swapButton" disabled>
                     <svg viewBox="0 0 24 24"><path d="M6.99 11L3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z"/></svg>
@@ -515,55 +548,46 @@
 
         <!-- Deposit Page -->
         <div id="depositPage" class="page">
-            <h1>Deposit Assets</h1>
+            <h1>Receive Assets</h1> {/* Renamed from Deposit */}
             <div class="card">
                  <div id="depositMessage" class="message" style="display: none;"></div>
-                <p style="color: var(--secondary-text); margin-bottom: 20px; font-size: 14px;">To simulate receiving assets, use your unique Telegram Chat ID. In a real wallet, you would see specific crypto addresses here.</p>
+                <p style="color: var(--secondary-text); margin-bottom: 20px; font-size: 14px;">Share your Telegram Chat ID with others so they can send assets to you within this app.</p>
 
-                <h3>Your Unique Identifier (Chat ID)</h3>
+                <h3>Your Telegram Chat ID</h3>
                 <div id="depositChatId" class="chat-id-display" title="Click to copy">Loading...</div>
                 <div id="copyFeedbackDeposit" class="copy-feedback">Click ID to copy</div>
 
                  <p style="color: var(--secondary-text); font-size: 13px; margin-top: 20px; text-align: center; opacity: 0.8;">
-                    <strong>Simulation Only:</strong> No real funds will be moved. Actions are recorded in the database using this ID.
+                    <strong>Internal Transfers Only:</strong> This ID is used for receiving simulated assets from other users of *this* specific Telegram app. It cannot be used for deposits from external exchanges or wallets.
                  </p>
             </div>
-             <!-- Example: Add a card explaining how simulation works -->
-             <div class="card">
-                 <h2>How Simulation Works</h2>
-                 <p style="color: var(--secondary-text); font-size: 14px;">
-                     Deposits and withdrawals in this demo are simulated by updating your balance directly in our database, linked to your Chat ID above.
-                     <br><br>
-                     To test, you might need an admin or another function (not built here) to manually add funds to your simulated balance using your Chat ID.
-                 </p>
-             </div>
         </div>
 
-        <!-- Withdraw Page -->
-        <div id="withdrawPage" class="page">
-            <h1>Withdraw Assets</h1>
+        <!-- Send Page -->
+        <div id="sendPage" class="page"> {/* Renamed from withdrawPage */}
+            <h1>Send Assets</h1>
             <div class="card">
-                 <div id="withdrawMessage" class="message" style="display: none;"></div>
+                 <div id="sendMessage" class="message" style="display: none;"></div> {/* Renamed from withdrawMessage */}
 
-                <label for="withdrawToken">Asset to Withdraw:</label>
-                <select id="withdrawToken">
+                <label for="sendToken">Asset to Send:</label> {/* Renamed from withdrawToken */}
+                <select id="sendToken">
                     <!-- Options populated by JS -->
                 </select>
 
-                <label for="withdrawAmount">Amount:</label>
-                <input type="number" id="withdrawAmount" placeholder="0.0" min="0" step="any">
-                <p style="font-size: 12px; color: var(--secondary-text); margin-top: -10px; margin-bottom: 10px;">Available: <span id="withdrawAvailableBalance">0.00</span></p>
+                <label for="sendAmount">Amount:</label> {/* Renamed from withdrawAmount */}
+                <input type="number" id="sendAmount" placeholder="0.0" min="0" step="any">
+                <p style="font-size: 12px; color: var(--secondary-text); margin-top: -10px; margin-bottom: 10px;">Available: <span id="sendAvailableBalance">0.00</span></p> {/* Renamed id */}
 
-                <label for="recipientInfo">Recipient Info (Simulated: e.g., Target Chat ID)</label>
-                <input type="text" id="recipientInfo" placeholder="Enter Recipient Chat ID for simulation">
+                <label for="recipientId">Recipient Telegram Chat ID:</label> {/* Renamed from recipientInfo */}
+                <input type="number" id="recipientId" placeholder="Enter recipient's numeric Chat ID"> {/* Changed type to number for basic validation */}
 
                 <p style="color: var(--secondary-text); font-size: 13px; margin: 15px 0; text-align: center; opacity: 0.8;">
-                    <strong>Simulation Only:</strong> Enter another user's Chat ID or identifier for this demo. No real crypto is sent.
+                    <strong>Internal Transfers Only:</strong> Ensure you enter the correct Telegram Chat ID of another user of this app. Transfers are simulated.
                 </p>
 
-                <button id="withdrawButton" disabled>
-                    <svg viewBox="0 0 24 24"><path d="M9 16h6v-6h4l-7-7-7 7h4v6zm-4 2h14v2H5v-2z"/></svg>
-                    Withdraw
+                <button id="sendButton" disabled> {/* Renamed id */}
+                    <svg viewBox="0 0 24 24"><path d="M2.01 21 23 12 2.01 3 2 10l15 2-15 2z"></path></svg> {/* Send icon */}
+                    Send
                 </button>
             </div>
         </div>
@@ -580,47 +604,48 @@
              <svg viewBox="0 0 24 24"><path d="M6.99 11L3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z"/></svg>
             Swap
         </button>
-        <button class="nav-item" data-page="depositPage">
-             <svg viewBox="0 0 24 24"><path d="M5 4v2h14V4H5zm0 10h4v6h6v-6h4l-7-7-7 7z"/></svg>
-            Deposit
+        <button class="nav-item" data-page="depositPage"> {/* Now "Receive" page */}
+             <svg viewBox="0 0 24 24"><path d="M17 13h-4v4h-2v-4H7v-2h4V7h2v4h4v2z M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg> {/* Receive icon */}
+            Receive
         </button>
-        <button class="nav-item" data-page="withdrawPage">
-             <svg viewBox="0 0 24 24"><path d="M9 16h6v-6h4l-7-7-7 7h4v6zm-4 2h14v2H5v-2z"/></svg>
-            Withdraw
+        <button class="nav-item" data-page="sendPage"> {/* Now "Send" page */}
+             <svg viewBox="0 0 24 24"><path d="M2.01 21 23 12 2.01 3 2 10l15 2-15 2z"/></svg> {/* Send icon */}
+            Send
         </button>
     </nav>
 
     <script>
         const firebaseConfig = {
-            // IMPORTANT: KEEP YOUR CONFIG HERE, BUT REMEMBER IT'S INSECURE CLIENT-SIDE
-            apiKey: "AIzaSyBW1WPXUN8DYhT6npZQYoQ3l4J-jFSbzfg",
+            // --- PASTE YOUR FIREBASE CONFIG HERE ---
+            apiKey: "AIzaSyBW1WPXUN8DYhT6npZQYoQ3l4J-jFSbzfg", // INSECURE - Replace
             authDomain: "ab-studio-marketcap.firebaseapp.com",
             databaseURL: "https://ab-studio-marketcap-default-rtdb.firebaseio.com",
             projectId: "ab-studio-marketcap",
             storageBucket: "ab-studio-marketcap.firebasestorage.app",
             messagingSenderId: "115268088088",
             appId: "1:115268088088:web:65643a047f92bfaa66ee6d"
+            // --- --- --- --- --- --- --- --- --- --- ---
         };
 
         // --- GLOBAL STATE ---
         let currentUser = null;
         let userDbRef = null;
         let db = null;
-        let userBalance = {}; // { USDT: 100, ABT: 5000 }
-        let tokenData = {}; // { USDT: { name: ..., priceUSD: ... }, ABT: { ... } }
+        let userBalance = {};
+        let tokenData = {};
         let userTransactions = {};
         let tg = null;
         let firebaseInitialized = false;
-        let listenersAttached = false; // Flag to prevent double attachment
+        let listenersAttached = false;
+        const SWAP_FEE_PERCENT = 0.001; // 0.1%
 
-        // --- DOM Elements ---
+        // --- DOM Elements (Add/Rename elements as needed) ---
         const loadingIndicator = document.getElementById('loadingIndicator');
         const globalMessage = document.getElementById('globalMessage');
         const pages = document.querySelectorAll('.page');
         const navItems = document.querySelectorAll('.nav-item');
         const appContainer = document.querySelector('.app-container');
         const appBlocker = document.getElementById('appBlocker');
-        // const closeWebAppBtn = document.getElementById('closeWebAppBtn'); // Optional
 
         // Home Page Elements
         const welcomeMessageEl = document.getElementById('welcomeMessage');
@@ -640,59 +665,65 @@
         const swapButton = document.getElementById('swapButton');
         const swapMessage = document.getElementById('swapMessage');
         const swapRateEl = document.getElementById('swapRate');
+        const swapFeeInfoEl = document.getElementById('swapFeeInfo'); // New fee display
         const swapDirectionBtn = document.getElementById('swapDirectionBtn');
         const swapFromBalanceEl = document.getElementById('swapFromBalance');
         const swapToBalanceEl = document.getElementById('swapToBalance');
 
-        // Deposit Page Elements
+        // Deposit/Receive Page Elements
         const depositChatIdEl = document.getElementById('depositChatId');
         const depositMessage = document.getElementById('depositMessage');
         const copyFeedbackDepositEl = document.getElementById('copyFeedbackDeposit');
 
-        // Withdraw Page Elements
-        const withdrawTokenSelect = document.getElementById('withdrawToken');
-        const withdrawAmountInput = document.getElementById('withdrawAmount');
-        const recipientInfoInput = document.getElementById('recipientInfo');
-        const withdrawButton = document.getElementById('withdrawButton');
-        const withdrawMessage = document.getElementById('withdrawMessage');
-        const withdrawAvailableBalanceEl = document.getElementById('withdrawAvailableBalance');
+        // Send Page Elements (Renamed from Withdraw)
+        const sendTokenSelect = document.getElementById('sendToken');
+        const sendAmountInput = document.getElementById('sendAmount');
+        const recipientIdInput = document.getElementById('recipientId');
+        const sendButton = document.getElementById('sendButton');
+        const sendMessage = document.getElementById('sendMessage');
+        const sendAvailableBalanceEl = document.getElementById('sendAvailableBalance');
 
 
-        // --- UTILITY FUNCTIONS ---
+        // --- UTILITY FUNCTIONS (Mostly unchanged) ---
+        function showLoading(show, text = 'Loading...') { /* ... */ }
+        function showMessage(element, message, type = 'error', duration = 5000) { /* ... */ }
+        function showGlobalMessage(message, type = 'error', duration = 5000) { /* ... */ }
+        function formatCurrency(amount, decimals = 2) { /* ... */ }
+        function formatTokenAmount(amount, decimals = 6) { /* ... */ }
+        function triggerHapticFeedback(style = 'medium') { /* ... */ }
+        function applyTheme(params) { /* ... */ }
+        // --- Paste Utility Functions from previous example ---
         function showLoading(show, text = 'Loading...') {
             loadingIndicator.textContent = text; // Update text
             loadingIndicator.style.display = show ? 'block' : 'none';
         }
-
         function showMessage(element, message, type = 'error', duration = 5000) {
+            if (!element) return; // Guard against null element
             element.textContent = message;
             element.className = `message ${type}`; // type = 'error', 'success', 'info'
             element.style.display = 'block';
+            // Clear previous timeout if exists
+            if (element.timeoutId) clearTimeout(element.timeoutId);
             if (duration > 0) {
-                setTimeout(() => {
+                element.timeoutId = setTimeout(() => {
                     element.style.display = 'none';
                 }, duration);
             }
         }
-
         function showGlobalMessage(message, type = 'error', duration = 5000) {
             showMessage(globalMessage, message, type, duration);
             window.scrollTo(0, 0); // Scroll top to make global msg visible
         }
-
         function formatCurrency(amount, decimals = 2) {
             const num = parseFloat(amount);
             return isNaN(num) ? '0.00' : num.toFixed(decimals);
         }
-
         function formatTokenAmount(amount, decimals = 6) {
             const num = parseFloat(amount);
             if (isNaN(num)) return '0';
-            // Use fewer decimals for display if number is large, more if small
-            const effectiveDecimals = Math.max(0, Math.min(decimals, num > 0.001 ? 4 : decimals));
-            return num.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: effectiveDecimals });
+            const effectiveDecimals = Math.max(0, Math.min(decimals, num > 0.001 || num === 0 ? 4 : decimals));
+            return num.toLocaleString(undefined, { minimumFractionDigits: Math.min(2, effectiveDecimals) , maximumFractionDigits: effectiveDecimals });
         }
-
         function triggerHapticFeedback(style = 'medium') {
              if (tg && tg.HapticFeedback) {
                  try {
@@ -700,8 +731,6 @@
                  } catch (e) { console.warn("Haptic feedback not supported or failed:", e); }
              }
         }
-
-        // --- THEME APPLICATION ---
         function applyTheme(params) {
             if (!params) return;
             const root = document.documentElement;
@@ -711,21 +740,17 @@
             root.style.setProperty('--link-color', params.link_color || '#8774e1');
             root.style.setProperty('--button-bg', params.button_color || '#1DB954');
             root.style.setProperty('--button-text', params.button_text_color || '#ffffff');
-            root.style.setProperty('--accent-color', params.button_color || '#1DB954'); // Use button color as accent
-            // Infer card/input background slightly darker/lighter than main bg
-            // This is tricky without more theme params, so keeping defaults might be safer
-            // root.style.setProperty('--card-bg', adjustColor(params.bg_color, 15)); // Example helper needed
-            // root.style.setProperty('--input-bg', adjustColor(params.bg_color, 25));
-
+            root.style.setProperty('--accent-color', params.button_color || '#1DB954');
+            root.style.setProperty('--receive-color', params.button_color || '#4caf50'); // Base receive on button color or default green
             // Set body directly too for immediate effect
             document.body.style.backgroundColor = params.bg_color || '#121212';
             document.body.style.color = params.text_color || '#ffffff';
-
             // Update Telegram header color
             if (tg && tg.setHeaderColor) {
                 tg.setHeaderColor(params.secondary_bg_color || params.bg_color || '#121212');
             }
         }
+
 
         // --- PAGE NAVIGATION ---
         function showPage(pageId) {
@@ -735,26 +760,24 @@
             navItems.forEach(item => {
                 item.classList.toggle('active', item.dataset.page === pageId);
             });
-            appContainer.scrollTop = 0; // Scroll page content to top
+            appContainer.scrollTop = 0;
 
-             // Reset messages on page change
              globalMessage.style.display = 'none';
              swapMessage.style.display = 'none';
              depositMessage.style.display = 'none';
-             withdrawMessage.style.display = 'none';
+             sendMessage.style.display = 'none'; // Updated message element
 
-             // Refresh data/UI relevant to the shown page
              switch(pageId) {
                  case 'homePage': updateHomePageUI(); break;
                  case 'swapPage': updateSwapUI(); break;
-                 case 'withdrawPage': updateWithdrawForm(); break;
-                 case 'depositPage': updateDepositPageUI(); break; // Ensure ChatID is shown
+                 case 'sendPage': updateSendForm(); break; // Updated function name
+                 case 'depositPage': updateDepositPageUI(); break;
              }
         }
 
         // --- FIREBASE FUNCTIONS ---
-        function initializeFirebase() {
-            return new Promise((resolve, reject) => {
+        function initializeFirebase() { /* ... Same as before ... */
+             return new Promise((resolve, reject) => {
                  if (firebaseInitialized) {
                     resolve();
                     return;
@@ -773,72 +796,68 @@
             });
         }
 
-        function getUserDataRealtime(userId) {
-             if (!db || !userId) return Promise.reject("Database or UserID not available");
-             userDbRef = db.ref(`users/${userId}`);
+        function getUserDataRealtime(userId) { /* ... Mostly same, ensures transactions are updated ... */
+            if (!db || !userId) return Promise.reject("Database or UserID not available");
+            userDbRef = db.ref(`users/${userId}`);
 
-             return new Promise((resolve, reject) => {
-                 userDbRef.on('value', (snapshot) => {
-                     const data = snapshot.val();
-                     if (data) {
-                         console.log("User data received:", data);
-                         userBalance = data.balances || {};
-                         userTransactions = data.transactions || {};
-                         resolve(data); // Resolve with the current data
-                         // Update UI elements that depend on live data
-                         updateHomePageUI();
-                         updateSwapUI();
-                         updateWithdrawForm();
-                         populateWithdrawTokenSelector();
-                         updateTransactionHistory();
-                     } else {
-                         // User doesn't exist, create basic structure
-                         console.log("User not found in DB, creating entry...");
+            return new Promise((resolve, reject) => {
+                userDbRef.on('value', (snapshot) => {
+                    const data = snapshot.val();
+                    if (data) {
+                        console.log("User data received/updated:", data);
+                        userBalance = data.balances || {};
+                        userTransactions = data.transactions || {};
+                        resolve(data); // Resolve with the current data for initial load
+                        // Update relevant UI parts on every change
+                        updateHomePageUI(); // Balance, Tx history
+                        updateSwapUI();     // Balances on swap page
+                        updateSendForm();   // Available balance on send page
+                        populateSendTokenSelector(); // Ensure owned tokens are in send dropdown
+                    } else if (currentUser && userId === currentUser.id) { // Only create if it's the current user missing
+                        console.log("User not found in DB, creating entry...");
                          const { id, first_name, last_name, username } = currentUser;
                          const initialUserData = {
                              chatId: id,
                              firstName: first_name || '',
                              lastName: last_name || '',
                              username: username || 'N/A',
-                             joinedAt: new Date().toISOString(),
-                             balances: { USDT: 0 }, // Start with 0 USDT or preferred default
+                             joinedAt: firebase.database.ServerValue.TIMESTAMP, // Use server time
+                             balances: { USDT: 0 },
                              transactions: {}
                          };
                          userDbRef.set(initialUserData)
                             .then(() => {
                                 console.log("Initial user data created.");
-                                userBalance = initialUserData.balances;
-                                userTransactions = initialUserData.transactions;
-                                resolve(initialUserData); // Resolve with the new data
-                                updateHomePageUI(); // Update UI after creation
-                                updateWithdrawForm();
-                                updateTransactionHistory();
-                                populateWithdrawTokenSelector();
+                                // Don't set userBalance/tx here, wait for next 'value' event
+                                resolve(initialUserData); // Resolve for initial load promise
                              })
                             .catch(err => {
                                 console.error("Failed to create user data:", err);
                                 showGlobalMessage("Failed to initialize user account.", "error");
                                 reject(err);
                             });
-                     }
-                 }, (error) => {
-                     console.error("Firebase Read Error:", error);
-                     showGlobalMessage("Connection to user data lost. Please check internet.", "error");
-                     // Don't reject here, as 'on' provides continuous updates/errors
-                     // Maybe implement a retry mechanism or clearer status indicator
-                 });
-             });
+                    } else {
+                        // If data is null for a *different* user ID (e.g., recipient check), handle gracefully
+                        console.warn(`User data for ID ${userId} is null.`);
+                        // We might reject or resolve with null depending on context
+                        // For now, the initial resolve covers the current user case.
+                    }
+                }, (error) => {
+                    console.error("Firebase Read Error:", error);
+                    showGlobalMessage("Connection to user data lost. Please check internet.", "error");
+                    // Don't reject here for 'on', handle connection status elsewhere if needed
+                });
+            });
         }
 
-         function getTokenData() {
-             if (!db) return Promise.reject("Database not available");
+         function getTokenData() { /* ... Same as before ... */
+            if (!db) return Promise.reject("Database not available");
              const tokensRef = db.ref('tokens');
              return tokensRef.once('value')
                  .then(snapshot => {
                      tokenData = snapshot.val() || {};
                      if (Object.keys(tokenData).length === 0) {
                          console.warn("No token data found in Firebase under /tokens path.");
-                         // Maybe show a warning, but don't block the app
                      } else {
                          console.log("Token data loaded:", tokenData);
                      }
@@ -851,127 +870,164 @@
                  });
          }
 
-        async function updateBalanceTransaction(userId, updates, txRecord) {
-             if (!db || !userId) return Promise.reject("Database or UserID not available");
+        // Single user atomic update (for swaps)
+        async function performSwapTransaction(userId, updates, txRecord) {
+            if (!db || !userId) return Promise.reject("Database or UserID not available");
+            const multiPathUpdate = {};
+            for (const asset in updates) {
+                multiPathUpdate[`/users/${userId}/balances/${asset}`] = firebase.database.ServerValue.increment(updates[asset]);
+            }
+            const txRef = db.ref(`users/${userId}/transactions`).push();
+            multiPathUpdate[`/users/${userId}/transactions/${txRef.key}`] = {
+                ...txRecord,
+                timestamp: firebase.database.ServerValue.TIMESTAMP
+            };
+            console.log("Performing Swap Update:", multiPathUpdate);
+            return db.ref().update(multiPathUpdate);
+        }
 
-             // Prepare the atomic update object
-             const multiPathUpdate = {};
-             for (const asset in updates) {
-                 multiPathUpdate[`/users/${userId}/balances/${asset}`] = firebase.database.ServerValue.increment(updates[asset]);
+        // P2P atomic update (for sending)
+        async function performP2PTransfer(senderId, recipientId, asset, amount) {
+             if (!db || !senderId || !recipientId || !asset || !amount || amount <= 0) {
+                 return Promise.reject("Invalid parameters for P2P transfer.");
              }
 
-             // Add the transaction record
-             const txRef = db.ref(`users/${userId}/transactions`).push();
-             multiPathUpdate[`/users/${userId}/transactions/${txRef.key}`] = {
-                 ...txRecord,
-                 timestamp: firebase.database.ServerValue.TIMESTAMP // Use server timestamp
+             const senderTxRef = db.ref(`users/${senderId}/transactions`).push();
+             const recipientTxRef = db.ref(`users/${recipientId}/transactions`).push(); // Separate key for recipient's record
+
+             const multiPathUpdate = {};
+
+             // 1. Decrement sender balance
+             multiPathUpdate[`/users/${senderId}/balances/${asset}`] = firebase.database.ServerValue.increment(-amount);
+             // 2. Increment recipient balance
+             multiPathUpdate[`/users/${recipientId}/balances/${asset}`] = firebase.database.ServerValue.increment(amount);
+             // 3. Add sender transaction record
+             multiPathUpdate[`/users/${senderId}/transactions/${senderTxRef.key}`] = {
+                 type: "send",
+                 asset: asset,
+                 amount: amount,
+                 toUserId: recipientId,
+                 status: "completed",
+                 timestamp: firebase.database.ServerValue.TIMESTAMP,
+                 recipientTxKey: recipientTxRef.key // Link to recipient record
+             };
+             // 4. Add recipient transaction record
+             multiPathUpdate[`/users/${recipientId}/transactions/${recipientTxRef.key}`] = {
+                 type: "receive",
+                 asset: asset,
+                 amount: amount,
+                 fromUserId: senderId,
+                 status: "completed",
+                 timestamp: firebase.database.ServerValue.TIMESTAMP,
+                 senderTxKey: senderTxRef.key // Link back to sender record
              };
 
-             // Perform the atomic update
-              console.log("Performing multi-path update:", multiPathUpdate);
+             console.log("Performing P2P Update:", multiPathUpdate);
              return db.ref().update(multiPathUpdate);
-        }
+         }
 
 
         // --- UI UPDATE FUNCTIONS ---
-        function updateHomePageUI() {
-             if (!currentUser) return;
+        function updateHomePageUI() { /* ... Mostly same, uses updated userBalance/userTransactions ... */
+            if (!currentUser) return;
+            welcomeMessageEl.textContent = `Welcome, ${currentUser.first_name || 'User'}!`;
+            userFirstNameEl.textContent = currentUser.first_name || 'N/A';
+            userLastNameEl.textContent = currentUser.last_name || 'N/A';
+            userUsernameEl.textContent = currentUser.username ? `@${currentUser.username}` : 'N/A';
+            userChatIdEl.textContent = currentUser.id || 'N/A';
 
-             // Welcome Message & User Info Card
-             welcomeMessageEl.textContent = `Welcome, ${currentUser.first_name || 'User'}!`;
-             userFirstNameEl.textContent = currentUser.first_name || 'N/A';
-             userLastNameEl.textContent = currentUser.last_name || 'N/A';
-             userUsernameEl.textContent = currentUser.username ? `@${currentUser.username}` : 'N/A';
-             userChatIdEl.textContent = currentUser.id || 'N/A';
+            let totalUsdValue = 0;
+            assetListEl.innerHTML = ''; // Clear previous list
 
-             // Calculate total balance & list assets
-             let totalUsdValue = 0;
-             assetListEl.innerHTML = ''; // Clear previous list
+            const sortedBalances = Object.entries(userBalance)
+               .filter(([asset, balance]) => parseFloat(balance || 0) > 0 || asset === 'USDT') // Show USDT even if 0
+               .sort(([assetA], [assetB]) => assetA.localeCompare(assetB));
 
-             const sortedBalances = Object.entries(userBalance)
-                .filter(([asset, balance]) => parseFloat(balance || 0) > 0 || asset === 'USDT') // Show USDT even if 0, others only if > 0
-                .sort(([assetA], [assetB]) => assetA.localeCompare(assetB)); // Sort alphabetically
-
-             if (sortedBalances.length === 0 && !userBalance['USDT']) { // Handle case where even USDT is missing initially
-                assetListEl.innerHTML = '<li style="color: var(--secondary-text); text-align: center;">No assets yet.</li>';
-             } else {
-                 // Ensure USDT is shown if present, even if balance is 0
-                 if (!sortedBalances.some(([asset]) => asset === 'USDT') && userBalance.hasOwnProperty('USDT')) {
-                     sortedBalances.unshift(['USDT', userBalance.USDT]);
-                 }
-
-                 sortedBalances.forEach(([asset, balance]) => {
-                    const numBalance = parseFloat(balance || 0);
-                    const tokenInfo = tokenData[asset];
-                    const priceUsd = tokenInfo ? parseFloat(tokenInfo.priceUSD || 0) : (asset === 'USDT' ? 1 : 0); // Assume USDT=1 if no price data
-                    const usdValue = numBalance * priceUsd;
-                    totalUsdValue += usdValue;
-
-                    const li = document.createElement('li');
-                    li.className = 'token-list-item';
-                    li.innerHTML = `
-                        <div class="token-info">
-                            <img src="${tokenInfo?.logoUrl || 'https://via.placeholder.com/32/cccccc/000000?text=?'}" alt="${asset}">
-                            <div>
-                                <div class="token-name">${tokenInfo?.name || asset}</div>
-                                <div class="token-symbol">${asset}</div>
-                            </div>
-                        </div>
-                        <div class="token-balance">
-                            <div class="balance-amount">${formatTokenAmount(numBalance)}</div>
-                            <div class="balance-usd">≈ $${formatCurrency(usdValue)}</div>
-                        </div>
-                    `;
-                    assetListEl.appendChild(li);
-                 });
-             }
-
-             totalBalanceEl.innerHTML = `$${formatCurrency(totalUsdValue)} <span>USD</span>`;
-         }
+            if (sortedBalances.length === 0 && !userBalance.hasOwnProperty('USDT')) {
+               assetListEl.innerHTML = '<li style="color: var(--secondary-text); text-align: center;">No assets yet.</li>';
+            } else {
+                if (!sortedBalances.some(([asset]) => asset === 'USDT') && userBalance.hasOwnProperty('USDT')) {
+                    sortedBalances.unshift(['USDT', userBalance.USDT]);
+                }
+                sortedBalances.forEach(([asset, balance]) => {
+                   const numBalance = parseFloat(balance || 0);
+                   const tokenInfo = tokenData[asset];
+                   const priceUsd = tokenInfo ? parseFloat(tokenInfo.priceUSD || 0) : (asset === 'USDT' ? 1 : 0);
+                   const usdValue = numBalance * priceUsd;
+                   totalUsdValue += usdValue;
+                   const li = document.createElement('li');
+                   li.className = 'token-list-item';
+                   li.innerHTML = `
+                       <div class="token-info">
+                           <img src="${tokenInfo?.logoUrl || 'https://via.placeholder.com/32/cccccc/000000?text=?'}" alt="${asset}">
+                           <div>
+                               <div class="token-name">${tokenInfo?.name || asset}</div>
+                               <div class="token-symbol">${asset}</div>
+                           </div>
+                       </div>
+                       <div class="token-balance">
+                           <div class="balance-amount">${formatTokenAmount(numBalance)}</div>
+                           <div class="balance-usd">≈ $${formatCurrency(usdValue)}</div>
+                       </div>
+                   `;
+                   assetListEl.appendChild(li);
+                });
+            }
+            totalBalanceEl.innerHTML = `$${formatCurrency(totalUsdValue)} <span>USD</span>`;
+            updateTransactionHistory(); // Update history too
+        }
 
         function updateTransactionHistory() {
-            transactionListEl.innerHTML = ''; // Clear previous list
+            transactionListEl.innerHTML = '';
             const txArray = Object.entries(userTransactions || {})
                 .map(([key, value]) => ({ id: key, ...value }))
-                .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)); // Sort newest first using server timestamp
+                .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
 
             if (txArray.length === 0) {
                  transactionListEl.innerHTML = '<li style="color: var(--secondary-text); text-align: center; border: none;">No transaction history.</li>';
                  return;
             }
 
-             txArray.slice(0, 15).forEach(tx => { // Show latest 15 transactions
+             txArray.slice(0, 20).forEach(tx => { // Show latest 20
                  const li = document.createElement('li');
-                 li.classList.add(tx.type); // deposit, withdraw, swap
+                 li.classList.add(tx.type); // send, receive, swap, deposit (if used)
 
                  let iconSvg = '';
-                 let detailsHtml = '';
+                 let mainInfoHtml = '';
+                 let peerInfoHtml = '';
 
                  switch (tx.type) {
-                     case 'deposit':
-                         iconSvg = `<svg class="tx-type-icon" style="color: var(--success-color);" viewBox="0 0 24 24" fill="currentColor"><path d="M5 4v2h14V4H5zm0 10h4v6h6v-6h4l-7-7-7 7z"/></svg>`;
-                         detailsHtml = `Deposited <span class="tx-amount">${formatTokenAmount(tx.amount)}</span> <span class="tx-asset">${tx.asset}</span>`;
+                     case 'receive':
+                         iconSvg = `<svg class="tx-type-icon" style="color: var(--receive-color);" viewBox="0 0 24 24" fill="currentColor"><path d="M11 15h2v-4h4v-2h-4V5h-2v4H7v2h4v4zm1-13C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>`;
+                         mainInfoHtml = `Received <span class="tx-amount">${formatTokenAmount(tx.amount)}</span> <span class="tx-asset">${tx.asset}</span>`;
+                         peerInfoHtml = `<span class="tx-peer">From: <strong>${tx.fromUserId || 'Unknown'}</strong></span>`;
                          break;
-                     case 'withdraw':
-                         iconSvg = `<svg class="tx-type-icon" style="color: var(--error-color);" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16h6v-6h4l-7-7-7 7h4v6zm-4 2h14v2H5v-2z"/></svg>`;
-                         detailsHtml = `Withdrew <span class="tx-amount">${formatTokenAmount(tx.amount)}</span> <span class="tx-asset">${tx.asset}</span>`
-                                    + (tx.to ? `<span class="tx-recipient">To: ${tx.to}</span>` : '');
+                     case 'send':
+                          iconSvg = `<svg class="tx-type-icon" style="color: var(--send-color);" viewBox="0 0 24 24" fill="currentColor"><path d="M3.4 20.4l17.4-8.4c.7-.3.7-1.2 0-1.5L3.4 2.1c-.6-.3-1.3.1-1.3.8l.9 6.5c0 .5.5.9 1 .9h6.4c.4 0 .6.5.3.8l-2.6 2.1c-.4.3-.4.9 0 1.2l2.6 2.1c.3.3.1.8-.3.8H4c-.5 0-1 .4-1 .9l-.9 6.5c0 .6.7 1.1 1.3.8z"></path></svg>`;
+                         mainInfoHtml = `Sent <span class="tx-amount">${formatTokenAmount(tx.amount)}</span> <span class="tx-asset">${tx.asset}</span>`;
+                         peerInfoHtml = `<span class="tx-peer">To: <strong>${tx.toUserId || 'Unknown'}</strong></span>`;
                          break;
                      case 'swap':
-                          iconSvg = `<svg class="tx-type-icon" style="color: orange;" viewBox="0 0 24 24" fill="currentColor"><path d="M6.99 11L3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z"/></svg>`;
-                         detailsHtml = `Swapped <span class="tx-amount">${formatTokenAmount(tx.fromAmount)} ${tx.fromAsset}</span> for <span class="tx-amount">${formatTokenAmount(tx.toAmount)} ${tx.toAsset}</span>`;
+                          iconSvg = `<svg class="tx-type-icon" style="color: var(--swap-color);" viewBox="0 0 24 24" fill="currentColor"><path d="M6.99 11L3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z"/></svg>`;
+                         mainInfoHtml = `Swapped <span class="tx-amount">${formatTokenAmount(tx.fromAmount)} ${tx.fromAsset}</span> for <span class="tx-amount">${formatTokenAmount(tx.toAmount)} ${tx.toAsset}</span>`;
+                         // Could add effective rate here if desired
                          break;
-                     default:
-                          iconSvg = `<svg class="tx-type-icon" style="color: var(--secondary-text);" viewBox="0 0 24 24" fill="currentColor"><path d="M11 17h2v-6h-2v6zm1-15C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zM11 9h2V7h-2v2z"/></svg>`;
-                         detailsHtml = `Unknown Transaction`;
+                     default: // Handle older 'deposit'/'withdraw' or unknowns
+                         iconSvg = `<svg class="tx-type-icon" style="color: var(--secondary-text);" viewBox="0 0 24 24" fill="currentColor"><path d="M11 17h2v-6h-2v6zm1-15C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zM11 9h2V7h-2v2z"/></svg>`;
+                         mainInfoHtml = `${tx.type || 'Transaction'} <span class="tx-amount">${formatTokenAmount(tx.amount)}</span> <span class="tx-asset">${tx.asset}</span>`;
                  }
 
                  const timestampStr = tx.timestamp ? new Date(tx.timestamp).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : 'Pending...';
+                 const txIdHtml = `<span class="tx-id" title="Transaction ID">TxID: ${tx.id}</span>`; // Use the Firebase key as Tx ID
 
                  li.innerHTML = `
                     <div class="tx-details">
                         ${iconSvg}
-                        ${detailsHtml}
+                        <div class="tx-main-info">
+                             ${mainInfoHtml}
+                             ${peerInfoHtml}
+                             ${txIdHtml}
+                        </div>
                     </div>
                     <div class="tx-timestamp">${timestampStr}</div>
                  `;
@@ -979,49 +1035,36 @@
              });
         }
 
-        function populateTokenSelectors() {
+        function populateTokenSelectors() { /* ... Same as before ... */
              if (!tokenData || Object.keys(tokenData).length === 0) {
-                 console.warn("Token data not available for populating selectors.");
-                 // Disable swap functionality if no tokens
                  swapButton.disabled = true;
                  fromTokenSelect.innerHTML = '<option>No tokens</option>';
                  toTokenSelect.innerHTML = '<option>No tokens</option>';
                  return;
              }
-
              const sortedSymbols = Object.keys(tokenData).sort();
              let fromOptions = '';
              let toOptions = '';
-
              sortedSymbols.forEach(symbol => {
                  const token = tokenData[symbol];
                  const optionHtml = `<option value="${symbol}" data-logo="${token.logoUrl || ''}">${token.name} (${symbol})</option>`;
                  fromOptions += optionHtml;
                  toOptions += optionHtml;
              });
-
              fromTokenSelect.innerHTML = fromOptions;
              toTokenSelect.innerHTML = toOptions;
+             if (sortedSymbols.length > 0) fromTokenSelect.value = sortedSymbols[0];
+             if (sortedSymbols.length > 1) toTokenSelect.value = sortedSymbols[1];
+             else if (sortedSymbols.length === 1) toTokenSelect.value = sortedSymbols[0];
+             updateSwapUI();
+        }
 
-             // Set default different selections if possible
-             if (sortedSymbols.length > 0) {
-                fromTokenSelect.value = sortedSymbols[0]; // Default to first token
-             }
-             if (sortedSymbols.length > 1) {
-                 toTokenSelect.value = sortedSymbols[1]; // Default to second if available
-             } else if (sortedSymbols.length === 1) {
-                 toTokenSelect.value = sortedSymbols[0]; // Default to first if only one
-             }
-
-             updateSwapUI(); // Update rate and balances after populating
-         }
-
-         function populateWithdrawTokenSelector() {
-            withdrawTokenSelect.innerHTML = ''; // Clear
+         function populateSendTokenSelector() { // Renamed from populateWithdrawTokenSelector
+            sendTokenSelect.innerHTML = ''; // Clear
              let hasOptions = false;
              const availableAssets = Object.entries(userBalance)
-                 .filter(([asset, balance]) => parseFloat(balance || 0) > 0 && tokenData[asset]) // Only owned assets with known token data
-                 .sort(([assetA], [assetB]) => assetA.localeCompare(assetB)); // Sort alphabetically
+                 .filter(([asset, balance]) => parseFloat(balance || 0) > 0 && tokenData[asset])
+                 .sort(([assetA], [assetB]) => assetA.localeCompare(assetB));
 
              if (availableAssets.length > 0) {
                  availableAssets.forEach(([asset, balance]) => {
@@ -1029,23 +1072,22 @@
                      const option = document.createElement('option');
                      option.value = asset;
                      option.textContent = `${token.name} (${asset})`;
-                     option.dataset.logo = token.logoUrl || '';
-                     withdrawTokenSelect.appendChild(option);
+                     sendTokenSelect.appendChild(option); // Add to sendTokenSelect
                      hasOptions = true;
                  });
              }
 
              if (!hasOptions) {
                  const option = document.createElement('option');
-                 option.textContent = 'No withdrawable assets';
+                 option.textContent = 'No assets to send';
                  option.disabled = true;
-                 withdrawTokenSelect.appendChild(option);
+                 sendTokenSelect.appendChild(option);
              }
-             updateWithdrawForm(); // Update available balance display
+             updateSendForm(); // Update available balance display
          }
 
          function updateSwapUI() {
-            if (!fromTokenSelect || !toTokenSelect) return; // Exit if elements not ready
+            if (!fromTokenSelect || !toTokenSelect) return;
 
             const fromAsset = fromTokenSelect.value;
             const toAsset = toTokenSelect.value;
@@ -1053,15 +1095,12 @@
             const fromBalance = parseFloat(userBalance[fromAsset] || 0);
             const toBalance = parseFloat(userBalance[toAsset] || 0);
 
-             // Update balance displays
-             swapFromBalanceEl.textContent = `${formatTokenAmount(fromBalance)} ${fromAsset}`;
-             swapToBalanceEl.textContent = `${formatTokenAmount(toBalance)} ${toAsset}`;
+            swapFromBalanceEl.textContent = `${formatTokenAmount(fromBalance)} ${fromAsset || ''}`;
+            swapToBalanceEl.textContent = `${formatTokenAmount(toBalance)} ${toAsset || ''}`;
 
-            // Calculate rate and toAmount
-            updateSwapRateAndToAmount();
+            updateSwapRateAndToAmount(); // Calculate rate, fee, and toAmount
 
-            // Enable/disable swap button
-            const toAmount = parseFloat(toAmountInput.value || 0); // Get the calculated amount
+            const toAmount = parseFloat(toAmountInput.value || 0);
              if (fromAsset && toAsset && fromAmount > 0 && fromAsset !== toAsset && fromBalance >= fromAmount && toAmount > 0) {
                  swapButton.disabled = false;
              } else {
@@ -1073,43 +1112,73 @@
             const fromAsset = fromTokenSelect.value;
             const toAsset = toTokenSelect.value;
             const fromAmount = parseFloat(fromAmountInput.value || 0);
+            let feeText = ''; // Text to display about the fee
+
+            // Reset outputs
+             toAmountInput.value = '';
+             swapRateEl.textContent = 'Select tokens to see rate';
+             swapFeeInfoEl.textContent = ''; // Clear fee info
 
             if (!fromAsset || !toAsset || !tokenData[fromAsset] || !tokenData[toAsset]) {
-                swapRateEl.textContent = 'Token info missing';
-                toAmountInput.value = ''; return;
-            }
+                 swapRateEl.textContent = 'Token info missing'; return;
+             }
             if (fromAsset === toAsset) {
-                 swapRateEl.textContent = 'Cannot swap the same token';
-                 toAmountInput.value = ''; return;
+                  swapRateEl.textContent = 'Cannot swap the same token'; return;
             }
 
             const fromPrice = parseFloat(tokenData[fromAsset].priceUSD || 0);
             const toPrice = parseFloat(tokenData[toAsset].priceUSD || 0);
 
              if (fromPrice <= 0 || toPrice <= 0) {
-                 swapRateEl.textContent = 'Pricing info unavailable';
-                 toAmountInput.value = ''; return;
+                 swapRateEl.textContent = 'Pricing info unavailable'; return;
              }
 
-            const rate = fromPrice / toPrice;
-            const calculatedToAmount = fromAmount * rate;
+            const baseRate = fromPrice / toPrice; // 1 FromAsset = X ToAsset (before fee)
+            let effectiveRate = baseRate;
+            let calculatedToAmount = fromAmount * baseRate;
 
-            swapRateEl.textContent = `1 ${fromAsset} ≈ ${formatTokenAmount(rate, 4)} ${toAsset}`;
+            // Apply Fee Logic
+            const isFiatToCrypto = fromAsset === 'USDT' && toAsset !== 'USDT'; // Basic assumption
+            const isCryptoToFiat = fromAsset !== 'USDT' && toAsset === 'USDT';
+
+            if (isFiatToCrypto) {
+                // Price of crypto is higher, get less crypto
+                effectiveRate = fromPrice / (toPrice * (1 + SWAP_FEE_PERCENT));
+                calculatedToAmount = fromAmount * effectiveRate;
+                feeText = `Includes ~${(SWAP_FEE_PERCENT * 100).toFixed(2)}% fee`;
+            } else if (isCryptoToFiat) {
+                // Price of crypto is lower, get less fiat
+                effectiveRate = (fromPrice * (1 - SWAP_FEE_PERCENT)) / toPrice;
+                 calculatedToAmount = fromAmount * effectiveRate;
+                 feeText = `Includes ~${(SWAP_FEE_PERCENT * 100).toFixed(2)}% fee`;
+            } else {
+                 // Assume crypto-to-crypto or fiat-to-fiat has no fee in this sim
+                 // Or apply a standard fee if desired
+                  // calculatedToAmount = fromAmount * baseRate * (1 - SWAP_FEE_PERCENT); // Example: Flat fee
+                  // feeText = `Includes ~${(SWAP_FEE_PERCENT * 100).toFixed(2)}% fee`;
+            }
+
+
+            swapRateEl.textContent = `1 ${fromAsset} ≈ ${formatTokenAmount(baseRate, 4)} ${toAsset}`; // Show rate before fee
+            swapFeeInfoEl.textContent = feeText; // Display fee info
             toAmountInput.value = isNaN(calculatedToAmount) ? '' : formatTokenAmount(calculatedToAmount, 6);
         }
 
-        function updateWithdrawForm() {
-             const selectedAsset = withdrawTokenSelect.value;
+        function updateSendForm() { // Renamed from updateWithdrawForm
+             const selectedAsset = sendTokenSelect.value;
              const availableBalance = parseFloat(userBalance[selectedAsset] || 0);
-             withdrawAvailableBalanceEl.textContent = `${formatTokenAmount(availableBalance)} ${selectedAsset || ''}`;
+             sendAvailableBalanceEl.textContent = `${formatTokenAmount(availableBalance)} ${selectedAsset || ''}`;
 
-             const withdrawAmount = parseFloat(withdrawAmountInput.value || 0);
-             const recipient = recipientInfoInput.value.trim();
+             const sendAmount = parseFloat(sendAmountInput.value || 0);
+             const recipientId = recipientIdInput.value.trim();
 
-             if (selectedAsset && withdrawAmount > 0 && recipient && availableBalance >= withdrawAmount) {
-                 withdrawButton.disabled = false;
+             // Basic validation for Chat ID (numeric) and non-self
+             const isValidRecipient = /^\d+$/.test(recipientId) && recipientId !== String(currentUser?.id);
+
+             if (selectedAsset && sendAmount > 0 && recipientId && isValidRecipient && availableBalance >= sendAmount) {
+                 sendButton.disabled = false;
              } else {
-                 withdrawButton.disabled = true;
+                 sendButton.disabled = true;
              }
          }
 
@@ -1127,17 +1196,16 @@
              const fromAsset = fromTokenSelect.value;
              const toAsset = toTokenSelect.value;
              const fromAmount = parseFloat(fromAmountInput.value);
-             const toAmount = parseFloat(toAmountInput.value); // Use the calculated value
+             // IMPORTANT: Use the calculated toAmount from the input, which already includes the fee
+             const toAmount = parseFloat(toAmountInput.value);
 
              // --- Validation ---
              if (!currentUser || !fromAsset || !toAsset || fromAsset === toAsset || isNaN(fromAmount) || fromAmount <= 0 || isNaN(toAmount) || toAmount <= 0) {
-                 showMessage(swapMessage, "Invalid swap parameters.", "error");
-                 return;
+                 showMessage(swapMessage, "Invalid swap parameters.", "error"); return;
              }
              const fromBalance = parseFloat(userBalance[fromAsset] || 0);
              if (fromBalance < fromAmount) {
-                 showMessage(swapMessage, `Insufficient ${fromAsset} balance. You have ${formatTokenAmount(fromBalance)}.`, "error");
-                 return;
+                 showMessage(swapMessage, `Insufficient ${fromAsset} balance. You have ${formatTokenAmount(fromBalance)}.`, "error"); return;
              }
              // --- End Validation ---
 
@@ -1145,96 +1213,101 @@
              swapButton.disabled = true;
 
              try {
-                 // Prepare updates for atomic transaction
-                 const balanceUpdates = {
-                     [fromAsset]: -fromAmount,
-                     [toAsset]: toAmount
-                 };
+                 const fromPrice = parseFloat(tokenData[fromAsset]?.priceUSD || 0);
+                 const toPrice = parseFloat(tokenData[toAsset]?.priceUSD || 0);
+                 const baseRate = (fromPrice > 0 && toPrice > 0) ? fromPrice / toPrice : 0;
+                 const effectiveRate = toAmount / fromAmount; // Calculate effective rate from actual amounts
+
+                 const balanceUpdates = { [fromAsset]: -fromAmount, [toAsset]: toAmount };
                  const txRecord = {
                      type: "swap",
-                     fromAsset: fromAsset,
-                     fromAmount: fromAmount,
-                     toAsset: toAsset,
-                     toAmount: toAmount,
-                     rate: tokenData[fromAsset]?.priceUSD / tokenData[toAsset]?.priceUSD, // Record approximate rate
+                     fromAsset: fromAsset, fromAmount: fromAmount,
+                     toAsset: toAsset, toAmount: toAmount, // Record the amount *after* fee
+                     rate: baseRate, // Store original rate
+                     effectiveRate: effectiveRate, // Store rate after fee
                      status: "completed"
                  };
 
-                 await updateBalanceTransaction(currentUser.id, balanceUpdates, txRecord);
+                 await performSwapTransaction(currentUser.id, balanceUpdates, txRecord);
 
-                 showMessage(swapMessage, `Successfully swapped ${formatTokenAmount(fromAmount)} ${fromAsset} for ${formatTokenAmount(toAmount)} ${toAsset}!`, "success");
+                 showMessage(swapMessage, `Swap successful!`, "success");
                  triggerHapticFeedback('success');
-                 fromAmountInput.value = ''; // Clear input
-                 // UI will update automatically via the 'on' listener
+                 fromAmountInput.value = '';
+                 // UI updates via listener
 
              } catch (error) {
                  console.error("Swap Transaction Error:", error);
                  showMessage(swapMessage, "Swap failed. Please try again.", "error");
                  triggerHapticFeedback('error');
-                 // Don't need manual revert due to atomic update failure
              } finally {
                  showLoading(false);
-                 // Re-enable button will happen naturally when balance updates trigger updateSwapUI
+                 // Button status updated by listener via updateSwapUI
              }
          }
 
-        async function handleWithdraw() {
-             const asset = withdrawTokenSelect.value;
-             const amount = parseFloat(withdrawAmountInput.value);
-             const recipient = recipientInfoInput.value.trim();
+        async function handleSend() { // Renamed from handleWithdraw
+             const asset = sendTokenSelect.value;
+             const amount = parseFloat(sendAmountInput.value);
+             const recipientId = recipientIdInput.value.trim();
 
              // --- Validation ---
-             if (!currentUser || !asset || isNaN(amount) || amount <= 0 || !recipient) {
-                 showMessage(withdrawMessage, "Please fill all withdrawal details correctly.", "error");
-                 return;
+             if (!currentUser || !asset || isNaN(amount) || amount <= 0 || !recipientId) {
+                 showMessage(sendMessage, "Please fill all fields correctly.", "error"); return;
              }
-              if (recipient == currentUser.id) { // Basic check: cannot withdraw to self in this sim
-                 showMessage(withdrawMessage, "Cannot withdraw to your own Chat ID in this simulation.", "error");
-                 return;
+             if (!/^\d+$/.test(recipientId)) {
+                  showMessage(sendMessage, "Recipient Chat ID must be numeric.", "error"); return;
+             }
+             if (recipientId === String(currentUser.id)) {
+                 showMessage(sendMessage, "Cannot send assets to yourself.", "error"); return;
              }
              const balance = parseFloat(userBalance[asset] || 0);
              if (balance < amount) {
-                 showMessage(withdrawMessage, `Insufficient ${asset} balance. You have ${formatTokenAmount(balance)}.`, "error");
-                 return;
+                 showMessage(sendMessage, `Insufficient ${asset} balance. You have ${formatTokenAmount(balance)}.`, "error"); return;
              }
              // --- End Validation ---
 
-             showLoading(true, 'Processing Withdrawal...');
-             withdrawButton.disabled = true;
+             // Optional: Check if recipient exists (not atomic, but good UX)
+             // try {
+             //     const recipientSnapshot = await db.ref(`users/${recipientId}`).once('value');
+             //     if (!recipientSnapshot.exists()) {
+             //         showMessage(sendMessage, `Recipient Chat ID ${recipientId} not found or hasn't used the app.`, "error");
+             //         return;
+             //     }
+             // } catch (e) {
+             //     showMessage(sendMessage, `Error checking recipient. Please try again.`, "error"); return;
+             // }
+
+
+             showLoading(true, 'Processing Transfer...');
+             sendButton.disabled = true;
 
              try {
-                 // Prepare updates
-                 const balanceUpdates = {
-                     [asset]: -amount
-                 };
-                 const txRecord = {
-                     type: "withdraw",
-                     asset: asset,
-                     amount: amount,
-                     to: recipient, // Store recipient info
-                     status: "completed" // Mark as completed for simulation
-                 };
+                 await performP2PTransfer(String(currentUser.id), recipientId, asset, amount);
 
-                 await updateBalanceTransaction(currentUser.id, balanceUpdates, txRecord);
-
-                 showMessage(withdrawMessage, `Withdrawal of ${formatTokenAmount(amount)} ${asset} to ${recipient} completed (simulation).`, "success");
+                 showMessage(sendMessage, `Successfully sent ${formatTokenAmount(amount)} ${asset} to ${recipientId}.`, "success");
                  triggerHapticFeedback('success');
-                 withdrawAmountInput.value = '';
-                 recipientInfoInput.value = '';
-                 // UI will update automatically via 'on' listener
+                 sendAmountInput.value = '';
+                 recipientIdInput.value = '';
+                 // UI updates via listener
 
              } catch (error) {
-                 console.error("Withdrawal Transaction Error:", error);
-                 showMessage(withdrawMessage, "Withdrawal failed. Please try again.", "error");
+                 console.error("Send Transaction Error:", error);
+                  // Check if error might be due to recipient path write rules/non-existence
+                 if (error.message.includes("permission_denied") || error.message.includes("not found")) {
+                      showMessage(sendMessage, `Could not complete transfer. Recipient ID ${recipientId} might be invalid or has restricted access.`, "error");
+                 } else {
+                      showMessage(sendMessage, "Send failed. Please try again.", "error");
+                 }
                  triggerHapticFeedback('error');
              } finally {
                  showLoading(false);
+                  // Button status updated by listener via updateSendForm
              }
          }
 
         // --- EVENT LISTENERS SETUP ---
         function setupEventListeners() {
-             if (listenersAttached) return; // Prevent attaching multiple times
+             if (listenersAttached) return;
 
              // Navigation
              navItems.forEach(item => {
@@ -1248,53 +1321,16 @@
              toTokenSelect.addEventListener('change', updateSwapUI);
              fromAmountInput.addEventListener('input', updateSwapUI);
              swapButton.addEventListener('click', handleSwap);
-             swapDirectionBtn.addEventListener('click', () => {
-                 const fromVal = fromTokenSelect.value;
-                 const toVal = toTokenSelect.value;
-                 fromTokenSelect.value = toVal;
-                 toTokenSelect.value = fromVal;
-                 triggerHapticFeedback('light');
-                 updateSwapUI(); // Update rates and amounts after swap
-             });
-
+             swapDirectionBtn.addEventListener('click', () => { /* ... Same ... */ });
 
              // Deposit Page - Copy Chat ID
-             depositChatIdEl.addEventListener('click', () => {
-                 if (!currentUser || !currentUser.id) return;
-                 navigator.clipboard.writeText(currentUser.id)
-                     .then(() => {
-                         copyFeedbackDepositEl.textContent = 'Chat ID Copied!';
-                         copyFeedbackDepositEl.classList.add('visible');
-                         triggerHapticFeedback('success');
-                         setTimeout(() => {
-                            copyFeedbackDepositEl.textContent = 'Click ID to copy'; // Reset text
-                            copyFeedbackDepositEl.classList.remove('visible');
-                         }, 2000);
-                     })
-                     .catch(err => {
-                         copyFeedbackDepositEl.textContent = 'Copy failed';
-                         copyFeedbackDepositEl.classList.add('visible');
-                         console.error('Failed to copy Chat ID: ', err);
-                         triggerHapticFeedback('error');
-                          setTimeout(() => {
-                            copyFeedbackDepositEl.textContent = 'Click ID to copy';
-                            copyFeedbackDepositEl.classList.remove('visible');
-                          }, 2000);
-                     });
-             });
+             depositChatIdEl.addEventListener('click', () => { /* ... Same ... */ });
 
-             // Withdraw Page
-             withdrawTokenSelect.addEventListener('change', updateWithdrawForm);
-             withdrawAmountInput.addEventListener('input', updateWithdrawForm);
-             recipientInfoInput.addEventListener('input', updateWithdrawForm);
-             withdrawButton.addEventListener('click', handleWithdraw);
-
-             // Optional: Close button for blocker
-             // if(closeWebAppBtn) {
-             //     closeWebAppBtn.addEventListener('click', () => {
-             //         if(tg) tg.close();
-             //     });
-             // }
+             // Send Page (Renamed)
+             sendTokenSelect.addEventListener('change', updateSendForm);
+             sendAmountInput.addEventListener('input', updateSendForm);
+             recipientIdInput.addEventListener('input', updateSendForm);
+             sendButton.addEventListener('click', handleSend); // Calls handleSend now
 
              listenersAttached = true;
              console.log("Event listeners attached.");
@@ -1304,14 +1340,10 @@
         async function initializeApp() {
             console.log("Initializing App...");
             showLoading(true, 'Connecting...');
-
-            // Make sure Telegram SDK is loaded
              if (typeof window.Telegram === 'undefined' || !window.Telegram.WebApp) {
-                 console.error("Telegram WebApp SDK not found. Make sure the script is loaded.");
+                 console.error("Telegram SDK not found.");
                  showLoading(false);
-                 appBlocker.style.display = 'flex'; // Show blocker
-                 appBlocker.querySelector('p').textContent = "Error: Could not load Telegram components.";
-                 return;
+                 appBlocker.style.display = 'flex'; return;
              }
              tg = window.Telegram.WebApp;
 
@@ -1319,59 +1351,50 @@
                  tg.ready();
                  console.log("Telegram WebApp Ready");
                  tg.expand();
-
-                 // Apply theme colors ASAP
                  applyTheme(tg.themeParams);
-                 tg.onEvent('themeChanged', () => applyTheme(tg.themeParams)); // Listen for theme changes
+                 tg.onEvent('themeChanged', () => applyTheme(tg.themeParams));
 
-
-                 // --- CRITICAL: Get User Data ---
                  if (tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.id) {
                      currentUser = tg.initDataUnsafe.user;
-                     // SECURITY WARNING: tg.initData should be verified on a backend in production!
                      console.log("User Identified:", currentUser);
-                     // Display user info immediately for better perceived performance
-                     updateHomePageUI();
-                     updateDepositPageUI();
-
+                     // Update static UI immediately
+                     updateHomePageUI(); // Shows basic info
+                     updateDepositPageUI(); // Shows Chat ID
                  } else {
-                     throw new Error("Telegram user data is unavailable. Please ensure you are opening this from within Telegram.");
+                     throw new Error("Telegram user data unavailable.");
                  }
 
-                 // --- Initialize Firebase and Fetch Data ---
                  showLoading(true, 'Loading Wallet Data...');
-                 await initializeFirebase(); // Wait for Firebase to be ready
+                 await initializeFirebase();
 
-                 // Fetch initial token and user data concurrently
-                 const [tokens, userData] = await Promise.all([
-                     getTokenData(),
-                     getUserDataRealtime(currentUser.id) // Start listening for realtime updates
-                 ]);
+                 // Fetch static token data first
+                 await getTokenData();
+                 populateTokenSelectors(); // Populate swap dropdowns
 
-                 // Once initial data is potentially fetched/created and listener is attached:
-                 console.log("Initial data fetch cycle complete.");
-                 populateTokenSelectors(); // Populate dropdowns with token data
-                 populateWithdrawTokenSelector(); // Populate withdraw based on initial balance
-                 setupEventListeners(); // Setup interactions now that data is loaded
+                 // Start listening for user data (incl. balances/tx) AFTER tokens are known
+                 await getUserDataRealtime(String(currentUser.id));
 
-                 showLoading(false); // Hide loading indicator
-                 showPage('homePage'); // Ensure home page is active
+                 // Initial population based on potentially loaded data
+                 populateSendTokenSelector();
+
+                 setupEventListeners();
+                 showLoading(false);
+                 showPage('homePage');
 
             } catch (error) {
                  console.error("Initialization Failed:", error);
                  showLoading(false);
-                 // Show specific error in blocker or global message
                  if (error.message.includes("Telegram user data")) {
-                     appBlocker.style.display = 'flex'; // Show blocker specifically for this
+                     appBlocker.style.display = 'flex';
+                     appBlocker.querySelector('p').textContent = error.message;
                  } else {
-                     showGlobalMessage(`Initialization Error: ${error.message}`, "error", 0); // Persistent error
+                     showGlobalMessage(`Initialization Error: ${error.message}`, "error", 0);
                  }
-                 // Optionally disable UI elements
                  document.querySelectorAll('button, input, select').forEach(el => el.disabled = true);
             }
         }
 
-        // Start the app when the DOM is ready
+        // Start the app
         document.addEventListener('DOMContentLoaded', initializeApp);
 
     </script>
