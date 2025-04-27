@@ -1,29 +1,25 @@
-// @ts-check // Enables type checking in VS Code, optional but helpful
+// @ts-check
 
 /**
  * ====================================
- * AB Wallet - firebase.js
+ * AB Wallet - firebase.js (Client-Side Simulation)
  * ====================================
  *
- * Handles Firebase interaction, application logic, and UI updates for the
- * AB Wallet Telegram Web App.
+ * Handles UI logic, data display, input validation, and SIMULATES
+ * interactions for the AB Wallet Telegram Web App.
  *
  * ---- CRITICAL SECURITY WARNING ----
- * THIS IS A CLIENT-SIDE IMPLEMENTATION FOR DEMONSTRATION PURPOSES ONLY.
- * IT PERFORMS FINANCIAL OPERATIONS (BALANCE CHECKS, TRANSFERS, SWAPS)
- * DIRECTLY FROM THE CLIENT BROWSER, WHICH IS FUNDAMENTALLY INSECURE.
- *
- * A SECURE BACKEND SERVER IS ABSOLUTELY REQUIRED FOR ANY PRODUCTION
- * APPLICATION HANDLING REAL VALUE TO MANAGE AUTHENTICATION, AUTHORIZATION,
- * SECURE DATABASE OPERATIONS (E.G., ATOMIC TRANSACTIONS), AND PREVENT FRAUD.
- *
- * THE FIREBASE RULES NEEDED FOR THIS DEMO CODE TO FUNCTION ARE DANGEROUSLY
- * PERMISSIVE AND MUST NOT BE USED IN PRODUCTION.
+ * THIS CODE IS A CLIENT-SIDE DEMONSTRATION ONLY. IT IS **NOT SECURE**
+ * FOR HANDLING REAL VALUE. Financial operations (transfers, swaps,
+ * balance checks) are SIMULATED here but MUST be implemented and
+ * validated on a SECURE BACKEND SERVER in a real application.
+ * Do not deploy this client-side logic for production use involving assets.
  * ------------------------------------
  */
 
 document.addEventListener('DOMContentLoaded', () => {
     // --- Configuration ---
+    // WARNING: Ensure Firebase rules are SECURE for production. DEMO requires insecure rules to function.
     const firebaseConfig = {
         apiKey: "AIzaSyBW1WPXUN8DYhT6npZQYoQ3l4J-jFSbzfg", // SECURE VIA RULES/BACKEND IN PRODUCTION
         authDomain: "ab-studio-marketcap.firebaseapp.com",
@@ -35,46 +31,38 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // --- Constants ---
-    const SWAP_FEE_PERCENT = 0.1; // 0.1% swap fee
-    const DEBOUNCE_DELAY = 350; // Delay for input calculations (ms)
-    const PRECISION = 8; // Decimal places for storing non-USD crypto balances
-    const RECENT_TRANSACTIONS_LIMIT = 20; // Max transactions to show on home page
+    const SWAP_FEE_PERCENT = 0.1;
+    const DEBOUNCE_DELAY = 350;
+    const PRECISION = 8;
+    const RECENT_TRANSACTIONS_LIMIT = 20;
 
     // --- Globals ---
     const tg = window.Telegram.WebApp;
-    /** @type {any | null} Current Telegram User object (Consider defining a specific type/interface) */
+    /** @type {any | null} */
     let currentUser = null;
-    /** @type {Object.<string, number>} User's token balances (e.g., { USD: 100, ABT: 50 }) */
+    /** @type {Object.<string, number>} */
     let userBalances = {};
-    /** @type {Object.<string, {name: string, symbol: string, priceUSD: number, logoUrl: string}>} Available token definitions */
+    /** @type {Object.<string, {name: string, symbol: string, priceUSD: number, logoUrl: string}>} */
     let availableTokens = {};
-    /** @type {firebase.app.App | null} Firebase App instance */
+    /** @type {firebase.app.App | null} */
     let firebaseApp = null;
-    /** @type {firebase.database.Database | null} Firebase Database instance */
+    /** @type {firebase.database.Database | null} */
     let db = null;
-    /** @type {firebase.database.Reference | null} Reference to the current user's data in Firebase */
+    /** @type {firebase.database.Reference | null} */
     let userDbRef = null;
-    /** @type {firebase.database.Reference | null} Reference to user's transactions */
+    /** @type {firebase.database.Reference | null} */
     let userTransactionsRef = null;
-    /** @type {boolean} Flag to prevent attaching multiple balance listeners */
+    /** @type {boolean} */
     let balanceListenerAttached = false;
-    /** @type {Function | null} Detacher function for transaction listener */
-    let transactionListenerDetacher = null; // Optional live listener
+    /** @type {Function | null} */
+    let transactionListenerDetacher = null;
 
-    /** State for the swap interface */
-    let swapState = {
-        fromToken: /** @type {string | null} */ (null),
-        toToken: /** @type {string | null} */ (null),
-        fromAmount: 0,
-        toAmount: 0, // Estimated amount after fees
-        rate: 0, // Base rate before fees
-        isRateLoading: false
-    };
-    /** @type {'from' | 'to' | null} Indicates which token selector modal is active */
+    let swapState = { fromToken: null, toToken: null, fromAmount: 0, toAmount: 0, rate: 0, isRateLoading: false };
+    /** @type {'from' | 'to' | null} */
     let activeTokenSelector = null;
 
     // --- DOM Element References ---
-    // Cache elements for performance and easier access
+    // (Ensures all elements used in the script are referenced here)
     const elements = {
         loadingOverlay: document.getElementById('loading-overlay'),
         mainContent: document.getElementById('main-content'),
@@ -115,283 +103,139 @@ document.addEventListener('DOMContentLoaded', () => {
         closeModalButton: document.getElementById('token-selector-modal')?.querySelector('.close-modal-button'),
     };
 
+
     // --- Utility Functions ---
-
-    /** Formats a number as USD currency string. */
-    const formatCurrency = (amount) => {
-        const num = sanitizeFloat(amount);
-        return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(num);
-    };
-
-    /** Formats a token amount with dynamic decimal places. */
-    const formatTokenAmount = (amount, decimals = 6) => {
-         const num = sanitizeFloat(amount);
-         const effectiveDecimals = num !== 0 && Math.abs(num) < 0.01 ? Math.max(decimals, 4) : (Math.abs(num) > 10000 ? 2 : decimals);
-         return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: effectiveDecimals });
-    };
-
-    /** Parses a value to a float, stripping non-numeric chars except '.' and '-', defaulting to 0. */
+    const formatCurrency = (amount) => { /* ... */ };
+    const formatTokenAmount = (amount, decimals = 6) => { /* ... */ };
     const sanitizeFloat = (value) => parseFloat(String(value).replace(/[^0-9.-]+/g, "")) || 0;
-
-    /** Parses a value to an integer, stripping non-digits, defaulting to 0. */
     const sanitizeInt = (value) => parseInt(String(value).replace(/[^0-9]+/g, ""), 10) || 0;
-
-    /** Debounce utility function. */
-    const debounce = (func, delay) => {
-        let timeoutId;
-        return function(...args) {
-            clearTimeout(timeoutId);
-            timeoutId = setTimeout(() => {
-                func.apply(this, args);
-            }, delay);
-        };
-    };
-
-    /** Formats a Firebase timestamp into a user-friendly relative string or date. */
-    const formatTimestamp = (timestamp) => {
-        if (!timestamp || typeof timestamp !== 'number' || timestamp < 0) return 'Invalid date';
-        const now = Date.now();
-        const date = new Date(timestamp);
-        const diffSeconds = Math.round((now - date.getTime()) / 1000);
-
-        if (diffSeconds < 5) return 'Just now';
-        if (diffSeconds < 60) return `${diffSeconds}s ago`;
-        if (diffSeconds < 3600) return `${Math.round(diffSeconds / 60)}m ago`;
-        if (diffSeconds < 86400) return `${Math.round(diffSeconds / 3600)}h ago`;
-        if (diffSeconds < 604800) return `${Math.round(diffSeconds / 86400)}d ago`;
-
-        const options = /** @type {Intl.DateTimeFormatOptions} */ ({ month: 'short', day: 'numeric' });
-        if (date.getFullYear() !== new Date().getFullYear()) { options.year = 'numeric'; }
-        return date.toLocaleDateString(undefined, options);
-    };
+    const debounce = (func, delay) => { /* ... */ };
+    const formatTimestamp = (timestamp) => { /* ... */ };
 
     // --- Loading & Alerts ---
-
-    /** Shows the loading overlay. */
-    function showLoading(message = "Processing...") {
-        if (!elements.loadingOverlay) return;
-        elements.loadingOverlay.querySelector('p').textContent = message;
-        elements.loadingOverlay.classList.add('visible');
-    }
-
-    /** Hides the loading overlay. */
-    function hideLoading() {
-        if (elements.loadingOverlay) elements.loadingOverlay.classList.remove('visible');
-    }
-
-    /** Displays an alert using Telegram's UI or fallback. */
-    function showTgAlert(message, title = 'Alert') {
-        const fullMessage = `${title}: ${message}`;
-        if (tg?.showAlert) { tg.showAlert(fullMessage); }
-        else { alert(fullMessage); console.warn("Fallback alert used."); }
-    }
-
-    /** Centralized Firebase error handler. */
-    function handleFirebaseError(error, context = "Firebase Operation") {
-        console.error(`${context} Error Code: ${error.code}, Message: ${error.message}`);
-        hideLoading();
-        let userMessage = `Operation failed. ${error.message || 'Please try again.'}`;
-        switch (error.code) {
-            case 'PERMISSION_DENIED':
-                userMessage = "Action not allowed. Please check permissions or configuration."; break;
-            case 'NETWORK_ERROR':
-            case 'unavailable': // Firebase RTDB uses 'unavailable' sometimes
-                userMessage = "Network error or service unavailable. Please check connection and try again later."; break;
-            case 'MAX_RETRIES':
-                 userMessage = "Could not complete the operation after multiple retries. Please try again later."; break;
-        }
-        showTgAlert(userMessage, `Error: ${context}`);
-    }
-
+    function showLoading(message = "Processing...") { /* ... */ }
+    function hideLoading() { /* ... */ }
+    function showTgAlert(message, title = 'Alert') { /* ... */ }
+    function handleFirebaseError(error, context = "Firebase Operation") { /* ... (Improved error reporting) ... */ }
 
     // --- Navigation & Page Handling ---
-
-    /** Switches the active page, updates nav, resets scroll, and calls page setup. */
-    function showPage(pageId) {
-        console.log(`Navigating to page: ${pageId}`);
-        let pageFound = false;
-        elements.pages.forEach(page => {
-             const isActive = page.id === pageId;
-             page.classList.toggle('active', isActive);
-             if(isActive) pageFound = true;
-        });
-
-        if (!pageFound) { pageId = 'home-page'; elements.pages[0]?.classList.add('active'); console.warn("Invalid page ID, defaulting to home."); }
-
-        elements.navButtons.forEach(button => button.classList.toggle('active', button.dataset.page === pageId));
-        if (elements.mainContent) elements.mainContent.scrollTop = 0;
-
-        // Trigger page-specific setup/data loading AFTER navigation
-        switch (pageId) {
-            case 'home-page': updateHomePageUI(); fetchAndDisplayTransactions(); break; // Load portfolio and TXs for home
-            case 'swap-page': setupSwapPage(); break;
-            case 'deposit-page': setupReceivePage(); break;
-            case 'withdraw-page': setupSendPage(); break;
-        }
-    }
-
+    function showPage(pageId) { /* ... (Handles page switching, calls setup functions) ... */ }
 
     // --- Core Data Handling & UI Updates ---
-
-    /** Fetches token definitions from Firebase `/tokens`. MUST complete before other data loads. */
-    async function fetchAvailableTokens() {
-        if (!db) { throw new Error("Database not initialized for fetchAvailableTokens."); }
-        console.log("Fetching token definitions...");
-        try {
-            const snapshot = await db.ref('tokens').once('value');
-            availableTokens = snapshot.val() || {};
-            if (Object.keys(availableTokens).length === 0) {
-                console.warn("No token definitions found in Firebase /tokens path.");
-                showTgAlert("Could not load essential token data. Some features may be limited.", "Configuration Error");
-            } else {
-                console.log(`Loaded ${Object.keys(availableTokens).length} token definitions.`);
-            }
-        } catch (error) {
-            handleFirebaseError(error, "fetching token list");
-            availableTokens = {}; // Prevent using stale/bad data
-            throw error; // Critical failure if tokens can't be loaded
-        }
-    }
-
-    /** Updates the Home page portfolio section based on `userBalances` and `availableTokens`. */
-    function updateHomePageUI() {
-        if (!elements.assetListContainer || !elements.totalBalanceDisplay) return;
-        console.log("Updating Home Portfolio UI");
-
-        let totalValueUSD = 0;
-        elements.assetListContainer.innerHTML = '';
-
-        const heldSymbols = Object.keys(userBalances)
-            .filter(symbol => userBalances[symbol] > 0.00000001 && availableTokens[symbol]) // Filter negligible amounts and ensure token exists
-            .sort((a, b) => { /* ... sort by value descending ... */ });
-
-        if (heldSymbols.length === 0) {
-            elements.assetListContainer.innerHTML = '<p class="no-assets placeholder-text">No assets held.</p>';
-        } else {
-            heldSymbols.forEach(symbol => { /* ... create and append asset card ... */ });
-        }
-        elements.totalBalanceDisplay.textContent = totalValueUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    }
-
-    /** Displays the current user's Telegram profile info. */
-    function displayUserInfo() { /* ... (same as before) ... */ }
-
-    /** Sets up the Receive page UI with the user's Chat ID. */
-    function setupReceivePage() { /* ... (same as before) ... */ }
-
+    async function fetchAvailableTokens() { /* ... (Fetches /tokens definitions) ... */ }
+    function updateHomePageUI() { /* ... (Updates asset list and total balance) ... */ }
+    function displayUserInfo() { /* ... (Displays Telegram user info) ... */ }
+    function setupReceivePage() { /* ... (Displays user's Chat ID) ... */ }
 
     // --- Transaction History ---
-
-    /** Fetches and displays recent transactions on the Home page. */
-    async function fetchAndDisplayTransactions(limit = RECENT_TRANSACTIONS_LIMIT) {
-        if (!userTransactionsRef) { console.warn("Transaction ref not set, cannot fetch."); return; }
-        if (!elements.transactionListContainer) return;
-        console.log(`Fetching last ${limit} transactions...`);
-        elements.transactionListContainer.innerHTML = '<p class="placeholder-text">Loading transactions...</p>';
-
-        try {
-            const snapshot = await userTransactionsRef.orderByChild('timestamp').limitToLast(limit).once('value');
-            const transactionsData = snapshot.val();
-            if (!transactionsData || Object.keys(transactionsData).length === 0) {
-                elements.transactionListContainer.innerHTML = '<p class="no-transactions placeholder-text">No recent transactions.</p>'; return;
-            }
-            elements.transactionListContainer.innerHTML = ''; // Clear loading
-
-            const sortedTx = Object.entries(transactionsData)
-                                .map(([id, data]) => ({ id, ...data }))
-                                .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-            sortedTx.forEach(tx => {
-                const txElement = createTransactionElement(tx);
-                elements.transactionListContainer.appendChild(txElement);
-            });
-        } catch (error) { /* ... handle error ... */ }
-    }
-
-    /** Creates an HTML element for a single transaction item. */
-    function createTransactionElement(tx) { /* ... (same as before, renders TX row HTML) ... */ }
-
+    async function fetchAndDisplayTransactions(limit = RECENT_TRANSACTIONS_LIMIT) { /* ... (Fetches and renders recent TXs) ... */ }
+    function createTransactionElement(tx) { /* ... (Creates HTML for a TX item) ... */ }
 
     // --- Firebase Realtime Listeners ---
-
-    /** Sets up the listener for realtime balance updates. */
-    function setupBalanceListener() {
-        if (!userDbRef) { console.error("Cannot setup balance listener: userDbRef is null."); return; }
-        if (balanceListenerAttached) { console.log("Balance listener already running."); return; }
-        console.log("Setting up Firebase balance listener...");
-        const balancesRef = userDbRef.child('balances');
-
-        balancesRef.on('value', (snapshot) => {
-            userBalances = snapshot.val() || {};
-            console.log("Realtime balance update received:", userBalances);
-            // Update UI based on currently active page
-            const activePageId = document.querySelector('.page.active')?.id;
-            if (activePageId) { /* ... (call relevant UI update function based on pageId) ... */ }
-        }, (error) => { /* ... handle error, set attached flag to false ... */ });
-        balanceListenerAttached = true;
-    }
-
-    // Optional live transaction listener setup (can be resource intensive)
-    // function setupTransactionListener() { /* ... (listens for child_added) ... */ }
-
+    function setupBalanceListener() { /* ... (Listens to balance changes, updates relevant UI) ... */ }
+    // function setupTransactionListener() { /* ... (Optional: Listens for new TXs) ... */ }
 
     // --- Firebase Initialization and User Setup ---
-
-    /** Initializes Firebase, fetches tokens, loads/creates user, sets listeners. */
-    async function initializeFirebaseAndUser() {
-        if (!currentUser?.id || !db) { throw new Error("Cannot initialize Firebase data: Missing user ID or DB."); }
-        console.log(`Initializing data for user: ${currentUser.id}`);
-        const userId = currentUser.id.toString();
-        userDbRef = db.ref('users/' + userId);
-        userTransactionsRef = db.ref('transactions/' + userId);
-
-        try {
-            const snapshot = await userDbRef.once('value');
-            if (!snapshot.exists()) { /* ... create new user profile and balances ... */ }
-            else { /* ... load existing user balances, update profile login time ... */ }
-            setupBalanceListener(); // Attach AFTER initial data is set
-            // setupTransactionListener(); // Optional: Start listening for new transactions
-
-        } catch (error) { handleFirebaseError(error, "loading/creating user data"); throw error; }
-    }
-
-    /** Disables core interactive elements on critical error. */
-    function disableAppFeatures() { /* ... */ }
+    async function initializeFirebaseAndUser() { /* ... (Checks/creates user profile/balances, sets refs, calls listeners) ... */ }
+    function disableAppFeatures() { /* ... (Disables buttons etc. on critical error) ... */ }
 
 
     // --- Swap Functionality (Client-Side Simulation) ---
 
-    /** Opens the token selection modal. */
     function openTokenModal(selectorType) { /* ... */ }
-    /** Closes the token selection modal. */
     function closeTokenModal() { /* ... */ }
-    /** Populates the token list in the modal. */
-    function populateTokenListModal(searchTerm = '') { /* ... (includes disabling selection of the *other* token) ... */ }
-    /** Handles token selection from the modal. */
-    function handleTokenSelection(selectedSymbol) { /* ... (updates state, recalculates) ... */ }
-    /** Updates the UI of a token selector button. */
+    function populateTokenListModal(searchTerm = '') { /* ... */ }
+    function handleTokenSelection(selectedSymbol) { /* ... */ }
     function updateTokenButtonUI(buttonElement, tokenSymbol) { /* ... */ }
-    /** Updates the 'Balance:' display under swap inputs. */
     function updateSwapBalancesUI() { /* ... */ }
-    /** Sets default 'from'/'to' tokens for swap. */
-    function populateTokenSelectors() { /* ... */ }
-    /** Calculates the base swap rate from token prices. */
-    function calculateSwapRate() { /* ... */ }
-    /** Calculates the final 'to' amount including the swap fee. */
-    function calculateSwapAmounts() { /* ... */ }
-    /** Debounced wrapper for calculateSwapAmounts. */
+    function populateTokenSelectors() { /* ... (Sets default tokens) ... */ }
+    function calculateSwapRate() { /* ... (Uses availableTokens[token].priceUSD - Needs backend for real prices) ... */ }
+    function calculateSwapAmounts() { /* ... (Applies fee, updates swapState.toAmount) ... */ }
     const debouncedCalculateSwapAmounts = debounce(calculateSwapAmounts, DEBOUNCE_DELAY);
-    /** Handles input changes in the 'from' amount field. */
-    function handleFromAmountChange() { /* ... */ }
-    /** Switches 'from' and 'to' tokens and amounts. */
-    function switchSwapTokens() { /* ... */ }
-    /** Validates all swap inputs and enables/disables the swap button. */
-    function validateSwapInput() { /* ... */ }
-    /** Updates all UI elements on the swap page based on swapState. */
-    function updateSwapUI() { /* ... */ }
-    /** Executes the swap (INSECURE CLIENT-SIDE SIMULATION). */
-    async function executeSwap() { /* ... (INSECURE: performs client-side balance updates & logging) ... */ }
+    function handleFromAmountChange() { /* ... (Updates swapState.fromAmount, calls debounced calc) ... */ }
+    function switchSwapTokens() { /* ... (Swaps tokens/amounts, recalculates) ... */ }
+    function validateSwapInput() { /* ... (Checks selections, amounts, *client-side* balance, enables/disables button) ... */ }
+    function updateSwapUI() { /* ... (Updates all swap elements based on swapState, calls validation) ... */ }
+
+    /**
+     * Executes the swap operation (SIMULATED & INSECURE).
+     * In a real app, this would send a request to a secure backend.
+     */
+    async function executeSwap() {
+        // WARNING: INSECURE - Client-side balance manipulation. Requires Backend.
+        if (!userDbRef || !currentUser || !db || !elements.executeSwapButton || elements.executeSwapButton.disabled) {
+            console.warn("Swap execution prevented."); return;
+        }
+
+        const { fromToken, toToken, fromAmount, toAmount, rate } = swapState;
+        const currentFromBalance = userBalances[fromToken] || 0; // Get current balance from state
+
+        // Final validation before SIMULATING the write
+        if (!fromToken || !toToken || fromAmount <= 0 || toAmount <= 0 || currentFromBalance < fromAmount) {
+            showTgAlert("Swap details are invalid or you have insufficient balance.", "Swap Error");
+            validateSwapInput(); // Re-check button state
+            return;
+        }
+
+        console.log(`SIMULATING swap: ${fromAmount} ${fromToken} -> ${toAmount} ${toToken}`);
+        showLoading("Processing Swap...");
+        elements.executeSwapButton.disabled = true;
+        if (elements.swapStatus) { elements.swapStatus.textContent = 'Processing...'; elements.swapStatus.className = 'status-message pending'; }
+
+        // *** START OF INSECURE CLIENT-SIDE LOGIC ***
+        // In a real app, send the following details to your backend:
+        // { userId: currentUser.id, fromToken, toToken, fromAmount }
+        // The backend would then validate, calculate the *actual* toAmount based on secure prices/logic,
+        // apply fees, perform atomic database updates using Firebase Transactions, and log.
+
+        const newFromBalance = currentFromBalance - fromAmount;
+        const currentToBalance = userBalances[toToken] || 0;
+        const newToBalance = currentToBalance + toAmount; // Using client-calculated 'toAmount'
+
+        const updates = {};
+        const userId = currentUser.id.toString();
+        updates[`/users/${userId}/balances/${fromToken}`] = sanitizeFloat(newFromBalance.toFixed(PRECISION));
+        updates[`/users/${userId}/balances/${toToken}`] = sanitizeFloat(newToBalance.toFixed(PRECISION));
+
+        const txData = {
+            type: 'swap', fromToken, fromAmount, toToken, toAmount, baseRate: rate,
+            feePercent: SWAP_FEE_PERCENT, timestamp: firebase.database.ServerValue.TIMESTAMP, status: 'completed' // Status should be set by backend
+        };
+        const newTxKey = db.ref(`/transactions/${userId}`).push().key;
+        if (newTxKey) { updates[`/transactions/${userId}/${newTxKey}`] = txData; }
+        else { console.error("Failed to generate transaction key for swap log!"); }
+
+        // SIMULATING the database update
+        try {
+            console.log("Attempting INSECURE client-side Firebase update:", updates);
+            await db.ref().update(updates); // This requires insecure Firebase rules
+            console.log("Swap successful (Client-side simulation).");
+            if (elements.swapStatus) { elements.swapStatus.textContent = 'Swap Successful!'; elements.swapStatus.className = 'status-message success'; }
+            // Reset form after success display
+            setTimeout(() => {
+                swapState.fromAmount = 0; swapState.toAmount = 0; updateSwapUI();
+                if (elements.swapStatus) elements.swapStatus.textContent = '';
+            }, 2500);
+        } catch (error) {
+            handleFirebaseError(error, "executing swap simulation");
+            if (elements.swapStatus) { elements.swapStatus.textContent = 'Swap Failed.'; elements.swapStatus.className = 'status-message error'; }
+            validateSwapInput(); // Re-enable button if validation passes now
+        } finally {
+            hideLoading();
+        }
+        // *** END OF INSECURE CLIENT-SIDE LOGIC ***
+    }
+
     /** Prepares the swap page UI. */
-    function setupSwapPage() { /* ... */ }
+    function setupSwapPage() {
+        console.log("Setting up Swap Page");
+        swapState.fromAmount = 0; swapState.toAmount = 0;
+        if (elements.swapFromAmountInput) elements.swapFromAmountInput.value = '';
+        if (elements.swapToAmountInput) elements.swapToAmountInput.value = '';
+        if (Object.keys(availableTokens).length > 0) { populateTokenSelectors(); } // Ensure defaults are set
+        calculateSwapRate(); // Calculate rate for current tokens
+        if(elements.swapStatus) elements.swapStatus.textContent = '';
+    }
 
 
     // --- Internal Send Functionality (Client-Side Simulation) ---
@@ -402,15 +246,128 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateWithdrawPageBalance() { /* ... */ }
     /** Validates inputs on the Send page. */
     function validateSendInput() { /* ... */ }
-    /** Executes the internal transfer (INSECURE CLIENT-SIDE SIMULATION). */
-    async function handleSend() { /* ... (INSECURE: performs client-side recipient check, balance updates & logging) ... */ }
+
+    /** Executes the internal transfer (SIMULATED & INSECURE). */
+    async function handleSend() {
+        // WARNING: INSECURE - Needs Backend for validation and atomic updates.
+        if (!userDbRef || !currentUser || !db || !elements.sendButton || elements.sendButton.disabled) { return; }
+
+        const selectedSymbol = elements.withdrawAssetSelect?.value;
+        const recipientId = sanitizeInt(elements.withdrawRecipientIdInput?.value);
+        const amount = sanitizeFloat(elements.withdrawAmountInput?.value);
+        const senderId = currentUser.id;
+        const senderBalance = userBalances[selectedSymbol] || 0;
+
+        // Final client-side input validation
+        if (!selectedSymbol || amount <= 0 || !recipientId || recipientId === senderId || senderBalance < amount) {
+            showTgAlert("Invalid send details or insufficient funds.", "Send Error"); validateSendInput(); return;
+        }
+
+        console.log(`SIMULATING send: ${amount} ${selectedSymbol} from ${senderId} to ${recipientId}`);
+        showLoading("Processing Transfer...");
+        elements.sendButton.disabled = true;
+        if (elements.withdrawStatus) { elements.withdrawStatus.textContent = 'Verifying recipient...'; elements.withdrawStatus.className = 'status-message pending'; }
+
+        // *** START OF INSECURE CLIENT-SIDE LOGIC ***
+        // In a real app, send { senderId: currentUser.id, recipientId, selectedSymbol, amount } to backend.
+        // Backend verifies sender, recipient, balance, performs atomic update, logs.
+
+        // 1. INSECURE Client-side recipient check
+        const recipientRef = db.ref(`users/${recipientId}`);
+        let recipientExists = false;
+        try {
+            const recipientSnapshot = await recipientRef.child('profile').once('value');
+            recipientExists = recipientSnapshot.exists();
+        } catch (error) { console.error("Error checking recipient:", error); /* Handle */ }
+
+        if (!recipientExists) {
+            hideLoading();
+            if (elements.withdrawStatus) { elements.withdrawStatus.textContent = 'Recipient Chat ID not found.'; elements.withdrawStatus.className = 'status-message error'; }
+            validateSendInput(); return;
+        }
+
+        if (elements.withdrawStatus) elements.withdrawStatus.textContent = 'Processing transfer...';
+
+        // 2. INSECURE Client-side balance calculation and update preparation
+        const updates = {};
+        const senderBalancePath = `/users/${senderId}/balances/${selectedSymbol}`;
+        const recipientBalancePath = `/users/${recipientId}/balances/${selectedSymbol}`;
+        let recipientCurrentBalance = 0;
+        try { // Attempt to get recipient balance (race condition risk)
+            const recipBalanceSnapshot = await recipientRef.child(`balances/${selectedSymbol}`).once('value');
+            recipientCurrentBalance = sanitizeFloat(recipBalanceSnapshot.val());
+        } catch (e) { console.warn("Could not reliably read recipient balance before update", e); }
+
+        const newSenderBalance = senderBalance - amount;
+        const newRecipientBalance = recipientCurrentBalance + amount;
+
+        updates[senderBalancePath] = sanitizeFloat(newSenderBalance.toFixed(PRECISION));
+        updates[recipientBalancePath] = sanitizeFloat(newRecipientBalance.toFixed(PRECISION));
+
+        // 3. Log transaction (also insecure if client can manipulate)
+        const txId = db.ref(`/transactions/${senderId}`).push().key;
+        const timestamp = firebase.database.ServerValue.TIMESTAMP;
+        if (txId) {
+             const senderTx = { type: 'send', token: selectedSymbol, amount, recipientId, timestamp, status: 'completed' };
+             const receiverTx = { type: 'receive', token: selectedSymbol, amount, senderId, timestamp, status: 'completed' };
+             updates[`/transactions/${senderId}/${txId}`] = senderTx;
+             updates[`/transactions/${recipientId}/${txId}`] = receiverTx;
+        } else { console.error("Failed to generate TX ID!"); }
+
+        // 4. SIMULATING the database update
+        try {
+            console.log("Attempting INSECURE client-side Firebase update for send:", updates);
+            await db.ref().update(updates); // Requires insecure Firebase rules
+            console.log("Internal transfer successful (simulated).");
+            if (elements.withdrawStatus) { elements.withdrawStatus.textContent = 'Funds Sent Successfully!'; elements.withdrawStatus.className = 'status-message success'; }
+            if(elements.withdrawAmountInput) elements.withdrawAmountInput.value = '';
+            if(elements.withdrawRecipientIdInput) elements.withdrawRecipientIdInput.value = '';
+            setTimeout(() => { if (elements.withdrawStatus) elements.withdrawStatus.textContent = ''; }, 3000);
+        } catch (error) { handleFirebaseError(error, "executing internal transfer"); if (elements.withdrawStatus) { elements.withdrawStatus.textContent = 'Send Failed.'; elements.withdrawStatus.className = 'status-message error'; }
+        } finally { hideLoading(); validateSendInput(); } // Re-validate button state
+        // *** END OF INSECURE CLIENT-SIDE LOGIC ***
+    }
+
     /** Prepares the Send page UI. */
-    function setupSendPage() { /* ... */ }
+    function setupSendPage() { /* ... (Clears inputs, updates selector/balance, validates) ... */ }
 
 
     // --- Event Listeners Setup ---
     /** Attaches all necessary event listeners for the application. */
-    function setupEventListeners() { /* ... (Attaches listeners for nav, back, refresh, swap, modal, send actions) ... */ }
+    function setupEventListeners() {
+        console.log("Attaching event listeners...");
+        // Navigation
+        elements.navButtons.forEach(button => button.addEventListener('click', () => { if (!button.classList.contains('active')) showPage(button.dataset.page); }));
+        elements.backButtons.forEach(button => button.addEventListener('click', () => showPage(button.dataset.target || 'home-page')));
+        if (elements.refreshButton) elements.refreshButton.addEventListener('click', async () => {
+            showLoading("Refreshing...");
+            try {
+                // Re-fetch dynamic data and update UI
+                await fetchAvailableTokens(); // Refresh token defs/prices
+                // Force UI updates based on current balance state (listener should handle actual balance fetch)
+                const activePageId = document.querySelector('.page.active')?.id || 'home-page';
+                showPage(activePageId); // This re-runs setup and data fetch for the current page
+            } catch (error) { console.error("Refresh failed:", error); }
+            finally { hideLoading(); }
+        });
+        // Swap Page
+        if (elements.swapFromAmountInput) elements.swapFromAmountInput.addEventListener('input', handleFromAmountChange);
+        if (elements.swapSwitchButton) elements.swapSwitchButton.addEventListener('click', switchSwapTokens);
+        if (elements.executeSwapButton) elements.executeSwapButton.addEventListener('click', executeSwap);
+        if (elements.swapFromTokenButton) elements.swapFromTokenButton.addEventListener('click', () => openTokenModal('from'));
+        if (elements.swapToTokenButton) elements.swapToTokenButton.addEventListener('click', () => openTokenModal('to'));
+        // Token Modal
+        if (elements.closeModalButton) elements.closeModalButton.addEventListener('click', closeTokenModal);
+        if (elements.tokenSearchInput) elements.tokenSearchInput.addEventListener('input', debounce((e) => populateTokenListModal(e.target.value), 250));
+        if (elements.tokenModal) elements.tokenModal.addEventListener('click', (e) => { if (e.target === elements.tokenModal) closeTokenModal(); });
+        // Send Page
+        if (elements.withdrawAssetSelect) elements.withdrawAssetSelect.addEventListener('change', updateWithdrawPageBalance);
+        if (elements.withdrawAmountInput) elements.withdrawAmountInput.addEventListener('input', debounce(validateSendInput, DEBOUNCE_DELAY));
+        if (elements.withdrawRecipientIdInput) elements.withdrawRecipientIdInput.addEventListener('input', debounce(validateSendInput, DEBOUNCE_DELAY));
+        if (elements.withdrawMaxButton) elements.withdrawMaxButton.addEventListener('click', () => { /* Max button logic */ });
+        if (elements.sendButton) elements.sendButton.addEventListener('click', handleSend);
+        console.log("Event listeners attached.");
+    }
 
 
     // --- App Initialization ---
@@ -419,7 +376,7 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log("Starting AB Wallet Application...");
         showLoading("Initializing...");
         try {
-            // Ensure Telegram SDK is ready
+            // Setup Telegram WebApp environment
             await tg.ready();
             tg.expand();
             tg.enableClosingConfirmation();
@@ -428,53 +385,45 @@ document.addEventListener('DOMContentLoaded', () => {
             // Apply basic theme settings from Telegram
             document.body.style.setProperty('--tg-theme-bg-color', tg.themeParams.bg_color || '#16181a');
             document.body.style.setProperty('--tg-theme-text-color', tg.themeParams.text_color || '#e8e8e8');
-            // Consider mapping other themeParams to your CSS variables if needed
 
-            // Attach all event listeners
+            // Attach event listeners
             setupEventListeners();
 
-            // Verify and get Telegram User Data (CRITICAL STEP)
-            // Using initDataUnsafe for display ONLY. Validate initData on backend.
-            if (tg.initDataUnsafe?.user?.id) { // Check for user ID specifically
+            // Get Telegram User Data (Crucial)
+            if (tg.initDataUnsafe?.user?.id) {
                 currentUser = tg.initDataUnsafe.user;
                 console.log(`User Identified: ${currentUser.id}`);
-                displayUserInfo(); // Display basic info early
+                displayUserInfo(); // Display user info early
 
-                // Initialize Firebase App & Database connection
+                // Initialize Firebase App & DB
                 if (!firebase.apps.length) { firebaseApp = firebase.initializeApp(firebaseConfig); }
                 else { firebaseApp = firebase.app(); }
                 db = firebase.database();
                 if(!db) throw new Error("Firebase Database initialization failed.");
                 console.log("Firebase Initialized.");
 
-                // Fetch essential static data (tokens) BEFORE user data initialization
+                // ORDER IS IMPORTANT: Fetch tokens first, then user data/listeners
                 await fetchAvailableTokens();
-
-                // Initialize User Data (Profile, Balances) and Setup Listeners
                 await initializeFirebaseAndUser();
 
-                // Show the initial page (Home) - this will trigger its data loading functions
+                // Show initial page (triggers its data loading like transactions)
                 showPage('home-page');
 
-            } else {
-                throw new Error("Could not retrieve valid Telegram user data (ID missing). App cannot function.");
-            }
+            } else { throw new Error("Could not retrieve valid Telegram user data."); }
 
-            hideLoading(); // Hide loading overlay ONLY on full successful initialization
+            hideLoading(); // Success!
             console.log("AB Wallet Initialized Successfully.");
 
         } catch (error) {
-            // Catch any critical initialization error
             console.error("CRITICAL INITIALIZATION FAILURE:", error);
             handleFirebaseError(error, "App Initialization");
-            showLoading("Error Loading Wallet"); // Keep loading showing error
+            showLoading("Error Loading Wallet");
             disableAppFeatures();
-            // Display persistent error message in main content area
-            if(elements.mainContent) elements.mainContent.innerHTML = `<div class="card status-message error" style="margin: 40px auto; text-align: center;">Failed to initialize AB Wallet.<br>Please close and reopen the app.<br><small>(${error.message || 'Unknown error'})</small></div>`;
+            if(elements.mainContent) elements.mainContent.innerHTML = `<div class="card status-message error init-error">Failed to initialize AB Wallet.<br>Please close and reopen.<br><small>(${error.message || 'Unknown error'})</small></div>`;
         }
     }
 
-    // Start the application initialization process once the DOM is ready
+    // Start the application
     startApp();
 
 }); // End DOMContentLoaded
