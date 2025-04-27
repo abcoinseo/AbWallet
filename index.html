@@ -173,7 +173,7 @@
                      </div>
                     <div class="form-group">
                         <label for="withdraw-recipient-id">Recipient's Chat ID:</label>
-                        <input type="number" id="withdraw-recipient-id" placeholder="Enter recipient's numeric Chat ID">
+                        <input type="number" id="withdraw-recipient-id" inputmode="numeric" pattern="[0-9]*" placeholder="Enter recipient's numeric Chat ID"> <!-- Added inputmode -->
                     </div>
                     <div class="form-group">
                         <label for="withdraw-amount">Amount:</label>
@@ -190,7 +190,7 @@
 
         <!-- Bottom Navigation Bar -->
         <nav id="bottom-nav">
-            <button data-page="home-page" class="nav-button active" aria-label="Home">
+             <button data-page="home-page" class="nav-button active" aria-label="Home">
                  <span class="material-icons-outlined">account_balance_wallet</span>
                 <span>Home</span>
             </button>
@@ -238,13 +238,12 @@
                  var clipboard = new ClipboardJS('.copy-button');
                  clipboard.on('success', function(e) {
                      const icon = e.trigger.querySelector('.material-icons-outlined');
-                     const originalIcon = icon ? icon.textContent : '';
+                     const originalIcon = icon ? icon.textContent : 'content_copy';
                      if(icon) {
                          icon.textContent = 'done'; // Visual feedback: checkmark
-                         e.trigger.classList.add('copied'); // Add class for potential styling
+                         e.trigger.classList.add('copied');
                      }
                      e.clearSelection();
-                     // Revert after a delay
                      setTimeout(() => {
                          if(icon) icon.textContent = originalIcon;
                          e.trigger.classList.remove('copied');
@@ -252,10 +251,10 @@
                  });
                  clipboard.on('error', function(e) {
                      console.error('Clipboard error:', e);
-                     // Optionally provide user feedback on copy error
                      const icon = e.trigger.querySelector('.material-icons-outlined');
-                      if(icon) icon.textContent = 'error_outline'; // Error icon
-                      setTimeout(() => { if(icon) icon.textContent = 'content_copy'; }, 1500); // Revert later
+                     const originalIcon = icon ? icon.textContent : 'content_copy';
+                     if(icon) icon.textContent = 'error_outline'; // Error icon
+                     setTimeout(() => { if(icon) icon.textContent = originalIcon; }, 1500);
                  });
             } else {
                 console.warn("ClipboardJS library not loaded.");
